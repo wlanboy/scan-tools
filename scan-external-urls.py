@@ -55,7 +55,7 @@ KNOWN_TLDS = {
     # Generic gTLDs
     "com", "org", "net", "edu", "gov", "mil", "int", "info", "biz",
     # Tech/cloud gTLDs
-    "io", "co", "ai", "app", "dev", "cloud", "tech", "online", "site",
+    "io", "co", "ai", "app", "dev", "tech", "online", "site",
     # Common ccTLDs
     "ac", "ae", "at", "au", "be", "br", "ca", "ch", "cn", "cz",
     "de", "dk", "es", "eu", "fi", "fr", "gr", "hk", "hu",
@@ -145,16 +145,23 @@ def is_binary(path: str) -> bool:
 
 def is_test_file(path: str) -> bool:
     lower = path.lower()
+    basename = os.path.basename(lower)
     return (
         "/test/" in lower
         or "/tests/" in lower
         or "\\test\\" in lower
         or "\\tests\\" in lower
-        or os.path.basename(lower).startswith("test_")
-        or os.path.basename(lower).endswith("_test.py")
-        or os.path.basename(lower).endswith(".test.ts")
-        or os.path.basename(lower).endswith(".spec.ts")
-        or os.path.basename(lower).endswith("Test.java")
+        or basename.startswith("test_")
+        or basename.endswith("_test.py")
+        or basename.endswith("_test.go")
+        or basename.endswith(".test.ts")
+        or basename.endswith(".test.js")
+        or basename.endswith(".test.jsx")
+        or basename.endswith(".spec.ts")
+        or basename.endswith(".spec.js")
+        or basename.endswith(".spec.jsx")
+        or basename.endswith("test.java")
+        or basename.endswith("_spec.rb")
     )
 
 
@@ -431,7 +438,7 @@ Examples:
     )
     parser.add_argument(
         "--whitelist", metavar="FILE",
-        help="JSON file with ip_ranges, hostnames, and email_domains to whitelist",
+        help="JSON file with ip_ranges, hostnames, email_domains, and urls to whitelist",
     )
     return parser
 
