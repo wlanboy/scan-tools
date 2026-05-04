@@ -121,7 +121,7 @@ PATTERNS = [
         'oauth_secret',
         'OAuth Secret',
         re.compile(
-            r'(?:client_secret|oauth_secret|consumer_secret|'
+            r'(?:client_secret|clientSecret|oauth_secret|consumer_secret|'
             r'app_secret|api_secret|token_secret)\s*[=:]\s*["\']([^"\']{8,})["\']',
             re.IGNORECASE,
         ),
