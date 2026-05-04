@@ -3,8 +3,7 @@
 """
 scan-secrets.py - Scans a git repository for credentials and secrets:
   Basic Auth (URL and header), Bearer tokens, OAuth tokens/secrets,
-  API keys, private keys, AWS credentials, GitHub tokens, JWT tokens,
-  Slack tokens, Stripe keys, Google API keys, and generic passwords.
+  API keys, private keys, JWT tokens and generic passwords.
 
 Exit codes:
   0 - No findings (or --no-fail set)
@@ -113,7 +112,7 @@ PATTERNS = [
         'OAuth Token',
         re.compile(
             r'(?:oauth_token|access_token|oauth_access_token|'
-            r'refresh_token|id_token)\s*[=:]\s*["\']([^"\']{10,})["\']',
+            r'refresh_token|id_token)\s*[=:]\s*["\']?([^\s"\'#\[\]{},]{10,})["\']?',
             re.IGNORECASE,
         ),
     ),
@@ -122,7 +121,7 @@ PATTERNS = [
         'OAuth Secret',
         re.compile(
             r'(?:client_secret|clientSecret|oauth_secret|consumer_secret|'
-            r'app_secret|api_secret|token_secret)\s*[=:]\s*["\']([^"\']{8,})["\']',
+            r'app_secret|api_secret|token_secret)\s*[=:]\s*["\']?([^\s"\'#\[\]{},]{8,})["\']?',
             re.IGNORECASE,
         ),
     ),
