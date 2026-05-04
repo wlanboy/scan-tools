@@ -16,9 +16,10 @@ Eine Sammlung einfacher Security-Scanner für Git-Repositories, Node.js-Projekte
 | [`scan-external-urls.py`](#1-scan-external-urlspy) | URLs, E-Mails, Hostnamen und IPs im Git-Repository aufspüren |
 | [`scan-npm.py`](#2-scan-npmpy) | JS/NPM-Trojaner und Supply-Chain-Angriffe erkennen |
 | [`scan-proxy.py`](#3-scan-proxypy) | Alle Proxy-Konfigurationen eines Systems inventarisieren |
-| [`whitelist.json`](#4-whitelistjson) | Erlaubte Hosts/IPs/Domains für den URL-Scanner |
-| [`test_scan_npm.py`](#5-test_scan_npmpy) | Unit-Tests für den NPM-Scanner (pytest / unittest) |
-| [`testproject.sh`](#6-testprojectsh) | Test-Fixture, das alle NPM-Scanner-Regeln triggert |
+| [`scan-secrets.py`](#4-scan-secretspy) | Credentials und Secrets im Git-Repository aufspüren |
+| [`whitelist.json`](#5-whitelistjson) | Erlaubte Hosts/IPs/Domains für den URL-Scanner |
+| [`test_scan_npm.py`](#6-test_scan_npmpy) | Unit-Tests für den NPM-Scanner (pytest / unittest) |
+| [`testproject.sh`](#7-testprojectsh) | Test-Fixture, das alle NPM-Scanner-Regeln triggert |
 
 ---
 
@@ -317,7 +318,79 @@ Das Format ist maschinenlesbar und eignet sich direkt für die Verarbeitung mit 
 
 ---
 
-## 4. `whitelist.json`
+## 4. `scan-secrets.py`
+
+### Secrets Funktion
+
+Scannt ein komplettes Git-Repository nach hartcodierten Credentials und Secrets: Basic-Auth-Zugangsdaten (in URLs und HTTP-Headern), Bearer- und OAuth-Token, OAuth-Secrets, API-Keys, SSH/TLS-Private-Keys, AWS-Credentials, GitHub-Token, JWT-Token, Artifactory/JFrog-Token sowie Bitbucket/Atlassian-Token.
+
+### Secrets Einsatzgebiet
+
+- **CI/CD-Pipelines** — vor jedem Merge prüfen, ob Secrets versehentlich in den Code aufgenommen wurden
+- **Security-Audits** — systematisch alle Repositories auf geleakte Credentials untersuchen
+- **Pre-commit-Checks** — Entwickler frühzeitig warnen, bevor Secrets den Server erreichen
+- **Incident Response** — nach einem Leakage-Verdacht gezielt nach exponierten Credentials suchen
+
+### Secrets Kategorien
+
+| Kategorie | Beschreibung | Erkennungsbeispiel |
+| ----------- | ------------- | ------------------- |
+| `private_key` | PEM-Private-Keys (RSA, EC, DSA, OpenSSH, PGP, PKCS#8 encrypted) | `-----BEGIN RSA PRIVATE KEY-----` |
+| `jwt_token` | JSON Web Tokens (drei Base64url-Teile) | `eyJ...eyJ...` |
+| `basic_auth_url` | Credentials in URLs | `https://user:pass@host` |
+| `basic_auth_header` | Base64-kodierter Authorization-Header | `Authorization: Basic dXNlcjpwYXNz` |
+| `bearer_token` | Bearer-Token im Authorization-Header | `Authorization: Bearer ya29.abc...` |
+| `oauth_token` | OAuth Access-/Refresh-/ID-Token in Code | `access_token = "ya29.real..."` |
+| `oauth_secret` | OAuth Client-/App-/Consumer-Secret | `client_secret = "ab12cd34..."` |
+| `password` | Passwörter in Konfiguration oder Code | `password = "MyR3alP@ss"` |
+| `generic_secret` | Allgemeine Secret-/Credential-Zuweisungen | `signing_key = "abc123..."` |
+| `artifactory_token` | Artifactory/JFrog API-Keys und Token | `ARTIFACTORY_TOKEN=...`, `_authToken=...` |
+| `bitbucket_token` | Bitbucket/Atlassian Token | `ATBB...`, `ATCTT...`, `ATATT...`, `BITBUCKET_TOKEN=...` |
+
+### Secrets Besonderheiten
+
+- **Platzhalter-Filter**: Template-Werte wie `<your-token>`, `${TOKEN}`, `changeme`, `example`, `{{secret}}` werden automatisch herausgefiltert
+- **Einzelzeichen-Wiederholung**: Werte wie `aaaaaaaaaa` oder `11111111` werden ignoriert
+- Nutzt `git ls-files` — prüft nur versionskontrollierte Dateien, respektiert `.gitignore`
+- Binäre Dateien und Lock-Files werden übersprungen
+- Kompatibel mit Python 2.7 und 3.x
+
+### Secrets Verwendung
+
+```bash
+# Aktuelles Repository scannen (alle Kategorien)
+python scan-secrets.py
+
+# Bestimmten Pfad scannen, Testdateien überspringen
+python scan-secrets.py /pfad/zum/repo --skip-tests
+
+# Nur bestimmte Kategorien prüfen
+python scan-secrets.py --categories oauth_secret api_key artifactory_token
+
+# JSON-Ausgabe für CI-Pipelines
+python scan-secrets.py --format json
+
+# Bekannte sichere Muster unterdrücken
+python scan-secrets.py --allow "example\\.com" "localhost"
+
+# Erlaubmuster aus Datei laden (ein Regex pro Zeile)
+python scan-secrets.py --allow-file .secrets-allowlist
+
+# Bei Befunden nicht fehlschlagen (für Reporting ohne CI-Abbruch)
+python scan-secrets.py --no-fail
+```
+
+### Secrets Exit-Codes
+
+| Code | Bedeutung |
+| ------ | ----------- |
+| `0` | Keine Befunde (oder `--no-fail` gesetzt) |
+| `1` | Befunde gefunden |
+| `2` | Skriptfehler (kein Git-Repo, ungültige Argumente) |
+
+---
+
+## 5. `whitelist.json`
 
 ### Whitelist
 
@@ -349,7 +422,17 @@ Die mitgelieferte `whitelist.json` enthält:
 
 ---
 
-## 5. testproject.sh
+## 6. `test_scan_npm.py`
+
+Unit-Tests für `scan-npm.py` auf Basis von `pytest` / `unittest`. Prüft alle Erkennungsregeln isoliert gegen kontrollierte Eingabe-Strings.
+
+```bash
+uv run pytest test_scan_npm.py -v
+```
+
+---
+
+## 7. testproject.sh
 
 ### Beschreibung
 
@@ -385,6 +468,7 @@ bash testproject.sh
 | Hat dieses Repository externe URLs/IPs/E-Mails, die nicht dort sein sollten? | `scan-external-urls.py` |
 | Enthält dieses npm-Paket oder JS-Projekt Schadsoftware oder Supply-Chain-Risiken? | `scan-npm.py` |
 | Welche Proxy-Einstellungen sind auf diesem System aktiv? | `scan-proxy.py` |
+| Liegen Passwörter, API-Keys oder OAuth-Secrets im Code? | `scan-secrets.py` |
 | Welche Hosts und IPs sind für den URL-Scanner dauerhaft erlaubt? | `whitelist.json` |
 
 ---
