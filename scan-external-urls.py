@@ -310,7 +310,7 @@ CATEGORY_ICONS = {
 
 def print_text_report(findings: list[Finding]) -> None:
     if not findings:
-        print("✓ No external references found.")
+        print("No external references found.")
         return
 
     by_category: dict[str, list[Finding]] = {}
