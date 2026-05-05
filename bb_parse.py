@@ -11,7 +11,7 @@ def cloud_urls():
     data = load()
     for r in data.get('values', []):
         links = r.get('links', {}).get('clone', [])
-        https = next((l['href'] for l in links if l['name'] == 'https'), None)
+        https = next((lnk['href'] for lnk in links if lnk['name'] == 'https'), None)
         print(https or '')
 
 def cloud_next():
@@ -22,7 +22,7 @@ def server_urls():
     data = load()
     for r in data.get('values', []):
         links = r.get('links', {}).get('clone', [])
-        http = next((l['href'] for l in links if l['name'] == 'http'), None)
+        http = next((lnk['href'] for lnk in links if lnk['name'] == 'http'), None)
         print(http or '')
 
 def server_islast():
