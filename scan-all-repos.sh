@@ -113,9 +113,9 @@ for REPO in "${REPOS[@]}"; do
         echo "------------------------------------------------------------------------"
     } >> "$OUTPUT_FILE"
 
-    # Run scanner; capture stdout+stderr; --no-fail so script doesn't abort on findings
-    SCAN_OUTPUT=$("$PYTHON" "$SCANNER" "$REPO" --no-fail "${EXTRA_ARGS[@]}" 2>&1) || true
-    EXIT_CODE=$?
+    # Run scanner; capture stdout+stderr; || EXIT_CODE=$? prevents set -e from aborting
+    EXIT_CODE=0
+    SCAN_OUTPUT=$("$PYTHON" "$SCANNER" "$REPO" "${EXTRA_ARGS[@]}" 2>&1) || EXIT_CODE=$?
 
     echo "$SCAN_OUTPUT" >> "$OUTPUT_FILE"
     echo "" >> "$OUTPUT_FILE"
