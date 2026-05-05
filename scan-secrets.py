@@ -291,7 +291,7 @@ def scan_line(line_text, allow_patterns, categories):
             if is_placeholder(secret):
                 continue
             # basic_auth_url: also check the password group (group 2)
-            if category == 'basic_auth_url' and m.lastindex >= 2:
+            if category == 'basic_auth_url' and (m.lastindex or 0) >= 2:
                 if is_placeholder(m.group(2)):
                     continue
             if matches_any(matched, allow_patterns):
