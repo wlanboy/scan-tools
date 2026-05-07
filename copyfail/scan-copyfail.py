@@ -103,7 +103,7 @@ def check_audit_log() -> None:
             ["ausearch", "-f", SU_PATH, "--format", "raw"],
             capture_output=True, text=True, timeout=10,
         )
-        lines = [l for l in result.stdout.splitlines() if "python" in l.lower()]
+        lines = [line for line in result.stdout.splitlines() if "python" in line.lower()]
         if lines:
             emit("FINDING_AUDIT_SU_PYTHON",
                  "{0} audit event(s) show python accessing {1}".format(len(lines), SU_PATH))
