@@ -7,11 +7,26 @@ import re
 import socket
 import subprocess
 import sys
+import time
 
-VULNERABLE_KERNEL_MIN = (4, 10)
-VULNERABLE_KERNEL_MAX = (6, 14)
-VULNERABLE_MODULE     = "algif_aead"
-SU_PATH               = "/usr/bin/su"
+# ---------------------------------------------------------------------------
+# Copy.Fail (CVE-2026-31431) — algif_aead / AF_ALG
+# ---------------------------------------------------------------------------
+COPYFAIL_KERNEL_MIN = (4, 10)
+COPYFAIL_KERNEL_MAX = (6, 14)
+COPYFAIL_MODULE     = "algif_aead"
+
+# ---------------------------------------------------------------------------
+# Dirty Frag — xfrm-ESP (esp4/esp6) and RxRPC variants (no patch as of 2026-05-08)
+# xfrm-ESP : since commit cac2661c53f3 (Jan 2017, ~4.10)
+# RxRPC    : since commit 2dc334f1a63a (Jun 2023, ~6.4)
+# ---------------------------------------------------------------------------
+DIRTYFRAG_ESP_KERNEL_MIN   = (4, 10)
+DIRTYFRAG_RXRPC_KERNEL_MIN = (6, 4)
+DIRTYFRAG_MODULES          = ["esp4", "esp6", "rxrpc"]
+
+SU_PATH     = "/usr/bin/su"
+PASSWD_PATH = "/etc/passwd"
 
 # Known-good SHA-256 hashes of /usr/bin/su per distro package.
 # Extend this dict with hashes from your package manager:
@@ -32,7 +47,7 @@ def emit(tag: str, detail: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Kernel & module
+# Kernel & module helpers
 # ---------------------------------------------------------------------------
 
 def get_kernel_version() -> str:
@@ -51,11 +66,19 @@ def parse_kernel_tuple(version_str: str) -> tuple[int, int] | None:
     return (int(m.group(1)), int(m.group(2)))
 
 
-def is_kernel_vulnerable(version_tuple: tuple[int, int]) -> bool:
-    return VULNERABLE_KERNEL_MIN <= version_tuple <= VULNERABLE_KERNEL_MAX
+def is_copyfail_vulnerable(v: tuple[int, int]) -> bool:
+    return COPYFAIL_KERNEL_MIN <= v <= COPYFAIL_KERNEL_MAX
 
 
-def check_module_loaded(module_name: str) -> bool:
+def is_dirtyfrag_esp_vulnerable(v: tuple[int, int]) -> bool:
+    return v >= DIRTYFRAG_ESP_KERNEL_MIN
+
+
+def is_dirtyfrag_rxrpc_vulnerable(v: tuple[int, int]) -> bool:
+    return v >= DIRTYFRAG_RXRPC_KERNEL_MIN
+
+
+def check_module_loaded(module_name: str, finding_tag: str = "FINDING_MODULE_LOADED") -> bool:
     try:
         result = subprocess.run(["lsmod"], capture_output=True, text=True, timeout=5)
         loaded = any(
@@ -63,7 +86,7 @@ def check_module_loaded(module_name: str) -> bool:
             for line in result.stdout.splitlines()
             if line.split()
         )
-        tag = "FINDING_MODULE_LOADED" if loaded else "MODULE_NOT_LOADED"
+        tag = finding_tag if loaded else "MODULE_NOT_LOADED"
         emit(tag, module_name)
         return loaded
     except (OSError, subprocess.TimeoutExpired) as e:
@@ -72,7 +95,7 @@ def check_module_loaded(module_name: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Trace 1: AF_ALG socket erreichbar für unprivilegierte Prozesse?
+# Copy.Fail: AF_ALG socket erreichbar für unprivilegierte Prozesse?
 # ---------------------------------------------------------------------------
 
 def check_af_alg_accessible() -> None:
@@ -83,46 +106,195 @@ def check_af_alg_accessible() -> None:
         sock.close()
         emit("FINDING_AF_ALG_ACCESSIBLE",
              "AF_ALG socket (family 38) createable without privileges — "
-             "exploit prerequisite met")
+             "CopyFail exploit prerequisite met")
     except OSError as e:
         emit("AF_ALG_BLOCKED", "socket creation failed ({0})".format(e))
 
 
 # ---------------------------------------------------------------------------
-# Trace 2: Audit-Log auf /usr/bin/su-Zugriffe prüfen
+# Dirty Frag: AF_RXRPC socket erreichbar? (RxRPC variant, no namespace needed)
+# ---------------------------------------------------------------------------
+
+def check_af_rxrpc_accessible() -> None:
+    AF_RXRPC = 34
+    SOCK_DGRAM = 2
+    try:
+        sock = socket.socket(AF_RXRPC, SOCK_DGRAM, 0)
+        sock.close()
+        emit("FINDING_AF_RXRPC_ACCESSIBLE",
+             "AF_RXRPC socket (family 34) createable without privileges — "
+             "DirtyFrag RxRPC exploit prerequisite met")
+    except OSError as e:
+        emit("AF_RXRPC_BLOCKED", "socket creation failed ({0})".format(e))
+
+
+# ---------------------------------------------------------------------------
+# Dirty Frag: XFRM (NETLINK_XFRM) erreichbar? (xfrm-ESP variant)
+# ---------------------------------------------------------------------------
+
+def check_xfrm_accessible() -> None:
+    AF_NETLINK  = 16
+    SOCK_RAW    = 3
+    NETLINK_XFRM = 6
+    try:
+        sock = socket.socket(AF_NETLINK, SOCK_RAW, NETLINK_XFRM)
+        sock.close()
+        emit("FINDING_XFRM_ACCESSIBLE",
+             "NETLINK_XFRM socket createable without privileges — "
+             "DirtyFrag xfrm-ESP exploit prerequisite met")
+    except OSError as e:
+        emit("XFRM_BLOCKED", "NETLINK_XFRM socket creation failed ({0})".format(e))
+
+
+# ---------------------------------------------------------------------------
+# Dirty Frag: Unprivilegierte User-Namespaces? (xfrm-ESP variant erfordert diese)
+# ---------------------------------------------------------------------------
+
+def check_namespace_creation() -> None:
+    userns_clone = "/proc/sys/kernel/unprivileged_userns_clone"  # Debian/Ubuntu
+    max_userns   = "/proc/sys/user/max_user_namespaces"
+
+    if os.path.exists(userns_clone):
+        try:
+            val = open(userns_clone).read().strip()
+            if val == "0":
+                emit("NAMESPACE_USERNS_DISABLED",
+                     "unprivileged_userns_clone=0 — xfrm-ESP DirtyFrag variant blocked")
+            else:
+                emit("FINDING_NAMESPACE_USERNS_ENABLED",
+                     "unprivileged_userns_clone=1 — xfrm-ESP DirtyFrag variant possible")
+        except OSError:
+            pass
+
+    if os.path.exists(max_userns):
+        try:
+            val = int(open(max_userns).read().strip())
+            if val == 0:
+                emit("NAMESPACE_MAX_USERNS_ZERO",
+                     "max_user_namespaces=0 — xfrm-ESP DirtyFrag variant blocked")
+            else:
+                emit("FINDING_NAMESPACE_MAX_USERNS_NONZERO",
+                     "max_user_namespaces={0} — xfrm-ESP DirtyFrag variant possible".format(val))
+        except (OSError, ValueError):
+            pass
+
+
+# ---------------------------------------------------------------------------
+# Dirty Frag: modprobe.d blacklist für esp4/esp6/rxrpc (empfohlene Mitigation)
+# ---------------------------------------------------------------------------
+
+def check_dirtyfrag_mitigation() -> None:
+    modprobe_dirs = ["/etc/modprobe.d", "/usr/lib/modprobe.d"]
+    blacklisted = {m: False for m in DIRTYFRAG_MODULES}
+
+    for d in modprobe_dirs:
+        if not os.path.isdir(d):
+            continue
+        try:
+            for fname in os.listdir(d):
+                fpath = os.path.join(d, fname)
+                try:
+                    content = open(fpath).read().lower()
+                    for module in DIRTYFRAG_MODULES:
+                        if ("install {0} /bin/false".format(module) in content
+                                or "blacklist {0}".format(module) in content):
+                            blacklisted[module] = True
+                except OSError:
+                    continue
+        except OSError:
+            continue
+
+    for module, blocked in blacklisted.items():
+        if blocked:
+            emit("DIRTYFRAG_MITIGATION_ACTIVE",
+                 "{0} blacklisted in modprobe.d".format(module))
+        else:
+            emit("FINDING_DIRTYFRAG_NO_MITIGATION",
+                 "{0} not blacklisted in modprobe.d — mitigation missing".format(module))
+
+
+# ---------------------------------------------------------------------------
+# Dirty Frag: /etc/passwd Integrität (RxRPC-Variante schreibt in /etc/passwd)
+# ---------------------------------------------------------------------------
+
+def check_passwd_integrity() -> None:
+    try:
+        with open(PASSWD_PATH) as f:
+            lines = f.readlines()
+
+        for line in lines:
+            parts = line.strip().split(":")
+            if len(parts) < 7:
+                continue
+            username, passwd_field, uid_str = parts[0], parts[1], parts[2]
+
+            if passwd_field == "" and username == "root":
+                emit("FINDING_PASSWD_ROOT_EMPTY_PW",
+                     "/etc/passwd: root entry has empty password field — "
+                     "possible RxRPC DirtyFrag exploit (Splice-A/B/C write)")
+
+            try:
+                if int(uid_str) == 0 and username != "root":
+                    emit("FINDING_PASSWD_SHADOW_ROOT",
+                         "/etc/passwd: user '{0}' has UID 0 — "
+                         "possible privilege escalation".format(username))
+            except ValueError:
+                pass
+
+        stat = os.stat(PASSWD_PATH)
+        age_sec = time.time() - stat.st_mtime
+        if age_sec < 3600:
+            emit("FINDING_PASSWD_RECENTLY_MODIFIED",
+                 "{0} mtime is only {1:.0f}s ago — "
+                 "possible RxRPC DirtyFrag exploit target".format(PASSWD_PATH, age_sec))
+        else:
+            emit("PASSWD_MTIME_OK",
+                 "{0} last modified {1:.1f}h ago".format(PASSWD_PATH, age_sec / 3600))
+
+    except OSError as e:
+        emit("ERROR", "cannot read {0}: {1}".format(PASSWD_PATH, e))
+
+
+# ---------------------------------------------------------------------------
+# Audit-Log auf Zugriffe auf su / passwd prüfen
 # ---------------------------------------------------------------------------
 
 def check_audit_log() -> None:
-    """Sucht im Audit-Log nach Zugriffen auf /usr/bin/su durch Python-Prozesse."""
     if not os.path.exists("/var/log/audit/audit.log"):
         emit("AUDIT_LOG", "not found — auditd not active or no permission")
         return
 
-    try:
-        result = subprocess.run(
-            ["ausearch", "-f", SU_PATH, "--format", "raw"],
-            capture_output=True, text=True, timeout=10,
-        )
-        lines = [line for line in result.stdout.splitlines() if "python" in line.lower()]
-        if lines:
-            emit("FINDING_AUDIT_SU_PYTHON",
-                 "{0} audit event(s) show python accessing {1}".format(len(lines), SU_PATH))
-            for line in lines[:5]:
-                print("  " + line[:120])
-        else:
-            emit("AUDIT_SU_CLEAN", "no python access to {0} in audit log".format(SU_PATH))
-    except FileNotFoundError:
-        emit("AUDIT_LOG", "ausearch not installed — check /var/log/audit/audit.log manually")
-    except subprocess.TimeoutExpired:
-        emit("ERROR", "ausearch timed out")
+    for target_path in [SU_PATH, PASSWD_PATH]:
+        try:
+            result = subprocess.run(
+                ["ausearch", "-f", target_path, "--format", "raw"],
+                capture_output=True, text=True, timeout=10,
+            )
+            lines = [line for line in result.stdout.splitlines() if "python" in line.lower()]
+            if lines:
+                emit("FINDING_AUDIT_SU_PYTHON",
+                     "{0} audit event(s) show python accessing {1}".format(len(lines), target_path))
+                for line in lines[:5]:
+                    print("  " + line[:120])
+            else:
+                emit("AUDIT_SU_CLEAN",
+                     "no python access to {0} in audit log".format(target_path))
+        except FileNotFoundError:
+            emit("AUDIT_LOG", "ausearch not installed — check /var/log/audit/audit.log manually")
+            return
+        except subprocess.TimeoutExpired:
+            emit("ERROR", "ausearch timed out")
 
 
 # ---------------------------------------------------------------------------
-# Trace 3: Kernel-Log auf AF_ALG / splice-Ereignisse prüfen
+# Kernel-Log auf CopyFail- und DirtyFrag-Ereignisse prüfen
 # ---------------------------------------------------------------------------
 
 def check_kernel_log() -> None:
-    keywords = ["algif_aead", "af_alg", "splice", "CRYPTO_USER"]
+    keywords = [
+        "algif_aead", "af_alg", "splice", "CRYPTO_USER",    # CopyFail
+        "esp4", "esp6", "rxrpc", "xfrm", "pcbc", "fcrypt",  # DirtyFrag
+    ]
     try:
         result = subprocess.run(
             ["dmesg", "--level=warn,err,crit,alert,emerg"],
@@ -144,11 +316,10 @@ def check_kernel_log() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Trace 4: AppArmor / SELinux — würde der Exploit geblockt oder geloggt?
+# AppArmor / SELinux
 # ---------------------------------------------------------------------------
 
 def check_mac_policy() -> None:
-    # AppArmor
     aa_status = "/sys/kernel/security/apparmor/profiles"
     if os.path.exists(aa_status):
         try:
@@ -157,16 +328,17 @@ def check_mac_policy() -> None:
                 capture_output=True, text=True, timeout=5,
             )
             if result.returncode == 0:
-                emit("APPARMOR", "active — check if su profile enforces network/socket rules")
+                emit("APPARMOR",
+                     "active — check if su/passwd profiles enforce socket/xfrm rules")
             else:
                 emit("FINDING_APPARMOR_INACTIVE",
                      "AppArmor present but aa-status failed — policies may be permissive")
         except FileNotFoundError:
             emit("APPARMOR", "AppArmor filesystem exists but aa-status not installed")
     else:
-        emit("FINDING_NO_APPARMOR", "AppArmor not active — no MAC policy blocking AF_ALG abuse")
+        emit("FINDING_NO_APPARMOR",
+             "AppArmor not active — no MAC policy blocking AF_ALG/xfrm/rxrpc abuse")
 
-    # SELinux
     selinux_status = "/sys/fs/selinux/enforce"
     if os.path.exists(selinux_status):
         try:
@@ -180,7 +352,7 @@ def check_mac_policy() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Trace 5: Integrität von /usr/bin/su prüfen
+# Integrität von /usr/bin/su prüfen
 # ---------------------------------------------------------------------------
 
 def check_su_integrity() -> None:
@@ -197,9 +369,7 @@ def check_su_integrity() -> None:
             emit("SU_INTEGRITY_HINT",
                  "no reference hashes configured — run: sha256sum {0}".format(SU_PATH))
 
-        # Mtime ungewöhnlich kürzlich?
         stat = os.stat(SU_PATH)
-        import time
         age_sec = time.time() - stat.st_mtime
         if age_sec < 3600:
             emit("FINDING_SU_RECENTLY_MODIFIED",
@@ -213,11 +383,10 @@ def check_su_integrity() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Trace 6: Laufende Prozesse mit /usr/bin/su offen
+# Laufende Prozesse mit Zieldatei offen
 # ---------------------------------------------------------------------------
 
-def check_open_su_fds() -> None:
-    """Prüft via /proc ob ein Prozess aktuell /usr/bin/su geöffnet hat."""
+def check_open_fds(target_path: str) -> None:
     hits = []
     try:
         for pid in os.listdir("/proc"):
@@ -226,8 +395,8 @@ def check_open_su_fds() -> None:
             fd_dir = "/proc/{0}/fd".format(pid)
             try:
                 for fd in os.listdir(fd_dir):
-                    target = os.readlink("{0}/{1}".format(fd_dir, fd))
-                    if target == SU_PATH:
+                    link = os.readlink("{0}/{1}".format(fd_dir, fd))
+                    if link == target_path:
                         cmdline = open("/proc/{0}/cmdline".format(pid)).read().replace("\x00", " ")
                         hits.append("pid={0} cmd={1}".format(pid, cmdline[:60]))
             except (OSError, PermissionError):
@@ -235,11 +404,13 @@ def check_open_su_fds() -> None:
     except OSError:
         pass
 
+    label = os.path.basename(target_path).upper().replace(".", "_")
     if hits:
         for h in hits:
-            emit("FINDING_SU_FD_OPEN", h)
+            emit("FINDING_{0}_FD_OPEN".format(label), h)
     else:
-        emit("SU_FD_CLEAN", "no process currently has {0} open".format(SU_PATH))
+        emit("{0}_FD_CLEAN".format(label),
+             "no process currently has {0} open".format(target_path))
 
 
 # ---------------------------------------------------------------------------
@@ -247,11 +418,11 @@ def check_open_su_fds() -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    hostname = socket.gethostname()
+    hostname   = socket.gethostname()
     kernel_str = get_kernel_version()
     kernel_tuple = parse_kernel_tuple(kernel_str)
 
-    print("=== COPY.FAIL SCAN REPORT: {0} ===".format(hostname))
+    print("=== COPY.FAIL / DIRTY.FRAG SCAN REPORT: {0} ===".format(hostname))
     print("KERNEL: {0}".format(kernel_str))
     print()
 
@@ -259,28 +430,76 @@ def main() -> None:
         print("ERROR: Could not parse kernel version")
         sys.exit(2)
 
-    if not is_kernel_vulnerable(kernel_tuple):
-        emit("RESULT_KERNEL", "NOT_AFFECTED — kernel {0} outside vulnerable range {1}.{2}–{3}.{4}".format(
-            kernel_str,
-            VULNERABLE_KERNEL_MIN[0], VULNERABLE_KERNEL_MIN[1],
-            VULNERABLE_KERNEL_MAX[0], VULNERABLE_KERNEL_MAX[1],
-        ))
+    copyfail_vuln    = is_copyfail_vulnerable(kernel_tuple)
+    df_esp_vuln      = is_dirtyfrag_esp_vulnerable(kernel_tuple)
+    df_rxrpc_vuln    = is_dirtyfrag_rxrpc_vulnerable(kernel_tuple)
+    any_vuln         = copyfail_vuln or df_esp_vuln or df_rxrpc_vuln
+
+    print("--- Vulnerability Assessment ---")
+    if copyfail_vuln:
+        emit("FINDING_KERNEL_COPYFAIL",
+             "in vulnerable range {0}.{1}–{2}.{3} (CVE-2026-31431)".format(
+                 COPYFAIL_KERNEL_MIN[0], COPYFAIL_KERNEL_MIN[1],
+                 COPYFAIL_KERNEL_MAX[0], COPYFAIL_KERNEL_MAX[1]))
+    else:
+        emit("RESULT_COPYFAIL",
+             "NOT_AFFECTED — kernel outside CopyFail range {0}.{1}–{2}.{3}".format(
+                 COPYFAIL_KERNEL_MIN[0], COPYFAIL_KERNEL_MIN[1],
+                 COPYFAIL_KERNEL_MAX[0], COPYFAIL_KERNEL_MAX[1]))
+
+    if df_esp_vuln:
+        emit("FINDING_KERNEL_DIRTYFRAG_ESP",
+             "kernel >= {0}.{1} — xfrm-ESP DirtyFrag variant present (no patch available)".format(
+                 *DIRTYFRAG_ESP_KERNEL_MIN))
+    else:
+        emit("RESULT_DIRTYFRAG_ESP",
+             "NOT_AFFECTED — kernel below xfrm-ESP minimum {0}.{1}".format(
+                 *DIRTYFRAG_ESP_KERNEL_MIN))
+
+    if df_rxrpc_vuln:
+        emit("FINDING_KERNEL_DIRTYFRAG_RXRPC",
+             "kernel >= {0}.{1} — RxRPC DirtyFrag variant present (no patch available)".format(
+                 *DIRTYFRAG_RXRPC_KERNEL_MIN))
+    else:
+        emit("RESULT_DIRTYFRAG_RXRPC",
+             "NOT_AFFECTED — kernel below RxRPC minimum {0}.{1}".format(
+                 *DIRTYFRAG_RXRPC_KERNEL_MIN))
+    print()
+
+    if not any_vuln:
+        print("Kernel not in any vulnerable range.")
         sys.exit(0)
 
-    emit("KERNEL_RANGE", "vulnerable ({0}.{1}–{2}.{3})".format(
-        VULNERABLE_KERNEL_MIN[0], VULNERABLE_KERNEL_MIN[1],
-        VULNERABLE_KERNEL_MAX[0], VULNERABLE_KERNEL_MAX[1],
-    ))
-    print()
+    # --- Copy.Fail ---
+    if copyfail_vuln:
+        print("--- Copy.Fail: Module ---")
+        check_module_loaded(COPYFAIL_MODULE)
+        print()
 
-    print("--- Module ---")
-    check_module_loaded(VULNERABLE_MODULE)
-    print()
+        print("--- Copy.Fail: Exploit Prerequisites ---")
+        check_af_alg_accessible()
+        print()
 
-    print("--- Exploit Prerequisites ---")
-    check_af_alg_accessible()
-    print()
+    # --- Dirty Frag ---
+    if df_esp_vuln or df_rxrpc_vuln:
+        print("--- DirtyFrag: Modules (esp4, esp6, rxrpc) ---")
+        for mod in DIRTYFRAG_MODULES:
+            check_module_loaded(mod, finding_tag="FINDING_DIRTYFRAG_MODULE_LOADED")
+        print()
 
+        print("--- DirtyFrag: Exploit Prerequisites ---")
+        if df_rxrpc_vuln:
+            check_af_rxrpc_accessible()
+        if df_esp_vuln:
+            check_xfrm_accessible()
+            check_namespace_creation()
+        print()
+
+        print("--- DirtyFrag: Mitigation (modprobe.d blacklist) ---")
+        check_dirtyfrag_mitigation()
+        print()
+
+    # --- Shared traces ---
     print("--- Traces: Audit Log ---")
     check_audit_log()
     print()
@@ -297,8 +516,15 @@ def main() -> None:
     check_su_integrity()
     print()
 
+    if df_rxrpc_vuln:
+        print("--- Traces: /etc/passwd Integrity (DirtyFrag RxRPC target) ---")
+        check_passwd_integrity()
+        print()
+
     print("--- Traces: Live Open File Descriptors ---")
-    check_open_su_fds()
+    check_open_fds(SU_PATH)
+    if df_rxrpc_vuln:
+        check_open_fds(PASSWD_PATH)
     print()
 
     print("=== SUMMARY ===")
