@@ -198,7 +198,7 @@ def check_namespace_creation():
 
 def check_dirtyfrag_mitigation():
     modprobe_dirs = ["/etc/modprobe.d", "/usr/lib/modprobe.d"]
-    blacklisted = dict((m, False) for m in DIRTYFRAG_MODULES)
+    blacklisted: dict[str, bool] = dict((m, False) for m in DIRTYFRAG_MODULES)
 
     for d in modprobe_dirs:
         if not os.path.isdir(d):
