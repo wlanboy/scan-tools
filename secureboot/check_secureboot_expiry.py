@@ -72,7 +72,8 @@ def run(args, stdin_text=None):
 
 
 def cmd_exists(name):
-    return run(['which', name]) is not None and run(['which', name]).strip() != ''
+    result = run(['which', name])
+    return result is not None and result.strip() != ''
 
 
 def read_file(path):
@@ -128,12 +129,12 @@ info("Hypervisor/Cloud: {0}".format(hypervisor))
 if hypervisor == 'gcp':
     info("Running on GCP – checking instance metadata...")
     try:
-        import urllib2
-        req = urllib2.Request(
+        import urllib.request
+        req = urllib.request.Request(
             'http://metadata.google.internal/computeMetadata/v1/instance/attributes/creation-timestamp',
             headers={'Metadata-Flavor': 'Google'},
         )
-        creation_date = urllib2.urlopen(req, timeout=3).read().decode('utf-8').strip()
+        creation_date = urllib.request.urlopen(req, timeout=3).read().decode('utf-8').strip()
     except Exception:
         creation_date = ''
 
