@@ -84,6 +84,47 @@ def read_file(path):
         return ''
 
 
+def _sb_via_efivar():
+    """Read SecureBoot EFI variable directly (4-byte attr header + 1-byte value)."""
+    path = '/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c'
+    try:
+        with open(path, 'rb') as fh:
+            data = fh.read()
+        if len(data) >= 5:
+            return data[4] == 1
+    except (IOError, OSError):
+        pass
+    return None
+
+
+def _sb_via_bootctl():
+    """Parse 'bootctl status' output for Secure Boot state."""
+    if not cmd_exists('bootctl'):
+        return None
+    out = run(['bootctl', 'status']) or ''
+    for line in out.splitlines():
+        stripped = line.strip().lower()
+        if stripped.startswith('secure boot:'):
+            if 'enabled' in stripped:
+                return True
+            if 'disabled' in stripped:
+                return False
+    return None
+
+
+def _sb_via_dmesg():
+    """Scan dmesg kernel log for Secure Boot state message."""
+    out = run(['dmesg']) or ''
+    for line in out.splitlines():
+        low = line.lower()
+        if 'secure boot' in low:
+            if 'enabled' in low:
+                return True
+            if 'disabled' in low:
+                return False
+    return None
+
+
 # ---------------------------------------------------------------------------
 # 1. Runtime environment
 # ---------------------------------------------------------------------------
@@ -155,20 +196,60 @@ if hypervisor == 'gcp':
 section("Secure Boot Status")
 
 sb_enabled = False
+sb_detected = False
 
-if not cmd_exists('mokutil'):
-    warn("mokutil is not installed. Install with: dnf install mokutil  /  apt install mokutil")
-    warn("Cannot perform detailed certificate checks without mokutil.")
-else:
+# 1. mokutil
+if cmd_exists('mokutil'):
     sb_state = run(['mokutil', '--sb-state']) or ''
     if 'enabled' in sb_state.lower():
         sb_enabled = True
-        ok("Secure Boot is ENABLED – certificate expiry is relevant for this system.")
+        sb_detected = True
+        ok("Secure Boot is ENABLED (via mokutil) – certificate expiry is relevant for this system.")
     elif 'disabled' in sb_state.lower():
-        ok("Secure Boot is DISABLED – certificate expiry does NOT affect boot on this system.")
+        sb_detected = True
+        ok("Secure Boot is DISABLED (via mokutil) – certificate expiry does NOT affect boot on this system.")
         info("Note: If you plan to enable Secure Boot, certificates must still be updated first.")
     else:
-        warn("Could not determine Secure Boot state ({0}).".format(sb_state.strip()))
+        info("mokutil could not determine Secure Boot state – trying alternatives.")
+else:
+    info("mokutil not installed – trying alternative detection methods.")
+
+# 2. EFI variable (no extra tools needed, requires readable efivars)
+if not sb_detected:
+    _efi_result = _sb_via_efivar()
+    if _efi_result is not None:
+        sb_detected = True
+        sb_enabled = _efi_result
+        if _efi_result:
+            ok("Secure Boot is ENABLED (via EFI variable) – certificate expiry is relevant for this system.")
+        else:
+            ok("Secure Boot is DISABLED (via EFI variable) – certificate expiry does NOT affect boot on this system.")
+
+# 3. bootctl (systemd-boot)
+if not sb_detected:
+    _bootctl_result = _sb_via_bootctl()
+    if _bootctl_result is not None:
+        sb_detected = True
+        sb_enabled = _bootctl_result
+        if _bootctl_result:
+            ok("Secure Boot is ENABLED (via bootctl) – certificate expiry is relevant for this system.")
+        else:
+            ok("Secure Boot is DISABLED (via bootctl) – certificate expiry does NOT affect boot on this system.")
+
+# 4. dmesg kernel log
+if not sb_detected:
+    _dmesg_result = _sb_via_dmesg()
+    if _dmesg_result is not None:
+        sb_detected = True
+        sb_enabled = _dmesg_result
+        if _dmesg_result:
+            ok("Secure Boot is ENABLED (via dmesg) – certificate expiry is relevant for this system.")
+        else:
+            ok("Secure Boot is DISABLED (via dmesg) – certificate expiry does NOT affect boot on this system.")
+
+if not sb_detected:
+    warn("Could not determine Secure Boot state via any available method.")
+    warn("Install mokutil (dnf install mokutil / apt install mokutil) for detailed checks.")
 
 # ---------------------------------------------------------------------------
 # 3. Certificate database checks
@@ -240,16 +321,43 @@ check_certificates('--kek', 'KEK (key exchange keys)')
 # ---------------------------------------------------------------------------
 section("Shim Bootloader")
 
-SHIM_PATHS = [
-    '/boot/efi/EFI/redhat/shimx64.efi',
-    '/boot/efi/EFI/centos/shimx64.efi',
-    '/boot/efi/EFI/fedora/shimx64.efi',
-    '/boot/efi/EFI/ubuntu/shimx64.efi',
-    '/boot/efi/EFI/debian/shimx64.efi',
-    '/boot/efi/EFI/sles/shimx64.efi',
-    '/boot/efi/EFI/opensuse/shimx64.efi',
-    '/boot/efi/EFI/BOOT/BOOTX64.EFI',
+_SHIM_DISTRO_DIRS = [
+    'redhat', 'centos', 'fedora', 'almalinux', 'rocky', 'oracle', 'amzn',
+    'ubuntu', 'debian', 'linuxmint', 'pop', 'pop-os',
+    'sles', 'opensuse',
+    'arch', 'manjaro',
+    'gentoo', 'void',
+    'BOOT',
 ]
+
+_SHIM_NAMES = ['shimx64.efi', 'shimaa64.efi', 'BOOTX64.EFI', 'BOOTAA64.EFI']
+
+# Detect EFI partition mount point dynamically from /proc/mounts
+def _find_efi_mountpoints():
+    mounts = []
+    try:
+        with open('/proc/mounts', 'r') as fh:
+            for line in fh:
+                parts = line.split()
+                if len(parts) >= 3 and parts[2].lower() in ('vfat', 'efivarfs'):
+                    mp = parts[1]
+                    if any(k in mp.lower() for k in ('efi', 'boot')):
+                        mounts.append(mp)
+    except (IOError, OSError):
+        pass
+    # Always include common static candidates as fallback
+    for candidate in ('/boot/efi', '/boot/EFI', '/efi', '/boot'):
+        if candidate not in mounts and os.path.isdir(candidate):
+            mounts.append(candidate)
+    return mounts
+
+_efi_mounts = _find_efi_mountpoints()
+
+SHIM_PATHS = []
+for _mp in _efi_mounts:
+    for _distro in _SHIM_DISTRO_DIRS:
+        for _name in _SHIM_NAMES:
+            SHIM_PATHS.append(os.path.join(_mp, 'EFI', _distro, _name))
 
 shim_found = None
 for p in SHIM_PATHS:
@@ -258,7 +366,8 @@ for p in SHIM_PATHS:
         break
 
 if shim_found is None:
-    info("No shim binary found in known EFI paths (BIOS system or EFI not mounted).")
+    info("No shim binary found (checked {0} paths across {1} EFI mount point(s)).".format(
+        len(SHIM_PATHS), len(_efi_mounts)))
 else:
     info("Shim binary: {0}".format(shim_found))
     try:
