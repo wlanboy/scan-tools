@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import datetime
 import hashlib
 import os
 import re
@@ -24,6 +25,13 @@ COPYFAIL_MODULE     = "algif_aead"
 DIRTYFRAG_ESP_KERNEL_MIN   = (4, 10)
 DIRTYFRAG_RXRPC_KERNEL_MIN = (6, 4)
 DIRTYFRAG_MODULES          = ["esp4", "esp6", "rxrpc"]
+
+# ---------------------------------------------------------------------------
+# Fragnesia — espintcp ULP / TCP_ULP (patch: 2026-05-13, William Bowling / V12)
+# Byte-precise page cache write via splice + TCP_ULP espintcp mode switch
+# ---------------------------------------------------------------------------
+FRAGNESIA_PATCH_DATE = datetime.date(2026, 5, 13)
+FRAGNESIA_MODULE     = "espintcp"
 
 SU_PATH     = "/usr/bin/su"
 PASSWD_PATH = "/etc/passwd"
@@ -78,6 +86,33 @@ def is_dirtyfrag_rxrpc_vulnerable(v: tuple[int, int]) -> bool:
     return v >= DIRTYFRAG_RXRPC_KERNEL_MIN
 
 
+def get_kernel_build_date() -> datetime.date | None:
+    try:
+        result = subprocess.run(["uname", "-v"], capture_output=True, text=True, timeout=5)
+        version_str = result.stdout.strip()
+        # Example: "#1 SMP PREEMPT_DYNAMIC Thu May 13 12:00:00 UTC 2026"
+        m = re.search(r"\b\w{3}\s+(\w{3})\s+(\d+)\s+[\d:]+\s+\w+\s+(\d{4})\b", version_str)
+        if m:
+            month_names = {
+                "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
+                "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
+            }
+            month = month_names.get(m.group(1))
+            day   = int(m.group(2))
+            year  = int(m.group(3))
+            if month:
+                return datetime.date(year, month, day)
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        pass
+    return None
+
+
+def is_fragnesia_vulnerable(build_date: datetime.date | None) -> bool:
+    if build_date is None:
+        return True  # unknown build date → assume vulnerable
+    return build_date < FRAGNESIA_PATCH_DATE
+
+
 def check_module_loaded(module_name: str, finding_tag: str = "FINDING_MODULE_LOADED") -> bool:
     try:
         result = subprocess.run(["lsmod"], capture_output=True, text=True, timeout=5)
@@ -109,6 +144,57 @@ def check_af_alg_accessible() -> None:
              "CopyFail exploit prerequisite met")
     except OSError as e:
         emit("AF_ALG_BLOCKED", "socket creation failed ({0})".format(e))
+
+
+# ---------------------------------------------------------------------------
+# Fragnesia: espintcp als TCP_ULP nutzbar? (kein Namespace für den Check nötig)
+# ---------------------------------------------------------------------------
+
+def check_fragnesia_tcp_ulp() -> None:
+    TCP_ULP = 31
+    SOL_TCP = 6
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        try:
+            sock.setsockopt(SOL_TCP, TCP_ULP, b"espintcp")
+            emit("FINDING_FRAGNESIA_TCP_ULP_ACCESSIBLE",
+                 "espintcp TCP_ULP usable without privileges — "
+                 "Fragnesia exploit prerequisite met")
+        except OSError as e:
+            emit("FRAGNESIA_TCP_ULP_BLOCKED",
+                 "setsockopt(TCP_ULP, espintcp) failed ({0})".format(e))
+        finally:
+            sock.close()
+    except OSError as e:
+        emit("ERROR", "TCP socket creation failed: {0}".format(e))
+
+
+def check_fragnesia_mitigation() -> None:
+    modprobe_dirs = ["/etc/modprobe.d", "/usr/lib/modprobe.d"]
+    blacklisted = False
+
+    for d in modprobe_dirs:
+        if not os.path.isdir(d):
+            continue
+        try:
+            for fname in os.listdir(d):
+                fpath = os.path.join(d, fname)
+                try:
+                    content = open(fpath).read().lower()
+                    if ("install {0} /bin/false".format(FRAGNESIA_MODULE) in content
+                            or "blacklist {0}".format(FRAGNESIA_MODULE) in content):
+                        blacklisted = True
+                except OSError:
+                    continue
+        except OSError:
+            continue
+
+    if blacklisted:
+        emit("FRAGNESIA_MITIGATION_ACTIVE",
+             "{0} blacklisted in modprobe.d".format(FRAGNESIA_MODULE))
+    else:
+        emit("FINDING_DIRTYFRAG_NO_MITIGATION",
+             "{0} not blacklisted in modprobe.d — mitigation missing".format(FRAGNESIA_MODULE))
 
 
 # ---------------------------------------------------------------------------
@@ -162,7 +248,7 @@ def check_namespace_creation() -> None:
                      "unprivileged_userns_clone=0 — xfrm-ESP DirtyFrag variant blocked")
             else:
                 emit("FINDING_NAMESPACE_USERNS_ENABLED",
-                     "unprivileged_userns_clone=1 — xfrm-ESP DirtyFrag variant possible")
+                     "unprivileged_userns_clone=1 — xfrm-ESP DirtyFrag and Fragnesia variants possible")
         except OSError:
             pass
 
@@ -174,7 +260,7 @@ def check_namespace_creation() -> None:
                      "max_user_namespaces=0 — xfrm-ESP DirtyFrag variant blocked")
             else:
                 emit("FINDING_NAMESPACE_MAX_USERNS_NONZERO",
-                     "max_user_namespaces={0} — xfrm-ESP DirtyFrag variant possible".format(val))
+                     "max_user_namespaces={0} — xfrm-ESP DirtyFrag and Fragnesia variants possible".format(val))
         except (OSError, ValueError):
             pass
 
@@ -185,7 +271,7 @@ def check_namespace_creation() -> None:
 
 def check_dirtyfrag_mitigation() -> None:
     modprobe_dirs = ["/etc/modprobe.d", "/usr/lib/modprobe.d"]
-    blacklisted = {m: False for m in DIRTYFRAG_MODULES}
+    blacklisted: dict[str, bool] = {m: False for m in DIRTYFRAG_MODULES}
 
     for d in modprobe_dirs:
         if not os.path.isdir(d):
@@ -341,8 +427,9 @@ def check_audit_log() -> None:
 
 def check_kernel_log() -> None:
     keywords = [
-        "algif_aead", "af_alg", "splice", "CRYPTO_USER",    # CopyFail
-        "esp4", "esp6", "rxrpc", "xfrm", "pcbc", "fcrypt",  # DirtyFrag
+        "algif_aead", "af_alg", "splice", "CRYPTO_USER",           # CopyFail
+        "esp4", "esp6", "rxrpc", "xfrm", "pcbc", "fcrypt",         # DirtyFrag
+        "espintcp", "tcp_ulp", "esp-in-tcp",                        # Fragnesia
     ]
     try:
         result = subprocess.run(
@@ -482,7 +569,9 @@ def main() -> None:
     copyfail_vuln    = is_copyfail_vulnerable(kernel_tuple)
     df_esp_vuln      = is_dirtyfrag_esp_vulnerable(kernel_tuple)
     df_rxrpc_vuln    = is_dirtyfrag_rxrpc_vulnerable(kernel_tuple)
-    any_vuln         = copyfail_vuln or df_esp_vuln or df_rxrpc_vuln
+    build_date       = get_kernel_build_date()
+    fragnesia_vuln   = is_fragnesia_vulnerable(build_date)
+    any_vuln         = copyfail_vuln or df_esp_vuln or df_rxrpc_vuln or fragnesia_vuln
 
     print("--- Vulnerability Assessment ---")
     if copyfail_vuln:
@@ -513,6 +602,19 @@ def main() -> None:
         emit("RESULT_DIRTYFRAG_RXRPC",
              "NOT_AFFECTED — kernel below RxRPC minimum {0}.{1}".format(
                  *DIRTYFRAG_RXRPC_KERNEL_MIN))
+
+    if fragnesia_vuln:
+        if build_date:
+            emit("FINDING_KERNEL_FRAGNESIA",
+                 "kernel build date {0} is before Fragnesia patch {1} — "
+                 "espintcp ULP variant possible".format(build_date, FRAGNESIA_PATCH_DATE))
+        else:
+            emit("FINDING_KERNEL_FRAGNESIA",
+                 "kernel build date unknown — Fragnesia patch status uncertain (assume vulnerable)")
+    else:
+        emit("RESULT_FRAGNESIA",
+             "NOT_AFFECTED — kernel build date {0} >= Fragnesia patch {1}".format(
+                 build_date, FRAGNESIA_PATCH_DATE))
     print()
 
     if not any_vuln:
@@ -546,6 +648,21 @@ def main() -> None:
 
         print("--- DirtyFrag: Mitigation (modprobe.d blacklist) ---")
         check_dirtyfrag_mitigation()
+        print()
+
+    # --- Fragnesia ---
+    if fragnesia_vuln:
+        print("--- Fragnesia: Module (espintcp) ---")
+        check_module_loaded(FRAGNESIA_MODULE, finding_tag="FINDING_FRAGNESIA_MODULE_LOADED")
+        print()
+
+        print("--- Fragnesia: Exploit Prerequisites ---")
+        check_fragnesia_tcp_ulp()
+        check_namespace_creation()
+        print()
+
+        print("--- Fragnesia: Mitigation (modprobe.d blacklist) ---")
+        check_fragnesia_mitigation()
         print()
 
     # --- Shared traces ---
