@@ -198,7 +198,7 @@ def check_namespace_creation():
 
 def check_dirtyfrag_mitigation():
     modprobe_dirs = ["/etc/modprobe.d", "/usr/lib/modprobe.d"]
-    blacklisted: dict[str, bool] = dict((m, False) for m in DIRTYFRAG_MODULES)
+    blacklisted = dict((m, False) for m in DIRTYFRAG_MODULES)
 
     for d in modprobe_dirs:
         if not os.path.isdir(d):
@@ -266,6 +266,49 @@ def check_passwd_integrity():
 
     except OSError as e:
         emit("ERROR", "cannot read {0}: {1}".format(PASSWD_PATH, e))
+
+
+# ---------------------------------------------------------------------------
+# PAM nullok — leeres Passwort per su erlaubt?
+# ---------------------------------------------------------------------------
+
+PAM_FILES_SU = [
+    "/etc/pam.d/su",
+    "/etc/pam.d/su-l",
+]
+PAM_FILES_COMMON = [
+    "/etc/pam.d/common-auth",
+    "/etc/pam.d/system-auth",
+    "/etc/pam.d/password-auth",
+]
+
+
+def check_pam_nullok():
+    nullok_files = []
+
+    for path in PAM_FILES_SU + PAM_FILES_COMMON:
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path) as f:
+                for lineno, raw in enumerate(f, 1):
+                    line = raw.strip()
+                    if line.startswith("#"):
+                        continue
+                    if "pam_unix.so" in line and "nullok" in line:
+                        nullok_files.append("{0}:{1}".format(path, lineno))
+        except OSError:
+            continue
+
+    if nullok_files:
+        for loc in nullok_files:
+            emit("FINDING_PAM_NULLOK",
+                 "pam_unix.so with nullok found in {0} — "
+                 "su with empty password accepted (exploit prerequisite)".format(loc))
+    else:
+        emit("PAM_NULLOK_NOT_FOUND",
+             "no pam_unix.so nullok in su/common-auth configs — "
+             "empty-password su blocked")
 
 
 # ---------------------------------------------------------------------------
@@ -516,6 +559,10 @@ def main():
 
     print("--- Traces: su Integrity ---")
     check_su_integrity()
+    print()
+
+    print("--- Traces: PAM nullok (empty-password su) ---")
+    check_pam_nullok()
     print()
 
     if df_rxrpc_vuln:

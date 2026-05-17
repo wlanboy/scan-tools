@@ -256,6 +256,55 @@ def check_passwd_integrity() -> None:
 
 
 # ---------------------------------------------------------------------------
+# PAM nullok — leeres Passwort per su erlaubt?
+# Der xfrm-ESP-Exploit schreibt sick::0:0:...:/:/bin/bash in /etc/passwd
+# und nutzt dann `su sick` — funktioniert nur wenn PAM nullok aktiv ist.
+# ---------------------------------------------------------------------------
+
+PAM_FILES_SU = [
+    "/etc/pam.d/su",
+    "/etc/pam.d/su-l",
+]
+PAM_FILES_COMMON = [
+    "/etc/pam.d/common-auth",   # Debian/Ubuntu
+    "/etc/pam.d/system-auth",   # RHEL/Fedora/Arch
+    "/etc/pam.d/password-auth", # RHEL split config
+]
+
+
+def check_pam_nullok() -> None:
+    nullok_files: list[str] = []
+
+    # Prüfe su-spezifische Dateien zuerst, dann gemeinsame Auth-Configs.
+    # Eine include/substack-Referenz in su auf common-auth reicht — daher
+    # prüfen wir beide Gruppen unabhängig voneinander.
+    for path in PAM_FILES_SU + PAM_FILES_COMMON:
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path) as f:
+                for lineno, raw in enumerate(f, 1):
+                    line = raw.strip()
+                    if line.startswith("#"):
+                        continue
+                    # Nur Auth-Zeilen mit pam_unix.so betrachten
+                    if "pam_unix.so" in line and "nullok" in line:
+                        nullok_files.append("{0}:{1}".format(path, lineno))
+        except OSError:
+            continue
+
+    if nullok_files:
+        for loc in nullok_files:
+            emit("FINDING_PAM_NULLOK",
+                 "pam_unix.so with nullok found in {0} — "
+                 "su with empty password accepted (exploit prerequisite)".format(loc))
+    else:
+        emit("PAM_NULLOK_NOT_FOUND",
+             "no pam_unix.so nullok in su/common-auth configs — "
+             "empty-password su blocked")
+
+
+# ---------------------------------------------------------------------------
 # Audit-Log auf Zugriffe auf su / passwd prüfen
 # ---------------------------------------------------------------------------
 
@@ -514,6 +563,10 @@ def main() -> None:
 
     print("--- Traces: su Integrity ---")
     check_su_integrity()
+    print()
+
+    print("--- Traces: PAM nullok (empty-password su) ---")
+    check_pam_nullok()
     print()
 
     if df_rxrpc_vuln:
