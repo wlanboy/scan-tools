@@ -314,9 +314,6 @@ MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     ("spec.security.dataPlane.automtls",
      "spec.values.meshConfig.enableAutoMtls",
      "Data Plane Auto mTLS"),
-    ("spec.security.dataPlane.mtls",
-     "spec.values.meshConfig.meshMTLS (+ PeerAuthentication und DestinationRule Ressourcen erstellen!)",
-     "mTLS Strict Mode"),
     # 7.1.1.8 Security - Trust
     ("spec.security.trust.domain",
      "spec.values.meshConfig.trustDomain",
@@ -346,6 +343,109 @@ MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     ("spec.tracing.sampling",
      "spec.values.pilot.traceSampling",
      "Tracing Sampling Rate"),
+    # 7.1.1.1 Cluster - Multi-Cluster meshNetworks
+    ("spec.cluster.multiCluster.meshNetworks",
+     "spec.values.global.meshNetworks",
+     "Multi-Cluster Mesh Networks"),
+    ("spec.cluster.multiCluster.meshNetworks.gateways.address",
+     "spec.values.global.meshNetworks.gateways.address",
+     "Mesh Networks Gateway Address"),
+    ("spec.cluster.multiCluster.meshNetworks.gateways.port",
+     "spec.values.global.meshNetworks.gateways.port",
+     "Mesh Networks Gateway Port"),
+    # 7.1.1.6 Proxy - Basic
+    ("spec.proxy.adminPort",
+     "spec.values.meshConfig.defaultConfig.proxyAdminPort",
+     "Proxy Admin Port"),
+    ("spec.proxy.concurrency",
+     "spec.values.meshConfig.defaultConfig.concurrency",
+     "Proxy Concurrency"),
+    # 7.1.1.6 Proxy - Envoy Metrics (ergänzt)
+    ("spec.proxy.envoyMetricsService.enabled",
+     "spec.values.meshConfig.enableEnvoyAccessLogService",
+     "Envoy Metrics Service aktiviert"),
+    ("spec.proxy.envoyMetricsService.tcpKeepalive",
+     "spec.values.meshConfig.defaultConfig.envoyMetricsService.tcpKeepalive",
+     "Envoy Metrics Service TCP Keepalive"),
+    ("spec.proxy.envoyMetricsService.tlsSettings",
+     "spec.values.meshConfig.defaultConfig.envoyMetricsService.tlsSettings",
+     "Envoy Metrics Service TLS Settings"),
+    # 7.1.1.6 Proxy - Access Logging envoyService (ergänzt)
+    ("spec.proxy.accessLogging.envoyService.tcpKeepalive",
+     "spec.values.meshConfig.defaultConfig.envoyAccessLogService.tcpKeepalive",
+     "Envoy Access Log Service TCP Keepalive"),
+    ("spec.proxy.accessLogging.envoyService.tlsSettings",
+     "spec.values.meshConfig.defaultConfig.envoyAccessLogService.tlsSettings",
+     "Envoy Access Log Service TLS Settings"),
+    # 7.1.1.6 Proxy - initContainer Image (MIGRIERT - nicht entfernen!)
+    ("spec.proxy.networking.initialization.initContainer.runtime.imageName",
+     "spec.values.global.proxy_init.image",
+     "initContainer Image Name"),
+    ("spec.proxy.networking.initialization.initContainer.runtime.resources",
+     "spec.values.global.proxy_init.resources",
+     "initContainer Resources"),
+    # 7.1.1.6 Proxy - Runtime Image
+    ("spec.proxy.runtime.container.imageName",
+     "spec.values.global.proxy.image",
+     "Proxy Container Image Name"),
+    ("spec.proxy.runtime.container.imagePullPolicy",
+     "spec.values.global.imagePullPolicy",
+     "Proxy Container Image Pull Policy"),
+    ("spec.proxy.runtime.container.imagePullSecrets",
+     "spec.values.global.imagePullSecrets",
+     "Proxy Container Image Pull Secrets"),
+    ("spec.proxy.runtime.container.imageRegistry",
+     "spec.values.global.hub",
+     "Proxy Container Image Registry"),
+    ("spec.proxy.runtime.container.imageTag",
+     "spec.values.global.tag",
+     "Proxy Container Image Tag"),
+    # 7.1.1.6 Proxy - Readiness (ergänzt)
+    ("spec.proxy.runtime.readiness.failureThreshold",
+     "spec.values.global.proxy.readinessFailureThreshold",
+     "Proxy Readiness Failure Threshold"),
+    ("spec.proxy.runtime.readiness.initialDelaySeconds",
+     "spec.values.global.proxy.readinessInitialDelaySeconds",
+     "Proxy Readiness Initial Delay"),
+    ("spec.proxy.runtime.readiness.periodSeconds",
+     "spec.values.global.proxy.readinessPeriodSeconds",
+     "Proxy Readiness Period Seconds"),
+    ("spec.proxy.runtime.readiness.statusPort",
+     "spec.values.global.proxy.statusPort",
+     "Proxy Readiness Status Port"),
+    # 7.1.1.7 Runtime - Container Image
+    ("spec.runtime.components.container.imageName",
+     "spec.values.pilot.image",
+     "Pilot Container Image Name"),
+    ("spec.runtime.components.container.imageTag",
+     "spec.values.pilot.tag",
+     "Pilot Container Image Tag"),
+    ("spec.runtime.components.container.imagePullPolicy",
+     "spec.values.global.imagePullPolicy",
+     "Pilot Container Image Pull Policy"),
+    ("spec.runtime.components.container.imagePullSecrets",
+     "spec.values.global.imagePullSecrets",
+     "Pilot Container Image Pull Secrets"),
+    ("spec.runtime.components.container.imageRegistry",
+     "spec.values.global.hub",
+     "Pilot Container Image Registry"),
+    # 7.1.1.7 Runtime - Autoscaling (ergänzt)
+    ("spec.runtime.components.deployment.autoScaling.targetCPUUtilizationPercentage",
+     "spec.values.pilot.cpu.targetAverageUtilization",
+     "Pilot Autoscale Target CPU Utilization"),
+    # 7.1.1.7 Runtime - Defaults Image
+    ("spec.runtime.defaults.container.imagePullPolicy",
+     "spec.values.global.imagePullPolicy",
+     "Default Container Image Pull Policy"),
+    ("spec.runtime.defaults.container.imagePullSecrets",
+     "spec.values.global.imagePullSecrets",
+     "Default Container Image Pull Secrets"),
+    ("spec.runtime.defaults.container.imageRegistry",
+     "spec.values.global.hub",
+     "Default Container Image Registry"),
+    ("spec.runtime.defaults.container.imageTag",
+     "spec.values.global.tag",
+     "Default Container Image Tag"),
 ]
 
 # -- Farben für Terminal-Ausgabe -----------------------------------------------
@@ -373,11 +473,20 @@ class ScanResult:
     findings: list[Finding] = field(default_factory=list)
     scanned_namespaces: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    smcp_present: bool = False
 
     def add(self, severity, namespace, resource_type, resource_name, message, action):
         self.findings.append(
             Finding(severity, namespace, resource_type, resource_name, message, action)
         )
+
+
+# Namespaces die nie Teil des Service Mesh sind - Injection-Prüfung entfällt
+_SYSTEM_NAMESPACES = frozenset({
+    "kube-system",
+    "kube-public",
+    "kube-node-lease",
+})
 
 
 # -- kubectl / oc Helper -------------------------------------------------------
@@ -411,8 +520,8 @@ def get_json(resource: str, namespace: Optional[str], tool: str) -> Optional[dic
 
 
 def crd_exists(crd_name: str, tool: str) -> bool:
-    ok, _ = run_kubectl(["get", "crd", crd_name, "--ignore-not-found"], tool)
-    return ok
+    ok, out = run_kubectl(["get", "crd", crd_name, "--ignore-not-found"], tool)
+    return ok and bool(out.strip())
 
 
 def detect_tool() -> str:
@@ -463,6 +572,19 @@ def _path_exists(spec: dict, smcp_path: str) -> tuple[bool, object]:
             return False, None
         current = current[part]
     return True, current
+
+
+# -- Namespace-Hilfsfunktion ---------------------------------------------------
+def _namespace_has_pod_injection(tool: str, namespace: str) -> bool:
+    """True wenn der Namespace Pods mit pod-level Istio-Injection hat (Label oder Rev)."""
+    data = get_json("pods", namespace, tool)
+    if not data:
+        return False
+    for pod in data.get("items", []):
+        labels = pod.get("metadata", {}).get("labels", {})
+        if labels.get("sidecar.istio.io/inject") == "true" or "istio.io/rev" in labels:
+            return True
+    return False
 
 
 # -- Cluster-weite Checks ------------------------------------------------------
@@ -563,6 +685,8 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
     if not data or not data.get("items"):
         return
 
+    result.smcp_present = True
+
     for item in data["items"]:
         name = item.get("metadata", {}).get("name", "unknown")
         spec = item.get("spec", {})
@@ -578,10 +702,12 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
 
         # -- Version ----------------------------------------------------------
         version = spec.get("version", "nicht gesetzt")
+        is_v26 = isinstance(version, str) and "v2.6" in version
         result.add(
-            "info", namespace, "ServiceMeshControlPlane", name,
-            f"SMCP Version: '{version}' - muss vor Migration auf 2.6.14 sein",
-            "Update auf OSSM 2.6.14 vor der Migration zu 3.0 erforderlich",
+            "info" if is_v26 else "deprecation",
+            namespace, "ServiceMeshControlPlane", name,
+            f"SMCP Version: '{version}'" + (" (v2.6 - ok)" if is_v26 else " - BLOCKER: Upgrade auf v2.6.14 erforderlich"),
+            "Auf exakt OSSM 2.6.14 aktualisieren bevor die Migration zu 3.0 beginnt",
         )
 
         addons = spec.get("addons", {})
@@ -616,7 +742,17 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "Kiali separat über 'Kiali Operator provided by Red Hat' installieren.",
             )
 
-        # -- Add-ons: Jaeger / Tracing -----------------------------------------
+        # -- Add-ons: Jaeger (addon config) -----------------------------------
+        jaeger_addon = _nested_get(addons, "jaeger", "enabled")
+        if jaeger_addon is True or (jaeger_addon is None and addons.get("jaeger") is not None):
+            result.add(
+                "deprecation", namespace, "ServiceMeshControlPlane", name,
+                "spec.addons.jaeger ist aktiviert (oder Standard)",
+                "Vor Migration deaktivieren: spec.addons.jaeger.enabled=false. "
+                "Ersatz: Red Hat OpenShift distributed tracing platform (Tempo Operator)",
+            )
+
+        # -- Add-ons: Jaeger / Tracing (spec.tracing.type) --------------------
         tracing_type = _nested_get(spec, "tracing", "type")
         if isinstance(tracing_type, str) and tracing_type.lower() != "none":
             result.add(
@@ -647,7 +783,7 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "Alle Routes vor Migration explizit als OpenShift Route-Objekte erstellen. "
                 "Dann: spec.gateways.openshiftRoute.enabled=false setzen.",
             )
-        elif gateways_enabled is not False and ior is not False:
+        elif gateways_spec and ior is None:
             result.add(
                 "warning", namespace, "ServiceMeshControlPlane", name,
                 "IOR-Status unklar (gateways.openshiftRoute.enabled nicht explizit false)",
@@ -686,21 +822,6 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "Das SMCP-Feld wird nicht mehr unterstützt.",
             )
 
-        tls_max = _nested_get(spec, "security", "controlPlane", "tls", "maxProtocolVersion")
-        tls_min = _nested_get(spec, "security", "controlPlane", "tls", "minProtocolVersion")
-        if tls_max:
-            result.add(
-                "deprecation", namespace, "ServiceMeshControlPlane", name,
-                f"spec.security.controlPlane.tls.maxProtocolVersion='{tls_max}' - nicht in OSSM 3.0 unterstützt",
-                "Dieses Feld entfernen. In OSSM 3.0 wird maxProtocolVersion nicht unterstützt.",
-            )
-        if tls_min:
-            result.add(
-                "warning", namespace, "ServiceMeshControlPlane", name,
-                f"spec.security.controlPlane.tls.minProtocolVersion='{tls_min}' gesetzt",
-                "In OSSM 3.0: spec.meshConfig.tlsDefaults.minProtocolVersion im Istio-Resource setzen.",
-            )
-
         # -- DNS Capture (war in OSSM 2.6 Standard, in 3.0 nicht mehr) --------
         dns_capture = _nested_get(
             spec, "proxy", "runtime", "container", "env"
@@ -737,43 +858,6 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "rootCAConfigMapName werden in OSSM 3.0 NICHT unterstützt.",
             )
 
-        # -- Unsupported Policy Felder -----------------------------------------
-        policy = spec.get("policy", {})
-        for unsupported in ("mixer", "remote"):
-            if unsupported in policy:
-                result.add(
-                    "deprecation", namespace, "ServiceMeshControlPlane", name,
-                    f"spec.policy.{unsupported} konfiguriert - in OSSM 3.0 nicht unterstützt",
-                    f"Feld spec.policy.{unsupported} entfernen vor Migration",
-                )
-
-        # -- Unsupported Telemetry Felder --------------------------------------
-        telemetry = spec.get("telemetry", {})
-        for unsupported in ("mixer", "remote", "type"):
-            if unsupported in telemetry:
-                result.add(
-                    "deprecation", namespace, "ServiceMeshControlPlane", name,
-                    f"spec.telemetry.{unsupported} konfiguriert - in OSSM 3.0 nicht unterstützt",
-                    f"Feld spec.telemetry.{unsupported} entfernen vor Migration",
-                )
-
-        # -- Unsupported Proxy-Networking Felder -------------------------------
-        proxy_net = _nested_get(spec, "proxy", "networking") or {}
-        unsupported_proxy_fields = [
-            ("initialization", "type"),
-            ("protocol", "autoDetect"),
-            ("protocol", "inbound"),
-            ("protocol", "outbound"),
-        ]
-        for path in unsupported_proxy_fields:
-            val = _nested_get(proxy_net, *path)
-            if val is not None:
-                field_path = ".".join(path)
-                result.add(
-                    "deprecation", namespace, "ServiceMeshControlPlane", name,
-                    f"spec.proxy.networking.{field_path} gesetzt - in OSSM 3.0 nicht unterstützt",
-                    "Feld entfernen. OSSM 3.0 basiert direkt auf Istio-Helm-Werten.",
-                )
 
 
 # -- ServiceEntry Checks -------------------------------------------------------
@@ -825,9 +909,7 @@ def check_service_entries(result: ScanResult, tool: str, namespace: str):
             )
 
         # DNS-Auflösung -> DNS Capture Warnung
-        if resolution in ("DNS", "DNS_ROUND_ROBIN") or any(
-            not host.startswith("*") for host in hosts
-        ):
+        if resolution in ("DNS", "DNS_ROUND_ROBIN"):
             result.add(
                 "warning", namespace, "ServiceEntry", name,
                 f"ServiceEntry mit resolution='{resolution or 'STATIC'}' und externen Hosts "
@@ -849,6 +931,9 @@ def check_namespace_labels(result: ScanResult, tool: str, namespace: str):
     - Fehlende Injection-Labels
     - Korrekte OSSM 3.0 Labels
     """
+    if namespace in _SYSTEM_NAMESPACES:
+        return
+
     ok, out = run_kubectl(["get", "namespace", namespace, "-o", "json"], tool)
     if not ok:
         result.errors.append(f"Namespace '{namespace}' nicht abrufbar: {out}")
@@ -899,12 +984,20 @@ def check_namespace_labels(result: ScanResult, tool: str, namespace: str):
         or "maistra.io/member-of" in labels
     )
     if not has_injection:
-        result.add(
-            "info", namespace, "Namespace", namespace,
-            "Kein Injection-Label - Namespace wahrscheinlich nicht im Mesh",
-            "Für OSSM 3.0 Mesh-Mitgliedschaft: 'istio-injection=enabled' (nur wenn IstioRevision name='default') "
-            "oder 'istio.io/rev=<revision-name>' setzen.",
-        )
+        if _namespace_has_pod_injection(tool, namespace):
+            result.add(
+                "info", namespace, "Namespace", namespace,
+                "Kein Namespace-Injection-Label - Pod-Level-Injection aktiv (Gateway-Pattern)",
+                "Namespace nutzt pod-level 'sidecar.istio.io/inject: true' Label statt Namespace-Label. "
+                "Für OSSM 3.0 korrekt wenn Pods explizit annotiert sind (z.B. Gateway-Injection).",
+            )
+        else:
+            result.add(
+                "info", namespace, "Namespace", namespace,
+                "Kein Injection-Label - Namespace wahrscheinlich nicht im Mesh",
+                "Für OSSM 3.0 Mesh-Mitgliedschaft: 'istio-injection=enabled' (nur wenn IstioRevision name='default') "
+                "oder 'istio.io/rev=<revision-name>' setzen.",
+            )
     else:
         if "istio.io/rev" in labels:
             rev = labels["istio.io/rev"]
@@ -951,12 +1044,22 @@ def check_pod_annotations(result: ScanResult, tool: str, namespace: str):
             dedup_key = f"{namespace}/annotation/sidecar.istio.io/inject"
             if dedup_key not in seen_annotations:
                 seen_annotations.add(dedup_key)
-                result.add(
-                    "warning", namespace, "Pod", pod_name,
-                    f"Pod-Annotation 'sidecar.istio.io/inject: {val}' ist veraltet",
-                    "Istio Project hat Pod-Annotations zugunsten von Labels deprecated. "
-                    "Als Label setzen: 'sidecar.istio.io/inject: \"true\"' in spec.template.metadata.labels",
-                )
+                label_already_set = pod_labels.get("sidecar.istio.io/inject") == val
+                if label_already_set:
+                    result.add(
+                        "info", namespace, "Pod", pod_name,
+                        f"Pod-Annotation 'sidecar.istio.io/inject: {val}' ist redundant (Label bereits korrekt gesetzt)",
+                        "Annotation aus spec.template.metadata.annotations entfernen - "
+                        "das Label 'sidecar.istio.io/inject' ist bereits vorhanden und hat Vorrang.",
+                    )
+                else:
+                    result.add(
+                        "warning", namespace, "Pod", pod_name,
+                        f"Pod-Annotation 'sidecar.istio.io/inject: {val}' ist veraltet",
+                        "Istio Project hat Pod-Annotations zugunsten von Labels deprecated. "
+                        "Als Label setzen: 'sidecar.istio.io/inject: \"true\"' in spec.template.metadata.labels "
+                        "und Annotation entfernen.",
+                    )
 
         # proxy.istio.io Annotations prüfen
         proxy_annotations = {k: v for k, v in annotations.items() if "proxy.istio.io" in k}
@@ -1011,6 +1114,10 @@ def check_virtual_services_gateways(result: ScanResult, tool: str, namespace: st
         for gw in gw_data["items"]:
             name   = gw.get("metadata", {}).get("name", "unknown")
             labels = gw.get("metadata", {}).get("labels", {})
+
+            if not result.smcp_present:
+                # Kein SMCP → normales Istio-Gateway, kein Migrationsbedarf
+                continue
 
             # Prüfen ob Gateway über Gateway-Injection managed (hat istio Label)
             is_gateway_injection = "istio" in labels or "app" in labels
@@ -1118,6 +1225,92 @@ def scan(namespaces: list[str], tool: str) -> ScanResult:
 
 
 # -- Report Ausgabe ------------------------------------------------------------
+def _build_checklist(result: ScanResult) -> list[tuple[str, str, str]]:
+    """Builds a filtered checklist based on actual findings."""
+    findings = result.findings
+
+    def has(severity=None, resource_type=None, msg_contains=None):
+        for f in findings:
+            if severity and f.severity != severity:
+                continue
+            if resource_type and f.resource_type != resource_type:
+                continue
+            if msg_contains and msg_contains not in f.message:
+                continue
+            return True
+        return False
+
+    has_smcp            = has(resource_type="ServiceMeshControlPlane")
+    has_se_hosts        = has(severity="deprecation", resource_type="ServiceEntry", msg_contains="LIMIT: 256")
+    has_se_ports        = has(severity="deprecation", resource_type="ServiceEntry", msg_contains="keine Port-Spezifikation")
+    has_prometheus      = has(severity="deprecation", msg_contains="prometheus ist aktiviert")
+    has_grafana         = has(severity="deprecation", msg_contains="grafana ist aktiviert")
+    has_kiali           = has(severity="deprecation", msg_contains="kiali ist aktiviert")
+    has_tracing         = has(severity="deprecation", msg_contains="tracing.type=")
+    has_ior             = has(severity="deprecation", msg_contains="IOR")
+    has_gw_smcp         = has(severity="deprecation", msg_contains="Gateways werden über SMCP")
+    has_network_policy  = has(severity="deprecation", msg_contains="manageNetworkPolicy")
+    has_dns_capture     = has(severity="warning",     msg_contains="DNS Capture")
+    has_mtls            = has(severity="warning",     msg_contains="mTLS Strict-Mode")
+    has_tls_min         = has(severity="warning",     msg_contains="minProtocolVersion")
+    has_sidecar_annot   = has(severity="warning",     msg_contains="sidecar.istio.io/inject")
+    has_maistra_labels  = has(severity="deprecation", msg_contains="maistra.io/member-of") or \
+                          has(severity="warning",     msg_contains="maistra.io/ignore-namespace") or \
+                          has(severity="warning",     msg_contains="maistra.io/expose-route")
+    has_cert_manager    = has(severity="warning",     msg_contains="cert-manager")
+    has_ossm3_crds      = has(resource_type="CRD",   msg_contains="OSSM 3.0 CRD vorhanden")
+    has_vs_gateway      = has(severity="warning",     resource_type="VirtualService")
+
+    checklist: list[tuple[str, str, str]] = []
+
+    if has_smcp:
+        checklist.append(("Rot",  "MUSS", "Auf OSSM 2.6.14 updaten (Voraussetzung für Migration)"))
+    if has_se_hosts:
+        checklist.append(("Rot",  "MUSS", "ServiceEntries mit >256 Hosts aufteilen (Blocker!)"))
+    if has_se_ports:
+        checklist.append(("Rot",  "MUSS", "ServiceEntries ohne Port-Spezifikation reparieren (Blocker!)"))
+    if has_prometheus:
+        checklist.append(("Rot",  "MUSS", "spec.addons.prometheus.enabled=false im SMCP setzen"))
+    if has_grafana:
+        checklist.append(("Rot",  "MUSS", "spec.addons.grafana.enabled=false im SMCP setzen"))
+    if has_kiali:
+        checklist.append(("Rot",  "MUSS", "spec.addons.kiali.enabled=false im SMCP setzen"))
+    if has_tracing:
+        checklist.append(("Rot",  "MUSS", "spec.tracing.type=None im SMCP setzen"))
+    if has_ior:
+        checklist.append(("Rot",  "MUSS", "IOR deaktivieren: gateways.openshiftRoute.enabled=false"))
+    if has_ior or has_vs_gateway:
+        checklist.append(("Rot",  "MUSS", "Alle OpenShift Routes explizit erstellen (IOR-Ersatz)"))
+    if has_gw_smcp:
+        checklist.append(("Rot",  "MUSS", "SMCP-Gateways zu Gateway-Injection migrieren"))
+    if has_network_policy:
+        checklist.append(("Rot",  "MUSS", "spec.security.manageNetworkPolicy=false im SMCP setzen"))
+    if has_dns_capture:
+        checklist.append(("Gelb", "SOLL", "DNS Capture explizit konfigurieren (war in 2.6 Standard)"))
+    if has_mtls:
+        checklist.append(("Gelb", "SOLL", "mTLS Strict-Mode zu PeerAuthentication/DestinationRule migrieren"))
+    if has_tls_min:
+        checklist.append(("Gelb", "SOLL", "TLS minProtocolVersion zu Istio-Resource migrieren"))
+    if has_sidecar_annot:
+        checklist.append(("Gelb", "SOLL", "Pod-Annotations 'sidecar.istio.io/inject' durch Labels ersetzen"))
+    if has_maistra_labels:
+        checklist.append(("Gelb", "SOLL", "maistra.io Labels nach Migration von Namespaces entfernen"))
+    if has_cert_manager:
+        checklist.append(("Gelb", "SOLL", "cert-manager Integration prüfen (eigene Migrationspfade)"))
+    if has_kiali:
+        checklist.append(("Blau", "INFO", "Kiali Operator (by Red Hat) separat installieren"))
+    if has_tracing:
+        checklist.append(("Blau", "INFO", "Tempo Operator für Distributed Tracing installieren"))
+    if has_ossm3_crds:
+        checklist.append(("Blau", "INFO", "IstioCNI Resource im Sail Operator konfigurieren"))
+    if has_smcp or has_ossm3_crds:
+        checklist.append(("Blau", "INFO", "IstioRevision-Strategie wählen: InPlace vs. RevisionBased"))
+    if has_smcp:
+        checklist.append(("Blau", "INFO", "discoverySelectors für Namespace-Scoping konfigurieren"))
+
+    return checklist
+
+
 def print_report(result: ScanResult):
     deprecations = [f for f in result.findings if f.severity == "deprecation"]
     warnings     = [f for f in result.findings if f.severity == "warning"]
@@ -1166,36 +1359,13 @@ def print_report(result: ScanResult):
             print(f"  {RED}[ERR]{RESET} {err}")
 
     print(f"\n{BOLD}{'=' * 72}{RESET}")
-    print(f"\n{BOLD}Migrations-Pflichtliste (aus Red Hat OSSM 3.0 Migrationsdokumentation):{RESET}")
-    checklist = [
-        # (Farbe, Pflicht/optional, Text)
-        ("Rot",  "MUSS", "Auf OSSM 2.6.14 updaten (Voraussetzung für Migration)"),
-        ("Rot",  "MUSS", "ServiceEntries mit >256 Hosts aufteilen (Blocker!)"),
-        ("Rot",  "MUSS", "ServiceEntries ohne Port-Spezifikation reparieren (Blocker!)"),
-        ("Rot",  "MUSS", "spec.addons.prometheus.enabled=false im SMCP setzen"),
-        ("Rot",  "MUSS", "spec.addons.grafana.enabled=false im SMCP setzen"),
-        ("Rot",  "MUSS", "spec.addons.kiali.enabled=false im SMCP setzen"),
-        ("Rot",  "MUSS", "spec.tracing.type=None im SMCP setzen"),
-        ("Rot",  "MUSS", "IOR deaktivieren: gateways.openshiftRoute.enabled=false"),
-        ("Rot",  "MUSS", "Alle OpenShift Routes explizit erstellen (IOR-Ersatz)"),
-        ("Rot",  "MUSS", "SMCP-Gateways zu Gateway-Injection migrieren"),
-        ("Rot",  "MUSS", "spec.security.manageNetworkPolicy=false im SMCP setzen"),
-        ("Gelb", "SOLL", "DNS Capture explizit konfigurieren (war in 2.6 Standard)"),
-        ("Gelb", "SOLL", "mTLS Strict-Mode zu PeerAuthentication/DestinationRule migrieren"),
-        ("Gelb", "SOLL", "TLS minProtocolVersion zu Istio-Resource migrieren"),
-        ("Gelb", "SOLL", "Pod-Annotations 'sidecar.istio.io/inject' durch Labels ersetzen"),
-        ("Gelb", "SOLL", "maistra.io Labels nach Migration von Namespaces entfernen"),
-        ("Gelb", "SOLL", "cert-manager Integration prüfen (eigene Migrationspfade)"),
-        ("Blau", "INFO", "Kiali Operator (by Red Hat) separat installieren"),
-        ("Blau", "INFO", "Tempo Operator für Distributed Tracing installieren"),
-        ("Blau", "INFO", "IstioCNI Resource im Sail Operator konfigurieren"),
-        ("Blau", "INFO", "IstioRevision-Strategie wählen: InPlace vs. RevisionBased"),
-        ("Blau", "INFO", "discoverySelectors für Namespace-Scoping konfigurieren"),
-    ]
-    icons = {"Rot": f"{RED}x{RESET}", "Gelb": f"{YELLOW}!{RESET}", "Blau": f"{BLUE}i{RESET}"}
-    for color, pflicht, item in checklist:
-        print(f"  {icons[color]} [{pflicht}] {item}")
-    print()
+    checklist = _build_checklist(result)
+    if checklist:
+        print(f"\n{BOLD}Migrations-Pflichtliste (aus Red Hat OSSM 3.0 Migrationsdokumentation):{RESET}")
+        icons = {"Rot": f"{RED}x{RESET}", "Gelb": f"{YELLOW}!{RESET}", "Blau": f"{BLUE}i{RESET}"}
+        for color, pflicht, item in checklist:
+            print(f"  {icons[color]} [{pflicht}] {item}")
+        print()
 
 
 def export_json(result: ScanResult, path: str):
