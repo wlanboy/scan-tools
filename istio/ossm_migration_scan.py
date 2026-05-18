@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-OSSM Migration Scanner: Service Mesh 2.x → 3.0
+OSSM Migration Scanner: Service Mesh 2.x -> 3.0
 Scannt Namespaces nach veralteten Istio-Ressourcen und Labels,
 um die Migration von OSSM 2.6.x auf 3.0.x vorzubereiten.
 
@@ -17,111 +17,111 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # Felddaten aus configuration.txt (Kapitel 7.1.2 + 7.1.1)
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 
-# Felder die in OSSM 3.0 NICHT mehr unterstützt werden → Blocker
+# Felder die in OSSM 3.0 NICHT mehr unterstützt werden -> Blocker
 # Format: (smcp_path, kategorie, aktion)
 UNSUPPORTED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     # 7.1.2.2 Cluster
     ("spec.cluster.meshExpansion.ilbGateway",
      "Cluster",
-     "Feld entfernen — ILB Gateway hat keine Entsprechung in OSSM 3.0"),
+     "Feld entfernen - ILB Gateway hat keine Entsprechung in OSSM 3.0"),
     ("spec.cluster.multiCluster.meshNetworks.gateways.service",
      "Cluster",
-     "Feld entfernen — kein Equivalent in OSSM 3.0"),
+     "Feld entfernen - kein Equivalent in OSSM 3.0"),
     # 7.1.2.4 Policy (Mixer entfernt)
     ("spec.policy.type",
      "Policy",
-     "Feld entfernen — Mixer/Policy komplett aus OSSM 3.0 entfernt"),
+     "Feld entfernen - Mixer/Policy komplett aus OSSM 3.0 entfernt"),
     ("spec.policy.mixer",
      "Policy",
-     "Feld entfernen — Mixer komplett aus OSSM 3.0 entfernt"),
+     "Feld entfernen - Mixer komplett aus OSSM 3.0 entfernt"),
     ("spec.policy.remote",
      "Policy",
-     "Feld entfernen — Remote Policy in OSSM 3.0 nicht unterstützt"),
+     "Feld entfernen - Remote Policy in OSSM 3.0 nicht unterstützt"),
     # 7.1.2.5 Proxy networking
     ("spec.proxy.networking.initialization.type",
      "Proxy Networking",
-     "Feld entfernen — Initialization type nicht unterstützt"),
+     "Feld entfernen - Initialization type nicht unterstützt"),
     ("spec.proxy.networking.initialization.initContainer.runtime.env",
      "Proxy Networking",
-     "Feld entfernen — initContainer env nicht unterstützt. "
+     "Feld entfernen - initContainer env nicht unterstützt. "
      "Proxy-Umgebungsvariablen via spec.values.meshConfig.defaultConfig.proxyMetadata setzen"),
     ("spec.proxy.networking.protocol.autoDetect",
      "Proxy Networking",
-     "Feld entfernen — Protocol autoDetect nicht unterstützt"),
+     "Feld entfernen - Protocol autoDetect nicht unterstützt"),
     ("spec.proxy.networking.protocol.inbound",
      "Proxy Networking",
-     "Feld entfernen — Protocol inbound nicht unterstützt"),
+     "Feld entfernen - Protocol inbound nicht unterstützt"),
     ("spec.proxy.networking.protocol.outbound",
      "Proxy Networking",
-     "Feld entfernen — Protocol outbound nicht unterstützt"),
+     "Feld entfernen - Protocol outbound nicht unterstützt"),
     # 7.1.2.6 Runtime
     ("spec.runtime.components.deployment.strategy.type",
      "Runtime",
-     "Feld entfernen — Deployment strategy.type nicht konfigurierbar in OSSM 3.0"),
+     "Feld entfernen - Deployment strategy.type nicht konfigurierbar in OSSM 3.0"),
     ("spec.runtime.defaults.deployment.podDisruption.maxUnavailable",
      "Runtime",
-     "Feld entfernen — PodDisruptionBudget maxUnavailable nicht unterstützt in OSSM 3.0"),
+     "Feld entfernen - PodDisruptionBudget maxUnavailable nicht unterstützt in OSSM 3.0"),
     ("spec.runtime.defaults.deployment.podDisruption.minAvailable",
      "Runtime",
-     "Feld entfernen — PodDisruptionBudget minAvailable nicht unterstützt in OSSM 3.0"),
-    # 7.1.2.7 Security — cert-manager
+     "Feld entfernen - PodDisruptionBudget minAvailable nicht unterstützt in OSSM 3.0"),
+    # 7.1.2.7 Security - cert-manager
     ("spec.security.certificateAuthority.cert-manager.pilotSecretName",
      "Security / cert-manager",
-     "Feld entfernen — pilotSecretName nicht in OSSM 3.0 unterstützt"),
+     "Feld entfernen - pilotSecretName nicht in OSSM 3.0 unterstützt"),
     ("spec.security.certificateAuthority.cert-manager.rootCAConfigMapName",
      "Security / cert-manager",
-     "Feld entfernen — rootCAConfigMapName nicht in OSSM 3.0 unterstützt"),
-    # 7.1.2.7 Security — istiod CA
+     "Feld entfernen - rootCAConfigMapName nicht in OSSM 3.0 unterstützt"),
+    # 7.1.2.7 Security - istiod CA
     ("spec.security.certificateAuthority.istiod.privateKey.rootCADir",
      "Security / Istiod CA",
-     "Feld entfernen — rootCADir nicht in OSSM 3.0 unterstützt"),
+     "Feld entfernen - rootCADir nicht in OSSM 3.0 unterstützt"),
     ("spec.security.certificateAuthority.istiod.selfSigned.checkPeriod",
      "Security / Istiod CA",
-     "Feld entfernen — selfSigned.checkPeriod nicht in OSSM 3.0 unterstützt"),
+     "Feld entfernen - selfSigned.checkPeriod nicht in OSSM 3.0 unterstützt"),
     ("spec.security.certificateAuthority.istiod.selfSigned.enableJitter",
      "Security / Istiod CA",
-     "Feld entfernen — selfSigned.enableJitter nicht in OSSM 3.0 unterstützt"),
+     "Feld entfernen - selfSigned.enableJitter nicht in OSSM 3.0 unterstützt"),
     ("spec.security.certificateAuthority.istiod.selfSigned.gracePeriod",
      "Security / Istiod CA",
-     "Feld entfernen — selfSigned.gracePeriod nicht in OSSM 3.0 unterstützt"),
+     "Feld entfernen - selfSigned.gracePeriod nicht in OSSM 3.0 unterstützt"),
     ("spec.security.certificateAuthority.istiod.selfSigned.ttl",
      "Security / Istiod CA",
-     "Feld entfernen — selfSigned.ttl nicht in OSSM 3.0 unterstützt"),
+     "Feld entfernen - selfSigned.ttl nicht in OSSM 3.0 unterstützt"),
     ("spec.security.certificateAuthority.istiod.workloadCertTTLDefault",
      "Security / Istiod CA",
-     "Feld entfernen — workloadCertTTLDefault nicht in OSSM 3.0 unterstützt"),
+     "Feld entfernen - workloadCertTTLDefault nicht in OSSM 3.0 unterstützt"),
     ("spec.security.certificateAuthority.istiod.workloadCertTTLMax",
      "Security / Istiod CA",
-     "Feld entfernen — workloadCertTTLMax nicht in OSSM 3.0 unterstützt"),
-    # 7.1.2.7 Security — control plane TLS
+     "Feld entfernen - workloadCertTTLMax nicht in OSSM 3.0 unterstützt"),
+    # 7.1.2.7 Security - control plane TLS
     ("spec.security.controlPlane.tls.maxProtocolVersion",
      "Security / TLS",
-     "Feld entfernen — maxProtocolVersion in OSSM 3.0 nicht unterstützt "
-     "(minProtocolVersion bleibt: → spec.values.meshConfig.tlsDefaults.minProtocolVersion)"),
-    # 7.1.2.7 Security — identity
+     "Feld entfernen - maxProtocolVersion in OSSM 3.0 nicht unterstützt "
+     "(minProtocolVersion bleibt: -> spec.values.meshConfig.tlsDefaults.minProtocolVersion)"),
+    # 7.1.2.7 Security - identity
     ("spec.security.identity.thirdParty.issuer",
      "Security / Identity",
-     "Feld entfernen — thirdParty.issuer nicht in OSSM 3.0 unterstützt"),
+     "Feld entfernen - thirdParty.issuer nicht in OSSM 3.0 unterstützt"),
     ("spec.security.identity.type",
      "Security / Identity",
-     "Feld entfernen — identity.type nicht in OSSM 3.0 unterstützt"),
+     "Feld entfernen - identity.type nicht in OSSM 3.0 unterstützt"),
     # 7.1.2.8 Telemetry (Mixer entfernt)
     ("spec.telemetry.type",
      "Telemetry",
-     "Feld entfernen — Telemetry type (Mixer) komplett aus OSSM 3.0 entfernt"),
+     "Feld entfernen - Telemetry type (Mixer) komplett aus OSSM 3.0 entfernt"),
     ("spec.telemetry.mixer",
      "Telemetry",
-     "Feld entfernen — Mixer komplett aus OSSM 3.0 entfernt"),
+     "Feld entfernen - Mixer komplett aus OSSM 3.0 entfernt"),
     ("spec.telemetry.remote",
      "Telemetry",
-     "Feld entfernen — Remote Telemetry in OSSM 3.0 nicht unterstützt"),
+     "Feld entfernen - Remote Telemetry in OSSM 3.0 nicht unterstützt"),
 ]
 
-# Felder die in OSSM 3.0 an NEUEN Pfaden konfiguriert werden → Warnung
+# Felder die in OSSM 3.0 an NEUEN Pfaden konfiguriert werden -> Warnung
 # Format: (smcp_path, ossm3_path, beschreibung)
 MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     # 7.1.1.1 Cluster
@@ -144,7 +144,7 @@ MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     ("spec.general.validationMessages",
      "spec.values.global.istiod.enableAnalysis",
      "Validation Messages / Analysis"),
-    # 7.1.1.6 Proxy — Access Logging
+    # 7.1.1.6 Proxy - Access Logging
     ("spec.proxy.accessLogging.file.name",
      "spec.values.meshConfig.accessLogFile",
      "Access Log Dateiname"),
@@ -160,11 +160,11 @@ MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     ("spec.proxy.accessLogging.envoyService.address",
      "spec.values.meshConfig.defaultConfig.envoyAccessLogService.address",
      "Envoy Access Log Service Adresse"),
-    # 7.1.1.6 Proxy — Envoy Metrics
+    # 7.1.1.6 Proxy - Envoy Metrics
     ("spec.proxy.envoyMetricsService.address",
      "spec.values.meshConfig.defaultConfig.envoyMetricsService.address",
      "Envoy Metrics Service Adresse"),
-    # 7.1.1.6 Proxy — Injection
+    # 7.1.1.6 Proxy - Injection
     ("spec.proxy.injection.autoInject",
      "spec.values.global.proxy.autoInject",
      "Auto Inject (global)"),
@@ -177,14 +177,14 @@ MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     ("spec.proxy.injection.injectedAnnotations",
      "spec.values.sidecarInjectorWebhook.injectedAnnotations",
      "Injected Annotations"),
-    # 7.1.1.6 Proxy — Logging
+    # 7.1.1.6 Proxy - Logging
     ("spec.proxy.logging.componentLevels",
      "spec.values.global.proxy.componentLogLevel",
      "Proxy Component Log Level"),
     ("spec.proxy.logging.level",
      "spec.values.global.logging.level",
      "Proxy Log Level"),
-    # 7.1.1.6 Proxy — Networking
+    # 7.1.1.6 Proxy - Networking
     ("spec.proxy.networking.clusterDomain",
      "spec.values.global.proxy.clusterDomain",
      "Cluster Domain"),
@@ -203,7 +203,7 @@ MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     ("spec.proxy.networking.protocol.timeout",
      "spec.values.meshConfig.protocolDetectionTimeout",
      "Protocol Detection Timeout"),
-    # 7.1.1.6 Proxy — Traffic Control
+    # 7.1.1.6 Proxy - Traffic Control
     ("spec.proxy.networking.trafficControl.inbound.excludedPorts",
      "spec.values.global.proxy.excludeInboundPorts",
      "Excluded Inbound Ports"),
@@ -225,18 +225,18 @@ MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     ("spec.proxy.networking.trafficControl.outbound.policy",
      "spec.values.meshConfig.outboundTrafficPolicy.mode",
      "Outbound Traffic Policy"),
-    # 7.1.1.6 Proxy — Runtime / Env (WICHTIG: DNS Capture!)
+    # 7.1.1.6 Proxy - Runtime / Env (WICHTIG: DNS Capture!)
     ("spec.proxy.runtime.container.env",
      "spec.values.meshConfig.defaultConfig.proxyMetadata",
      "Proxy Container Env-Vars inkl. DNS Capture (ISTIO_META_DNS_CAPTURE)"),
     ("spec.proxy.runtime.container.resources",
      "spec.values.global.proxy.resources",
      "Proxy Resource Limits/Requests"),
-    # 7.1.1.6 Proxy — Readiness
+    # 7.1.1.6 Proxy - Readiness
     ("spec.proxy.runtime.readiness.rewriteApplicationProbes",
      "spec.values.sidecarInjectorWebhook.rewriteAppHTTPProbe",
      "Rewrite Application HTTP Probes"),
-    # 7.1.1.7 Runtime — Pilot
+    # 7.1.1.7 Runtime - Pilot
     ("spec.runtime.components.container.env",
      "spec.values.pilot.env",
      "Pilot (Istiod) Container Env-Vars"),
@@ -276,7 +276,7 @@ MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     ("spec.runtime.components.pod.metadata.labels",
      "spec.values.pilot.podLabels",
      "Pilot Pod Labels"),
-    # 7.1.1.7 Runtime — Defaults
+    # 7.1.1.7 Runtime - Defaults
     ("spec.runtime.defaults.container.resources",
      "spec.values.global.defaultResources",
      "Default Container Resources"),
@@ -289,7 +289,7 @@ MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     ("spec.runtime.defaults.pod.tolerations",
      "spec.values.global.defaultTolerations",
      "Default Tolerations"),
-    # 7.1.1.8 Security — TLS
+    # 7.1.1.8 Security - TLS
     ("spec.security.controlPlane.tls.minProtocolVersion",
      "spec.values.meshConfig.tlsDefaults.minProtocolVersion",
      "TLS Min Protocol Version"),
@@ -305,21 +305,21 @@ MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     ("spec.security.controlPlane.certProvider",
      "spec.values.global.pilotCertProvider",
      "Cert Provider"),
-    # 7.1.1.8 Security — Data Plane
+    # 7.1.1.8 Security - Data Plane
     ("spec.security.dataPlane.automtls",
      "spec.values.meshConfig.enableAutoMtls",
      "Data Plane Auto mTLS"),
     ("spec.security.dataPlane.mtls",
      "spec.values.meshConfig.meshMTLS (+ PeerAuthentication und DestinationRule Ressourcen erstellen!)",
      "mTLS Strict Mode"),
-    # 7.1.1.8 Security — Trust
+    # 7.1.1.8 Security - Trust
     ("spec.security.trust.domain",
      "spec.values.meshConfig.trustDomain",
      "Trust Domain"),
     ("spec.security.trust.additionalDomains",
      "spec.values.meshConfig.trustDomainAliases",
      "Trust Domain Aliases"),
-    # 7.1.1.8 Security — CA
+    # 7.1.1.8 Security - CA
     ("spec.security.certificateAuthority.istiod.type",
      "spec.values.global.pilotCertProvider",
      "Istiod CA Type"),
@@ -329,11 +329,11 @@ MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     ("spec.security.certificateAuthority.custom.address",
      "spec.values.meshConfig.ca.address",
      "Custom CA Adresse"),
-    # 7.1.1.8 Security — Identity
+    # 7.1.1.8 Security - Identity
     ("spec.security.identity.thirdParty.audience",
      "spec.values.global.sds.token.aud",
      "Token Audience (Third Party JWT)"),
-    # 7.1.1.8 Security — Other
+    # 7.1.1.8 Security - Other
     ("spec.security.jwksResolverCA",
      "spec.values.pilot.jwksResolverExtraRootCA",
      "JWKS Resolver CA"),
@@ -343,7 +343,7 @@ MIGRATED_SMCP_FIELDS: list[tuple[str, str, str]] = [
      "Tracing Sampling Rate"),
 ]
 
-# ── Farben für Terminal-Ausgabe ───────────────────────────────────────────────
+# -- Farben für Terminal-Ausgabe -----------------------------------------------
 RED    = "\033[91m"
 YELLOW = "\033[93m"
 GREEN  = "\033[92m"
@@ -352,7 +352,7 @@ BOLD   = "\033[1m"
 RESET  = "\033[0m"
 
 
-# ── Datenklassen ──────────────────────────────────────────────────────────────
+# -- Datenklassen --------------------------------------------------------------
 @dataclass
 class Finding:
     severity: str      # "deprecation" | "warning" | "info"
@@ -375,7 +375,7 @@ class ScanResult:
         )
 
 
-# ── kubectl / oc Helper ───────────────────────────────────────────────────────
+# -- kubectl / oc Helper -------------------------------------------------------
 def run_kubectl(args: list[str], tool: str = "kubectl") -> tuple[bool, str]:
     try:
         result = subprocess.run(
@@ -433,11 +433,12 @@ def get_namespaces(tool: str, namespace_filter: Optional[str]) -> list[str]:
 
 def _nested_get(data: dict, *keys):
     """Sicherer verschachtelter dict-Zugriff."""
+    current: object = data
     for k in keys:
-        if not isinstance(data, dict):
+        if not isinstance(current, dict):
             return None
-        data = data.get(k)
-    return data
+        current = current.get(k)
+    return current
 
 
 def _path_exists(spec: dict, smcp_path: str) -> tuple[bool, object]:
@@ -459,13 +460,13 @@ def _path_exists(spec: dict, smcp_path: str) -> tuple[bool, object]:
     return True, current
 
 
-# ── Cluster-weite Checks ──────────────────────────────────────────────────────
+# -- Cluster-weite Checks ------------------------------------------------------
 def check_ossm2_crds(result: ScanResult, tool: str):
-    """OSSM 2.x CRDs → Blocker, da OSSM 3.0 Operator diese ablöst."""
+    """OSSM 2.x CRDs -> Blocker, da OSSM 3.0 Operator diese ablöst."""
     deprecated = {
         "servicemeshcontrolplanes.maistra.io": (
             "ServiceMeshControlPlane (maistra.io) CRD noch installiert",
-            "Durch 'Istio' CRD (sailoperator.io/v1alpha1) ersetzen — "
+            "Durch 'Istio' CRD (sailoperator.io/v1alpha1) ersetzen - "
             "kein In-Place-Upgrade möglich, Neuinstallation des Operators erforderlich",
         ),
         "servicemeshmemberrolls.maistra.io": (
@@ -497,16 +498,16 @@ def check_ossm3_crds_present(result: ScanResult, tool: str):
             result.add(
                 "info", "cluster", "CRD", crd,
                 f"OSSM 3.0 CRD vorhanden: {desc}",
-                "Sail Operator bereits installiert — parallele Koexistenz während Migration möglich",
+                "Sail Operator bereits installiert - parallele Koexistenz während Migration möglich",
             )
 
 
-# ── SMCP Feldebenen-Check (configuration.txt Kapitel 7) ──────────────────────
+# -- SMCP Feldebenen-Check (configuration.txt Kapitel 7) ----------------------
 def check_smcp_fields(result: ScanResult, tool: str, namespace: str):
     """
     Prüft alle SMCP-Instanzen auf:
-    - UNSUPPORTED_SMCP_FIELDS (7.1.2): Felder die in OSSM 3.0 komplett entfallen → DEPRECATION
-    - MIGRATED_SMCP_FIELDS   (7.1.1): Felder mit neuem Pfad in OSSM 3.0 → WARNING mit Migrationspfad
+    - UNSUPPORTED_SMCP_FIELDS (7.1.2): Felder die in OSSM 3.0 komplett entfallen -> DEPRECATION
+    - MIGRATED_SMCP_FIELDS   (7.1.1): Felder mit neuem Pfad in OSSM 3.0 -> WARNING mit Migrationspfad
     """
     data = get_json("servicemeshcontrolplanes.maistra.io", namespace, tool)
     if not data or not data.get("items"):
@@ -516,7 +517,7 @@ def check_smcp_fields(result: ScanResult, tool: str, namespace: str):
         name = item.get("metadata", {}).get("name", "unknown")
         spec = item.get("spec", {})
 
-        # Unsupported → DEPRECATION
+        # Unsupported -> DEPRECATION
         for smcp_path, kategorie, aktion in UNSUPPORTED_SMCP_FIELDS:
             found, val = _path_exists(spec, smcp_path)
             if found:
@@ -527,7 +528,7 @@ def check_smcp_fields(result: ScanResult, tool: str, namespace: str):
                     aktion,
                 )
 
-        # Migriert → WARNING mit neuem Pfad
+        # Migriert -> WARNING mit neuem Pfad
         for smcp_path, ossm3_path, beschreibung in MIGRATED_SMCP_FIELDS:
             found, val = _path_exists(spec, smcp_path)
             if found:
@@ -539,7 +540,7 @@ def check_smcp_fields(result: ScanResult, tool: str, namespace: str):
                 )
 
 
-# ── SMCP (ServiceMeshControlPlane) Strukturelle Analyse ───────────────────────
+# -- SMCP (ServiceMeshControlPlane) Strukturelle Analyse -----------------------
 def check_smcp(result: ScanResult, tool: str, namespace: str):
     """
     Analysiert ServiceMeshControlPlane auf:
@@ -561,7 +562,7 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
         name = item.get("metadata", {}).get("name", "unknown")
         spec = item.get("spec", {})
 
-        # ── Deployment-Modell ─────────────────────────────────────────────────
+        # -- Deployment-Modell -------------------------------------------------
         mode = spec.get("mode", "MultiTenant")
         result.add(
             "info", namespace, "ServiceMeshControlPlane", name,
@@ -570,17 +571,17 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
             f"Für OSSM 3.0: {'discoverySelectors konfigurieren für MultiTenant-ähnliches Verhalten' if 'Multi' in mode else 'Cluster-wide ist OSSM 3.0 Standard'}",
         )
 
-        # ── Version ──────────────────────────────────────────────────────────
+        # -- Version ----------------------------------------------------------
         version = spec.get("version", "nicht gesetzt")
         result.add(
             "info", namespace, "ServiceMeshControlPlane", name,
-            f"SMCP Version: '{version}' — muss vor Migration auf 2.6.14 sein",
+            f"SMCP Version: '{version}' - muss vor Migration auf 2.6.14 sein",
             "Update auf OSSM 2.6.14 vor der Migration zu 3.0 erforderlich",
         )
 
         addons = spec.get("addons", {})
 
-        # ── Add-ons: Prometheus ───────────────────────────────────────────────
+        # -- Add-ons: Prometheus -----------------------------------------------
         prom = _nested_get(addons, "prometheus", "enabled")
         if prom is True or (prom is None and addons.get("prometheus") is not None):
             result.add(
@@ -590,7 +591,7 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "Ersatz: OpenShift User Workload Monitoring (separater Operator)",
             )
 
-        # ── Add-ons: Grafana ──────────────────────────────────────────────────
+        # -- Add-ons: Grafana --------------------------------------------------
         grafana = _nested_get(addons, "grafana", "enabled")
         if grafana is True or (grafana is None and addons.get("grafana") is not None):
             result.add(
@@ -600,7 +601,7 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "Grafana wird in OSSM 3.0 nicht mehr unterstützt.",
             )
 
-        # ── Add-ons: Kiali ────────────────────────────────────────────────────
+        # -- Add-ons: Kiali ----------------------------------------------------
         kiali = _nested_get(addons, "kiali", "enabled")
         if kiali is True or (kiali is None and addons.get("kiali") is not None):
             result.add(
@@ -610,9 +611,9 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "Kiali separat über 'Kiali Operator provided by Red Hat' installieren.",
             )
 
-        # ── Add-ons: Jaeger / Tracing ─────────────────────────────────────────
+        # -- Add-ons: Jaeger / Tracing -----------------------------------------
         tracing_type = _nested_get(spec, "tracing", "type")
-        if tracing_type and tracing_type.lower() != "none":
+        if isinstance(tracing_type, str) and tracing_type.lower() != "none":
             result.add(
                 "deprecation", namespace, "ServiceMeshControlPlane", name,
                 f"spec.tracing.type='{tracing_type}' (Jaeger/Tracing aktiviert)",
@@ -620,16 +621,16 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "Ersatz: Red Hat OpenShift distributed tracing platform (Tempo)",
             )
 
-        # ── Add-ons: 3scale / Stackdriver ─────────────────────────────────────
+        # -- Add-ons: 3scale / Stackdriver -------------------------------------
         for unsupported_addon in ("3scale", "stackdriver"):
             if unsupported_addon in addons:
                 result.add(
                     "deprecation", namespace, "ServiceMeshControlPlane", name,
-                    f"spec.addons.{unsupported_addon} konfiguriert — nicht in OSSM 3.0 unterstützt",
+                    f"spec.addons.{unsupported_addon} konfiguriert - nicht in OSSM 3.0 unterstützt",
                     f"Add-on '{unsupported_addon}' entfernen und separat konfigurieren",
                 )
 
-        # ── IOR (Istio OpenShift Routing) ─────────────────────────────────────
+        # -- IOR (Istio OpenShift Routing) -------------------------------------
         gateways_spec = spec.get("gateways", {})
         ior = _nested_get(gateways_spec, "openshiftRoute", "enabled")
         gateways_enabled = gateways_spec.get("enabled", None)
@@ -649,7 +650,7 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "und alle Routes explizit existieren.",
             )
 
-        # ── Gateways in SMCP (müssen zu Gateway-Injection migriert werden) ────
+        # -- Gateways in SMCP (müssen zu Gateway-Injection migriert werden) ----
         if gateways_enabled is not False:
             result.add(
                 "deprecation", namespace, "ServiceMeshControlPlane", name,
@@ -659,7 +660,7 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "BEVOR der Umstieg auf OSSM 3.0 erfolgt.",
             )
 
-        # ── Network Policy Management ─────────────────────────────────────────
+        # -- Network Policy Management -----------------------------------------
         manage_np = _nested_get(spec, "security", "manageNetworkPolicy")
         if manage_np is True or manage_np is None:
             result.add(
@@ -670,7 +671,7 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "dann NetworkPolicies manuell neu erstellen.",
             )
 
-        # ── TLS-Konfiguration ─────────────────────────────────────────────────
+        # -- TLS-Konfiguration -------------------------------------------------
         mtls = _nested_get(spec, "security", "dataPlane", "mtls")
         if mtls is True:
             result.add(
@@ -685,7 +686,7 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
         if tls_max:
             result.add(
                 "deprecation", namespace, "ServiceMeshControlPlane", name,
-                f"spec.security.controlPlane.tls.maxProtocolVersion='{tls_max}' — nicht in OSSM 3.0 unterstützt",
+                f"spec.security.controlPlane.tls.maxProtocolVersion='{tls_max}' - nicht in OSSM 3.0 unterstützt",
                 "Dieses Feld entfernen. In OSSM 3.0 wird maxProtocolVersion nicht unterstützt.",
             )
         if tls_min:
@@ -695,7 +696,7 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "In OSSM 3.0: spec.meshConfig.tlsDefaults.minProtocolVersion im Istio-Resource setzen.",
             )
 
-        # ── DNS Capture (war in OSSM 2.6 Standard, in 3.0 nicht mehr) ────────
+        # -- DNS Capture (war in OSSM 2.6 Standard, in 3.0 nicht mehr) --------
         dns_capture = _nested_get(
             spec, "proxy", "runtime", "container", "env"
         )
@@ -707,7 +708,7 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                         "info", namespace, "ServiceMeshControlPlane", name,
                         f"DNS-Capture Konfiguration gefunden: {dns_key}={env_dict[dns_key]}",
                         "In OSSM 3.0 unter spec.values.meshConfig.defaultConfig.proxyMetadata setzen. "
-                        "DNS Capture war in OSSM 2.6 Standard — in 3.0 muss es explizit aktiviert werden!",
+                        "DNS Capture war in OSSM 2.6 Standard - in 3.0 muss es explizit aktiviert werden!",
                     )
         else:
             result.add(
@@ -719,7 +720,7 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "{ISTIO_META_DNS_CAPTURE: 'true', ISTIO_META_DNS_AUTO_ALLOCATE: 'true'}",
             )
 
-        # ── cert-manager Nutzung ──────────────────────────────────────────────
+        # -- cert-manager Nutzung ----------------------------------------------
         ca_type = _nested_get(spec, "security", "certificateAuthority", "type")
         if ca_type and "cert-manager" in str(ca_type).lower():
             result.add(
@@ -731,27 +732,27 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 "rootCAConfigMapName werden in OSSM 3.0 NICHT unterstützt.",
             )
 
-        # ── Unsupported Policy Felder ─────────────────────────────────────────
+        # -- Unsupported Policy Felder -----------------------------------------
         policy = spec.get("policy", {})
         for unsupported in ("mixer", "remote"):
             if unsupported in policy:
                 result.add(
                     "deprecation", namespace, "ServiceMeshControlPlane", name,
-                    f"spec.policy.{unsupported} konfiguriert — in OSSM 3.0 nicht unterstützt",
+                    f"spec.policy.{unsupported} konfiguriert - in OSSM 3.0 nicht unterstützt",
                     f"Feld spec.policy.{unsupported} entfernen vor Migration",
                 )
 
-        # ── Unsupported Telemetry Felder ──────────────────────────────────────
+        # -- Unsupported Telemetry Felder --------------------------------------
         telemetry = spec.get("telemetry", {})
         for unsupported in ("mixer", "remote", "type"):
             if unsupported in telemetry:
                 result.add(
                     "deprecation", namespace, "ServiceMeshControlPlane", name,
-                    f"spec.telemetry.{unsupported} konfiguriert — in OSSM 3.0 nicht unterstützt",
+                    f"spec.telemetry.{unsupported} konfiguriert - in OSSM 3.0 nicht unterstützt",
                     f"Feld spec.telemetry.{unsupported} entfernen vor Migration",
                 )
 
-        # ── Unsupported Proxy-Networking Felder ───────────────────────────────
+        # -- Unsupported Proxy-Networking Felder -------------------------------
         proxy_net = _nested_get(spec, "proxy", "networking") or {}
         unsupported_proxy_fields = [
             ("initialization", "type"),
@@ -765,12 +766,12 @@ def check_smcp(result: ScanResult, tool: str, namespace: str):
                 field_path = ".".join(path)
                 result.add(
                     "deprecation", namespace, "ServiceMeshControlPlane", name,
-                    f"spec.proxy.networking.{field_path} gesetzt — in OSSM 3.0 nicht unterstützt",
-                    f"Feld entfernen. OSSM 3.0 basiert direkt auf Istio-Helm-Werten.",
+                    f"spec.proxy.networking.{field_path} gesetzt - in OSSM 3.0 nicht unterstützt",
+                    "Feld entfernen. OSSM 3.0 basiert direkt auf Istio-Helm-Werten.",
                 )
 
 
-# ── ServiceEntry Checks ───────────────────────────────────────────────────────
+# -- ServiceEntry Checks -------------------------------------------------------
 def check_service_entries(result: ScanResult, tool: str, namespace: str):
     """
     Prüft ServiceEntries auf:
@@ -789,15 +790,15 @@ def check_service_entries(result: ScanResult, tool: str, namespace: str):
         ports = spec.get("ports", [])
         resolution = spec.get("resolution", "")
 
-        # Kritisch: >256 Hosts — OSSM 3.0 Operator-Installation schlägt fehl
+        # Kritisch: >256 Hosts - OSSM 3.0 Operator-Installation schlägt fehl
         if len(hosts) > 256:
             result.add(
                 "deprecation", namespace, "ServiceEntry", name,
-                f"ServiceEntry hat {len(hosts)} Hosts — LIMIT: 256 (Istio 1.24 Schema-Änderung)",
+                f"ServiceEntry hat {len(hosts)} Hosts - LIMIT: 256 (Istio 1.24 Schema-Änderung)",
                 "KRITISCH: OSSM 3.0 Operator-Installation schlägt fehl! "
-                "ServiceEntry VOR Migration in mehrere Ressourcen mit je ≤256 Hosts aufteilen. "
-                f"Prüfen: oc get serviceentries -A -o json | jq -r '.items[] | "
-                f"select(.spec.hosts | length > 256) | \"\\(.metadata.namespace)/\\(.metadata.name)\"'",
+                "ServiceEntry VOR Migration in mehrere Ressourcen mit je <=256 Hosts aufteilen. "
+                "Prüfen: oc get serviceentries -A -o json | jq -r '.items[] | "
+                "select(.spec.hosts | length > 256) | \"\\(.metadata.namespace)/\\(.metadata.name)\"'",
             )
         elif len(hosts) > 200:
             result.add(
@@ -806,26 +807,26 @@ def check_service_entries(result: ScanResult, tool: str, namespace: str):
                 "Aufteilen empfohlen um das Limit nicht zu überschreiten",
             )
 
-        # Kritisch: Fehlende Ports — OSSM 3.0 Installation schlägt fehl
+        # Kritisch: Fehlende Ports - OSSM 3.0 Installation schlägt fehl
         if not ports:
             result.add(
                 "deprecation", namespace, "ServiceEntry", name,
                 "ServiceEntry hat keine Port-Spezifikation (spec.ports fehlt oder leer)",
                 "KRITISCH: OSSM 3.0 Operator-Installation schlägt fehl! "
                 "Port-Spezifikation hinzufügen. "
-                f"Prüfen: oc get serviceentries -A -o json | jq -r '.items[] | "
-                f"select(.spec.ports == null or (.spec.ports | length == 0)) | "
-                f"\"\\(.metadata.namespace)/\\(.metadata.name)\"'",
+                "Prüfen: oc get serviceentries -A -o json | jq -r '.items[] | "
+                "select(.spec.ports == null or (.spec.ports | length == 0)) | "
+                "\"\\(.metadata.namespace)/\\(.metadata.name)\"'",
             )
 
-        # DNS-Auflösung → DNS Capture Warnung
+        # DNS-Auflösung -> DNS Capture Warnung
         if resolution in ("DNS", "DNS_ROUND_ROBIN") or any(
             not host.startswith("*") for host in hosts
         ):
             result.add(
                 "warning", namespace, "ServiceEntry", name,
                 f"ServiceEntry mit resolution='{resolution or 'STATIC'}' und externen Hosts "
-                "— DNS Capture prüfen",
+                "- DNS Capture prüfen",
                 "OSSM 2.6 aktivierte DNS Capture standardmäßig, OSSM 3.0 nicht. "
                 "Falls die App auf DNS-Auflösung angewiesen ist: "
                 "ISTIO_META_DNS_CAPTURE=true und ISTIO_META_DNS_AUTO_ALLOCATE=true "
@@ -833,7 +834,7 @@ def check_service_entries(result: ScanResult, tool: str, namespace: str):
             )
 
 
-# ── Namespace Label Checks ────────────────────────────────────────────────────
+# -- Namespace Label Checks ----------------------------------------------------
 def check_namespace_labels(result: ScanResult, tool: str, namespace: str):
     """
     Prüft Namespace-Labels auf:
@@ -855,7 +856,7 @@ def check_namespace_labels(result: ScanResult, tool: str, namespace: str):
     labels      = ns_data.get("metadata", {}).get("labels", {})
     annotations = ns_data.get("metadata", {}).get("annotations", {})
 
-    # maistra.io/member-of → deprecated
+    # maistra.io/member-of -> deprecated
     if "maistra.io/member-of" in labels:
         cp = labels["maistra.io/member-of"]
         result.add(
@@ -865,23 +866,23 @@ def check_namespace_labels(result: ScanResult, tool: str, namespace: str):
             "Wird bei Namespace-Migration automatisch entfernt.",
         )
 
-    # maistra.io/ignore-namespace → Migrations-Label
+    # maistra.io/ignore-namespace -> Migrations-Label
     if "maistra.io/ignore-namespace" in labels:
         val = labels["maistra.io/ignore-namespace"]
         result.add(
             "warning", namespace, "Namespace", namespace,
-            f"Label 'maistra.io/ignore-namespace: {val}' — Namespace in laufender Migration?",
+            f"Label 'maistra.io/ignore-namespace: {val}' - Namespace in laufender Migration?",
             "Dieses Label signalisiert OSSM 2.x, die Injection zu ignorieren. "
             "Nach abgeschlossener Migration (OSSM 2.x entfernt) dieses Label entfernen: "
             f"oc label namespace {namespace} maistra.io/ignore-namespace-",
         )
 
-    # maistra.io/expose-route → NetworkPolicy Relevanz
+    # maistra.io/expose-route -> NetworkPolicy Relevanz
     if "maistra.io/expose-route" in labels:
         val = labels["maistra.io/expose-route"]
         result.add(
             "warning", namespace, "Namespace", namespace,
-            f"Label 'maistra.io/expose-route: {val}' — wird für OSSM 2.x NetworkPolicies verwendet",
+            f"Label 'maistra.io/expose-route: {val}' - wird für OSSM 2.x NetworkPolicies verwendet",
             "OSSM 3.0 erstellt keine NetworkPolicies mehr. Nach Migration prüfen ob Label "
             "noch benötigt wird und ggf. entfernen.",
         )
@@ -895,7 +896,7 @@ def check_namespace_labels(result: ScanResult, tool: str, namespace: str):
     if not has_injection:
         result.add(
             "info", namespace, "Namespace", namespace,
-            "Kein Injection-Label — Namespace wahrscheinlich nicht im Mesh",
+            "Kein Injection-Label - Namespace wahrscheinlich nicht im Mesh",
             "Für OSSM 3.0 Mesh-Mitgliedschaft: 'istio-injection=enabled' (nur wenn IstioRevision name='default') "
             "oder 'istio.io/rev=<revision-name>' setzen.",
         )
@@ -915,15 +916,15 @@ def check_namespace_labels(result: ScanResult, tool: str, namespace: str):
         result.add(
             "warning", namespace, "Namespace", namespace,
             f"Annotation '{key}: {val}' ist maistra.io-spezifisch",
-            "Prüfen ob Annotation in OSSM 3.0 noch benötigt wird — ggf. nach Migration entfernen",
+            "Prüfen ob Annotation in OSSM 3.0 noch benötigt wird - ggf. nach Migration entfernen",
         )
 
 
-# ── Pod Annotation / Label Checks ─────────────────────────────────────────────
+# -- Pod Annotation / Label Checks ---------------------------------------------
 def check_pod_annotations(result: ScanResult, tool: str, namespace: str):
     """
     Prüft Pods auf:
-    - sidecar.istio.io/inject als Annotation (veraltet → soll Label sein)
+    - sidecar.istio.io/inject als Annotation (veraltet -> soll Label sein)
     - maistra.io Labels/Annotations
     - sidecar.istio.io/inject="true" als Label (korrekte OSSM 3.0 Methode)
     """
@@ -939,7 +940,7 @@ def check_pod_annotations(result: ScanResult, tool: str, namespace: str):
         pod_labels = pod.get("metadata", {}).get("labels", {})
         annotations = pod.get("metadata", {}).get("annotations", {})
 
-        # sidecar.istio.io/inject als ANNOTATION (deprecated — soll Label sein)
+        # sidecar.istio.io/inject als ANNOTATION (deprecated - soll Label sein)
         if "sidecar.istio.io/inject" in annotations:
             val = annotations["sidecar.istio.io/inject"]
             dedup_key = f"{namespace}/annotation/sidecar.istio.io/inject"
@@ -957,7 +958,7 @@ def check_pod_annotations(result: ScanResult, tool: str, namespace: str):
         for key, val in proxy_annotations.items():
             result.add(
                 "info", namespace, "Pod", pod_name,
-                f"Pod-Annotation '{key}: {val}' — proxy.istio.io Konfiguration",
+                f"Pod-Annotation '{key}: {val}' - proxy.istio.io Konfiguration",
                 "proxy.istio.io Annotations werden in OSSM 3.0 grundsätzlich unterstützt, "
                 "aber Kompatibilität im Einzelfall prüfen.",
             )
@@ -979,7 +980,7 @@ def check_pod_annotations(result: ScanResult, tool: str, namespace: str):
                 )
 
 
-# ── VirtualService / Gateway Checks ──────────────────────────────────────────
+# -- VirtualService / Gateway Checks ------------------------------------------
 def check_virtual_services_gateways(result: ScanResult, tool: str, namespace: str):
     """
     Prüft VirtualServices auf IOR-Abhängigkeiten (externe Gateways ohne explizite Routes).
@@ -1010,7 +1011,7 @@ def check_virtual_services_gateways(result: ScanResult, tool: str, namespace: st
             is_gateway_injection = "istio" in labels or "app" in labels
             result.add(
                 "info", namespace, "Gateway", name,
-                f"Gateway '{name}' gefunden — "
+                f"Gateway '{name}' gefunden - "
                 f"{'Gateway-Injection erkannt' if is_gateway_injection else 'SMCP-Gateway?'}",
                 "OSSM 3.0 verwaltet keine SMCP-Gateways mehr. "
                 "Zu Gateway-Injection oder Kubernetes Gateway API migrieren. "
@@ -1018,7 +1019,7 @@ def check_virtual_services_gateways(result: ScanResult, tool: str, namespace: st
             )
 
 
-# ── Observability Checks ──────────────────────────────────────────────────────
+# -- Observability Checks ------------------------------------------------------
 def check_observability_resources(result: ScanResult, tool: str, namespace: str):
     """
     Prüft ob Observability-Komponenten durch OSSM 2.x verwaltet werden.
@@ -1052,12 +1053,12 @@ def check_observability_resources(result: ScanResult, tool: str, namespace: str)
             else:
                 result.add(
                     "info", namespace, "Deployment", name,
-                    f"'{name}' ist eine Observability-Komponente — Verwaltungsmodell prüfen",
+                    f"'{name}' ist eine Observability-Komponente - Verwaltungsmodell prüfen",
                     "Sicherstellen dass diese Komponente nach Migration durch unabhängige Operatoren verwaltet wird",
                 )
 
 
-# ── OSSM 2.x Ressourcen (SMCP, SMMR, SMM) ────────────────────────────────────
+# -- OSSM 2.x Ressourcen (SMCP, SMMR, SMM) ------------------------------------
 def check_ossm2_resources(result: ScanResult, tool: str, namespace: str):
     """Prüft auf vorhandene OSSM 2.x Ressourcen."""
     resources = [
@@ -1084,11 +1085,11 @@ def check_ossm2_resources(result: ScanResult, tool: str, namespace: str):
                 )
 
 
-# ── Hauptroutine ──────────────────────────────────────────────────────────────
+# -- Hauptroutine --------------------------------------------------------------
 def scan(namespaces: list[str], tool: str) -> ScanResult:
     result = ScanResult()
 
-    print(f"\n{BOLD}=== OSSM Migration Scanner (2.6.x → 3.0.x) ==={RESET}")
+    print(f"\n{BOLD}=== OSSM Migration Scanner (2.6.x -> 3.0.x) ==={RESET}")
     print(f"  Tool      : {tool}")
     print(f"  Namespaces: {len(namespaces)}\n")
 
@@ -1111,15 +1112,15 @@ def scan(namespaces: list[str], tool: str) -> ScanResult:
     return result
 
 
-# ── Report Ausgabe ────────────────────────────────────────────────────────────
+# -- Report Ausgabe ------------------------------------------------------------
 def print_report(result: ScanResult):
     deprecations = [f for f in result.findings if f.severity == "deprecation"]
     warnings     = [f for f in result.findings if f.severity == "warning"]
     infos        = [f for f in result.findings if f.severity == "info"]
 
-    print(f"\n{BOLD}{'═' * 72}{RESET}")
-    print(f"{BOLD}  OSSM Migrations-Report: 2.6.x → 3.0.x{RESET}")
-    print(f"{BOLD}{'═' * 72}{RESET}")
+    print(f"\n{BOLD}{'=' * 72}{RESET}")
+    print(f"{BOLD}  OSSM Migrations-Report: 2.6.x -> 3.0.x{RESET}")
+    print(f"{BOLD}{'=' * 72}{RESET}")
     print(f"  Namespaces gescannt : {len(result.scanned_namespaces)}")
     print(f"  {RED}Deprecations (Blocker): {len(deprecations)}{RESET}")
     print(f"  {YELLOW}Warnungen             : {len(warnings)}{RESET}")
@@ -1130,9 +1131,9 @@ def print_report(result: ScanResult):
     def print_section(title, findings, color, prefix):
         if not findings:
             return
-        print(f"\n{BOLD}{color}{'─' * 72}")
+        print(f"\n{BOLD}{color}{'-' * 72}")
         print(f"  {title} ({len(findings)})")
-        print(f"{'─' * 72}{RESET}")
+        print(f"{'-' * 72}{RESET}")
         for f in findings:
             loc = f"[{f.namespace}/{f.resource_type}/{f.resource_name}]"
             print(f"\n  {color}{prefix}{RESET} {BOLD}{loc}{RESET}")
@@ -1140,26 +1141,26 @@ def print_report(result: ScanResult):
             print(f"      Aktion  : {f.action}")
 
     print_section(
-        "DEPRECATIONS — Müssen VOR Migration behoben werden",
+        "DEPRECATIONS - Müssen VOR Migration behoben werden",
         deprecations, RED, "[DEPR]",
     )
     print_section(
-        "WARNUNGEN — Sollten vor Migration geprüft werden",
+        "WARNUNGEN - Sollten vor Migration geprüft werden",
         warnings, YELLOW, "[WARN]",
     )
     print_section(
-        "INFORMATIONEN — Zur Kenntnis nehmen",
+        "INFORMATIONEN - Zur Kenntnis nehmen",
         infos, BLUE, "[INFO]",
     )
 
     if result.errors:
-        print(f"\n{BOLD}{RED}{'─' * 72}")
-        print(f"  SCAN-FEHLER")
-        print(f"{'─' * 72}{RESET}")
+        print(f"\n{BOLD}{RED}{'-' * 72}")
+        print("  SCAN-FEHLER")
+        print(f"{'-' * 72}{RESET}")
         for err in result.errors:
             print(f"  {RED}[ERR]{RESET} {err}")
 
-    print(f"\n{BOLD}{'═' * 72}{RESET}")
+    print(f"\n{BOLD}{'=' * 72}{RESET}")
     print(f"\n{BOLD}Migrations-Pflichtliste (aus Red Hat OSSM 3.0 Migrationsdokumentation):{RESET}")
     checklist = [
         # (Farbe, Pflicht/optional, Text)
@@ -1186,7 +1187,7 @@ def print_report(result: ScanResult):
         ("Blau", "INFO", "IstioRevision-Strategie wählen: InPlace vs. RevisionBased"),
         ("Blau", "INFO", "discoverySelectors für Namespace-Scoping konfigurieren"),
     ]
-    icons = {"Rot": f"{RED}✗{RESET}", "Gelb": f"{YELLOW}△{RESET}", "Blau": f"{BLUE}ℹ{RESET}"}
+    icons = {"Rot": f"{RED}x{RESET}", "Gelb": f"{YELLOW}!{RESET}", "Blau": f"{BLUE}i{RESET}"}
     for color, pflicht, item in checklist:
         print(f"  {icons[color]} [{pflicht}] {item}")
     print()
@@ -1218,40 +1219,40 @@ def export_json(result: ScanResult, path: str):
     print(f"{GREEN}Report exportiert: {path}{RESET}")
 
 
-# ── Mapping-Tabelle ───────────────────────────────────────────────────────────
+# -- Mapping-Tabelle -----------------------------------------------------------
 def _print_mapping_table():
     """Gibt die vollständige Feldmapping-Tabelle aus (--show-mapping)."""
-    print(f"\n{BOLD}{'═' * 72}{RESET}")
-    print(f"{BOLD}  SMCP 2.6 → Istio 3.0: Vollständige Feldmappings{RESET}")
+    print(f"\n{BOLD}{'=' * 72}{RESET}")
+    print(f"{BOLD}  SMCP 2.6 -> Istio 3.0: Vollständige Feldmappings{RESET}")
     print(f"{BOLD}  Quelle: OSSM 3.0 Migrationsdokumentation Kapitel 7.1.1{RESET}")
-    print(f"{BOLD}{'═' * 72}{RESET}\n")
+    print(f"{BOLD}{'=' * 72}{RESET}\n")
 
     print(f"{BOLD}{YELLOW}  MIGRIERTE FELDER (neuer Pfad in OSSM 3.0 Istio-Resource):{RESET}")
     print(f"  {'SMCP 2.6 Pfad':<55} {'Istio 3.0 Pfad'}")
-    print(f"  {'─' * 55} {'─' * 50}")
+    print(f"  {'-' * 55} {'-' * 50}")
     for smcp, ossm3, desc in MIGRATED_SMCP_FIELDS:
         smcp_short  = smcp.replace("spec.", "")
         ossm3_short = ossm3.replace("spec.", "")
-        print(f"  {smcp_short:<55} → {ossm3_short}")
+        print(f"  {smcp_short:<55} -> {ossm3_short}")
 
     print(f"\n{BOLD}{RED}  NICHT UNTERSTÜTZTE FELDER (aus SMCP entfernen):{RESET}")
     print(f"  {'SMCP 2.6 Pfad':<55} {'Kategorie'}")
-    print(f"  {'─' * 55} {'─' * 20}")
+    print(f"  {'-' * 55} {'-' * 20}")
     for smcp, kategorie, _ in UNSUPPORTED_SMCP_FIELDS:
         smcp_short = smcp.replace("spec.", "")
         print(f"  {smcp_short:<55} [{kategorie}]")
     print()
 
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
+# -- CLI -----------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(
-        description="OSSM Migration Scanner — Service Mesh 2.6.x → 3.0.x",
+        description="OSSM Migration Scanner - Service Mesh 2.6.x -> 3.0.x",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------------------------------------------
 USE CASES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------------------------------------------
 
   1. Alle Applikations-Namespaces scannen (ohne istio-system)
      python ossm_migration_scan.py
@@ -1262,7 +1263,7 @@ USE CASES
   3. istio-system + Applikations-Namespaces gemeinsam scannen
      python ossm_migration_scan.py -n istio-system -n bookinfo -n myapp
 
-  4. Nur Blocker (Deprecations) prüfen — Exit-Code 1 wenn vorhanden
+  4. Nur Blocker (Deprecations) prüfen - Exit-Code 1 wenn vorhanden
      python ossm_migration_scan.py --only-deprecations
 
   5. Scan mit JSON-Export für CI/CD-Pipelines
@@ -1271,12 +1272,12 @@ USE CASES
   6. Spezifisches CLI-Tool erzwingen (kubectl statt oc)
      python ossm_migration_scan.py --tool kubectl
 
-  7. Vollständige SMCP 2.6 → Istio 3.0 Feldmappings anzeigen
+  7. Vollständige SMCP 2.6 -> Istio 3.0 Feldmappings anzeigen
      python ossm_migration_scan.py --show-mapping
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------------------------------------------
 BEISPIELE (kombiniert)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------------------------------------------
 
   # Control-Plane + zwei App-Namespaces, nur Blocker, JSON-Export
   python ossm_migration_scan.py -n istio-system -n bookinfo -n frontend \\
@@ -1285,20 +1286,20 @@ BEISPIELE (kombiniert)
   # Alle App-Namespaces mit kubectl, Report als Datei
   python ossm_migration_scan.py --tool kubectl --json full-report.json
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------------------------------------------
 HINWEISE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------------------------------------------
 
-  • istio-system wird im Standard-Scan NICHT eingeschlossen.
+  - istio-system wird im Standard-Scan NICHT eingeschlossen.
     Explizit mit -n istio-system angeben, um ihn zu scannen.
-  • -n kann beliebig oft wiederholt werden.
-  • --only-deprecations setzt Exit-Code 1 wenn Blocker gefunden wurden
+  - -n kann beliebig oft wiederholt werden.
+  - --only-deprecations setzt Exit-Code 1 wenn Blocker gefunden wurden
     (geeignet für CI-Gates).
-  • --tool auto bevorzugt oc, fällt auf kubectl zurück wenn oc fehlt.
+  - --tool auto bevorzugt oc, fällt auf kubectl zurück wenn oc fehlt.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------------------------------------------
 JQ-SCHNELLPRÜFUNGEN (vor dem Scan)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+----------------------------------------------------------------------------
 
   # ServiceEntries mit mehr als 256 Hosts:
   oc get serviceentries -A -o json | jq -r \\
@@ -1318,7 +1319,7 @@ JQ-SCHNELLPRÜFUNGEN (vor dem Scan)
     )
     parser.add_argument(
         "--tool", choices=["kubectl", "oc", "auto"], default="auto",
-        help="CLI-Tool (Standard: auto — oc bevorzugt)",
+        help="CLI-Tool (Standard: auto - oc bevorzugt)",
     )
     parser.add_argument(
         "--json", metavar="FILE",
@@ -1330,7 +1331,7 @@ JQ-SCHNELLPRÜFUNGEN (vor dem Scan)
     )
     parser.add_argument(
         "--show-mapping", action="store_true",
-        help="Vollständige Feldmappings (SMCP 2.6 → Istio 3.0) ausgeben und beenden",
+        help="Vollständige Feldmappings (SMCP 2.6 -> Istio 3.0) ausgeben und beenden",
     )
     args = parser.parse_args()
 
