@@ -33,7 +33,7 @@ _PLACEHOLDER_RE = re.compile(
     r'|your[-_ ]'                                    # "your-secret-here"
     r'|<[^>]+>'                                      # <TOKEN>, <your-key>
     r'|\$\{[^}]+\}'                                 # ${TOKEN}
-    r'|\$[A-Z_][A-Z0-9_]{2,}'                      # $API_KEY (env var ref)
+    r'|\$[A-Za-z_][A-Za-z0-9_]{2,}'                  # $API_KEY, $api_key (env var ref)
     r'|\{\{[^}]+\}\}'                               # {{token}} (template)
     r'|%\([^)]+\)'                                   # %(key)s (Python format)
     r'|todo|change.?me|example|placeholder|fake|dummy'
@@ -77,7 +77,7 @@ PATTERNS = [
         'jwt_token',
         'JWT Token',
         re.compile(
-            r'eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'
+            r'eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{20,}'
         ),
     ),
     (
@@ -86,7 +86,7 @@ PATTERNS = [
         re.compile(
             r'https?://([^@\s\'"<>()\[\]{}\\,;/]+)'
             r':([^@\s\'"<>()\[\]{}\\,;/]{3,})'
-            r'@[a-zA-Z0-9.\-]+'
+            r'@[a-zA-Z0-9.\-]+(:\d+)?'
         ),
     ),
     (
@@ -129,7 +129,7 @@ PATTERNS = [
         'password',
         'Password',
         re.compile(
-            r'(?:^|[^a-zA-Z])(?:password|passwd|pwd)'
+            r'(?<![a-zA-Z_])(?:password|passwd|pwd)'
             r'\s*[=:]\s*["\']([^"\']{4,})["\']',
             re.IGNORECASE,
         ),
@@ -138,9 +138,18 @@ PATTERNS = [
         'generic_secret',
         'Generic Secret / Token',
         re.compile(
-            r'(?:^|[^a-zA-Z])(?:secret|credential|auth_key|'
-            r'auth_token|session_key|private_key|signing_key)'
+            r'(?<![a-zA-Z_])(?:secret|secret_key|credential|auth_key|'
+            r'auth_token|session_key|signing_key|encryption_key|hmac_key)'
             r'\s*[=:]\s*["\']([^"\']{8,})["\']',
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        'api_key',
+        'API Key',
+        re.compile(
+            r'(?<![a-zA-Z_])(?:api[_.\-]?key|apikey)'
+            r'\s*[=:]\s*["\']?([A-Za-z0-9\-._]{16,})["\']?',
             re.IGNORECASE,
         ),
     ),
@@ -181,6 +190,29 @@ PATTERNS = [
             r'|ACCESS[_.\-]?TOKEN|PAT))'
             r'\s*[=:]\s*["\']?([A-Za-z0-9\-._]{16,})["\']?',
             re.IGNORECASE,
+        ),
+    ),
+    (
+        'github_token',
+        'GitHub Token',
+        re.compile(
+            # gh[pousr]_ = PAT, OAuth, server-to-server, user-to-server, refresh
+            r'\b(gh[pousr]_[A-Za-z0-9]{36,})\b',
+        ),
+    ),
+    (
+        'aws_access_key',
+        'AWS Access Key ID',
+        re.compile(
+            # AKIA = long-term, ASIA = STS/temporary, ABIA = service account
+            r'\b((?:AKIA|ASIA|ABIA)[0-9A-Z]{16})\b',
+        ),
+    ),
+    (
+        'slack_token',
+        'Slack Token',
+        re.compile(
+            r'\b(xox[baprs]-[0-9]{8,13}-[0-9]{8,13}(?:-[0-9]{8,13})?-[A-Za-z0-9]{24,})\b',
         ),
     ),
 ]
@@ -299,7 +331,8 @@ def scan_line(line_text, allow_patterns, categories):
             yield (category, label, matched)
 
 
-def scan_file(path, repo_path, allow_patterns, skip_patterns, categories, skip_tests):
+def scan_file(path, repo_path, allow_patterns, skip_patterns, categories, skip_tests,
+              whitelist=None):
     findings = []
 
     if get_extension(path) in ALWAYS_SKIP_EXTENSIONS:
@@ -324,14 +357,17 @@ def scan_file(path, repo_path, allow_patterns, skip_patterns, categories, skip_t
     for line_no, raw_line in enumerate(lines, start=1):
         line_text = raw_line.rstrip('\n\r')
         for category, label, matched in scan_line(line_text, allow_patterns, categories):
-            findings.append({
+            finding = {
                 'category': category,
                 'label': label,
                 'value': matched,
                 'file': rel_path,
                 'line': line_no,
                 'context': line_text.strip()[:120],
-            })
+            }
+            if whitelist and is_whitelisted(finding, whitelist):
+                continue
+            findings.append(finding)
 
     return findings
 
@@ -415,6 +451,19 @@ def build_parser():
   # Suppress a known safe pattern
   python scan-secrets.py --allow "example\\.com" "localhost"
 
+  # Use a JSON whitelist
+  python scan-secrets.py --whitelist secrets-whitelist.json
+
+JSON whitelist format (array or object with "entries" key):
+  [
+    {{ "value": "known-ci-token",        "comment": "CI service account, rotated monthly" }},
+    {{ "file": "config/example.yml",     "comment": "Example config, no real credentials" }},
+    {{ "category": "jwt_token",
+       "file_pattern": "fixtures/",      "comment": "Test JWTs in fixture files" }},
+    {{ "value_pattern": "localhost|127\\\\.0\\\\.0\\\\.1" }}
+  ]
+  All specified fields must match (AND logic). "comment" is documentation only.
+
 Categories: {cats}
 """.format(cats=', '.join(valid_categories)),
     )
@@ -437,6 +486,10 @@ Categories: {cats}
     parser.add_argument(
         '--allow-file', metavar='FILE',
         help='File with one allow-pattern per line (# comments supported)',
+    )
+    parser.add_argument(
+        '--whitelist', metavar='FILE',
+        help='JSON file with structured whitelist entries (see docs)',
     )
     parser.add_argument(
         '--skip', nargs='*', default=[],
@@ -469,6 +522,68 @@ def load_allow_file(path):
     return patterns
 
 
+def load_whitelist(path):
+    """Load a JSON whitelist file. Returns a list of entry dicts.
+
+    Supported format (array or object with 'entries' key):
+      [
+        { "value": "known-safe-token", "comment": "CI service account" },
+        { "file": "config/example.yml", "comment": "Example config" },
+        { "category": "jwt_token", "file_pattern": "fixtures/", "comment": "Test JWTs" },
+        { "value_pattern": "localhost|127\\\\.0\\\\.0\\\\.1" }
+      ]
+
+    A finding is suppressed when ALL specified fields in an entry match it.
+    Valid match fields: category, file, file_pattern, value, value_pattern.
+    The 'comment' field is ignored (documentation only).
+    """
+    try:
+        with io.open(path, encoding='utf-8') as fh:
+            data = json.load(fh)
+    except ValueError as exc:
+        raise ValueError('Invalid JSON in whitelist "{0}": {1}'.format(path, exc))
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict) and 'entries' in data:
+        return data['entries']
+    raise ValueError(
+        'Whitelist must be a JSON array or an object with an "entries" key'
+    )
+
+
+_WHITELIST_MATCH_FIELDS = {'category', 'file', 'file_pattern', 'value', 'value_pattern'}
+
+
+def _entry_matches(finding, entry):
+    """Return True if ALL specified match fields in entry match the finding."""
+    if not _WHITELIST_MATCH_FIELDS.intersection(entry):
+        return False  # entry has no match fields — skip it
+    if 'category' in entry and entry['category'] != finding['category']:
+        return False
+    if 'file' in entry and entry['file'] not in finding['file']:
+        return False
+    if 'file_pattern' in entry:
+        try:
+            if not re.search(entry['file_pattern'], finding['file'], re.IGNORECASE):
+                return False
+        except re.error:
+            return False
+    if 'value' in entry and entry['value'] not in finding['value']:
+        return False
+    if 'value_pattern' in entry:
+        try:
+            if not re.search(entry['value_pattern'], finding['value'], re.IGNORECASE):
+                return False
+        except re.error:
+            return False
+    return True
+
+
+def is_whitelisted(finding, whitelist):
+    """Return True if finding matches any entry in the whitelist."""
+    return any(_entry_matches(finding, entry) for entry in whitelist)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -492,6 +607,15 @@ def main():
                   file=sys.stderr)
             return 2
 
+    whitelist = []
+    if args.whitelist:
+        try:
+            whitelist = load_whitelist(args.whitelist)
+        except (IOError, OSError, ValueError) as exc:
+            print('ERROR: Cannot load whitelist: {0}'.format(exc),
+                  file=sys.stderr)
+            return 2
+
     categories = set(args.categories) if args.categories else None
     skip_patterns = args.skip or []
 
@@ -509,7 +633,7 @@ def main():
     for path in files:
         all_findings.extend(scan_file(
             path, repo_path, allow_patterns, skip_patterns,
-            categories, args.skip_tests,
+            categories, args.skip_tests, whitelist,
         ))
 
     if args.output_format == 'json':
