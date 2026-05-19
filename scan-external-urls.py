@@ -48,6 +48,15 @@ IP_PATTERN = re.compile(
     r'(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b'
 )
 
+# Rough IPv6 match — every candidate is validated via ipaddress.ip_address()
+# to eliminate false positives (CSS values, build hashes, etc.).
+_IPV6_ROUGH = re.compile(
+    r'(?<![:\w/])'
+    r'[0-9a-fA-F]{0,4}(?::[0-9a-fA-F]{0,4}){2,7}'
+    r'(?![:\w])',
+    re.IGNORECASE,
+)
+
 # Positive TLD allowlist: only matches whose last label is in this set are
 # reported as hostnames. Using a whitelist is far more stable than maintaining
 # a growing blacklist of code-like suffixes (error, name, parent, boot, …).
@@ -63,6 +72,9 @@ KNOWN_TLDS = {
     "pt", "ro", "ru", "se", "sg", "tr", "tw", "uk", "us", "za",
     # Short ccTLDs used as domain hacks
     "me", "ly", "to", "im", "gg", "gl", "fm", "tv", "cc",
+    # Cloud / infrastructure gTLDs
+    "cloud", "run", "build", "tools", "software", "network",
+    "services", "systems", "solutions", "digital",
     # NOTE: "sh" omitted — conflicts with shell scripts (stats.sh, addserver.sh)
     # NOTE: "id" omitted — conflicts with JS/Python attribute access (this.id, obj.id)
 }
@@ -193,8 +205,13 @@ def scan_line(line_text: str, config: ScanConfig) -> list[tuple[str, str]]:
         for m in EMAIL_PATTERN.finditer(line_text):
             # Avoid reporting the same value already caught as a URL
             already = any(m.group(0) in v for c, v in hits if c == "url")
-            if not already:
-                hits.append(("email", m.group(0)))
+            if already:
+                continue
+            # Reject file-extension false positives: foo@bar.py, test@schema.go
+            tld = m.group(0).rsplit(".", 1)[-1].lower()
+            if tld not in KNOWN_TLDS:
+                continue
+            hits.append(("email", m.group(0)))
 
     if "hostname" in config.categories:
         # Only report hostnames that are NOT part of an already-found URL/email
@@ -237,6 +254,17 @@ def scan_line(line_text: str, config: ScanConfig) -> list[tuple[str, str]]:
             ip = m.group(0)
             if ip not in config.ignore_ips:
                 hits.append(("ip", ip))
+
+        for m in _IPV6_ROUGH.finditer(line_text):
+            candidate = m.group(0)
+            try:
+                addr = ipaddress.ip_address(candidate)
+                if not isinstance(addr, ipaddress.IPv6Address):
+                    continue
+                if str(addr) not in config.ignore_ips and candidate not in config.ignore_ips:
+                    hits.append(("ip", candidate))
+            except ValueError:
+                pass
 
     return hits
 
@@ -490,7 +518,9 @@ def is_whitelisted(category: str, value: str, wl: Whitelist) -> bool:
         value_lower = value.lower()
         if any(value_lower.startswith(u) for u in wl.urls):
             return True
-        m = re.match(r'https?://([^/\s:?#]+)', value, re.IGNORECASE)
+        # Strip optional auth info (user@  or  user:pass@) before extracting host
+        m = re.match(r'https?://(?:[^@/\s:?#]+(?::[^@/\s:?#]*)?@)?([^/\s:?#]+)',
+                     value, re.IGNORECASE)
         if m:
             host = m.group(1).lower()
             return any(host == h or host.endswith("." + h) for h in wl.hostnames)
@@ -531,6 +561,8 @@ def main() -> int:
     whitelist = Whitelist()
     whitelist_path = args.whitelist or _find_default_whitelist(repo_path)
     if whitelist_path:
+        if not args.whitelist:
+            print(f"Note: auto-loading whitelist from '{whitelist_path}'", file=sys.stderr)
         try:
             whitelist = load_whitelist_file(whitelist_path)
         except (OSError, json.JSONDecodeError) as exc:
