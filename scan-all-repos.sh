@@ -2,10 +2,12 @@
 # scan-all-repos.sh - Run a scanner script against every git repo in a directory
 #
 # Usage:
-#   ./scan-all-repos.sh <scanner.py> <repos-root-dir> [output.txt] [-- extra scanner args...]
+#   ./scan-all-repos.sh <scanner.py> <repos-root-dir> [output.txt] [--whitelist FILE] [-- extra scanner args...]
 #
 # Examples:
 #   ./scan-all-repos.sh scan-secrets.py ~/projects results.txt
+#   ./scan-all-repos.sh scan-secrets.py ~/projects results.txt --whitelist secrets-whitelist.json
+#   ./scan-all-repos.sh scan-external-urls.py ~/projects --whitelist whitelist.json -- --skip-tests
 #   ./scan-all-repos.sh scan-npm.py ~/projects results.txt -- --min-severity HIGH
 #   ./scan-all-repos.sh scan-secrets.py ~/projects          # output: scan-results-YYYYMMDD.txt
 
@@ -18,11 +20,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ---------------------------------------------------------------------------
 
 usage() {
-    echo "Usage: $0 <scanner.py> <repos-root-dir> [output.txt] [-- extra scanner args...]"
+    echo "Usage: $0 <scanner.py> <repos-root-dir> [output.txt] [--whitelist FILE] [-- extra scanner args...]"
     echo ""
     echo "  scanner.py       One of: scan-secrets.py, scan-npm.py, scan-proxy.py, scan-external-urls.py"
     echo "  repos-root-dir   Directory containing git repositories (searched one level deep)"
     echo "  output.txt       Output file (default: scan-results-YYYYMMDD-HHMMSS.txt)"
+    echo "  --whitelist FILE JSON whitelist forwarded to every scanner invocation"
     echo "  -- ...           Any additional arguments are forwarded to the scanner"
     exit 1
 }
@@ -42,18 +45,44 @@ if [[ ! -f "$SCANNER" ]]; then
     exit 2
 fi
 
-# Optional output file (next arg if it doesn't start with -)
+# Parse optional arguments before the -- separator
 OUTPUT_FILE=""
-if [[ $# -gt 0 && "$1" != "--" && "$1" != -* ]]; then
-    OUTPUT_FILE="$1"
-    shift
-fi
+WHITELIST_FILE=""
+
+while [[ $# -gt 0 && "$1" != "--" ]]; do
+    case "$1" in
+        --whitelist)
+            [[ $# -lt 2 ]] && { echo "ERROR: --whitelist requires a FILE argument" >&2; exit 2; }
+            WHITELIST_FILE="$2"
+            shift 2
+            ;;
+        -*)
+            break  # Unknown flag — stop, treat remainder as EXTRA_ARGS
+            ;;
+        *)
+            # First bare positional is the output file
+            if [[ -z "$OUTPUT_FILE" ]]; then
+                OUTPUT_FILE="$1"
+                shift
+            else
+                break
+            fi
+            ;;
+    esac
+done
 [[ -z "$OUTPUT_FILE" ]] && OUTPUT_FILE="scan-results-$(date +%Y%m%d-%H%M%S).txt"
 
-# Strip leading -- separator for extra scanner args
-if [[ $# -gt 0 && "$1" == "--" ]]; then
-    shift
+# Validate and resolve whitelist path to absolute so it works from any repo dir
+if [[ -n "$WHITELIST_FILE" ]]; then
+    if [[ ! -f "$WHITELIST_FILE" ]]; then
+        echo "ERROR: Whitelist file not found: $WHITELIST_FILE" >&2
+        exit 2
+    fi
+    WHITELIST_FILE="$(realpath "$WHITELIST_FILE")"
 fi
+
+# Strip leading -- separator for extra scanner args
+[[ $# -gt 0 && "$1" == "--" ]] && shift
 EXTRA_ARGS=("$@")
 
 # Verify repos root exists
@@ -97,7 +126,8 @@ START_TIME=$(date +%s)
     echo "  Root    : $REPOS_ROOT"
     echo "  Date    : $(date)"
     echo "  Repos   : ${#REPOS[@]}"
-    [[ ${#EXTRA_ARGS[@]} -gt 0 ]] && echo "  Args    : ${EXTRA_ARGS[*]}"
+    [[ -n "$WHITELIST_FILE" ]]      && echo "  Whitelist: $WHITELIST_FILE"
+    [[ ${#EXTRA_ARGS[@]} -gt 0 ]]   && echo "  Args    : ${EXTRA_ARGS[*]}"
     echo "========================================================================"
     echo ""
 } > "$OUTPUT_FILE"
@@ -113,9 +143,13 @@ for REPO in "${REPOS[@]}"; do
         echo "------------------------------------------------------------------------"
     } >> "$OUTPUT_FILE"
 
+    # Build whitelist args (empty array if no whitelist was specified)
+    WHITELIST_ARGS=()
+    [[ -n "$WHITELIST_FILE" ]] && WHITELIST_ARGS=("--whitelist" "$WHITELIST_FILE")
+
     # Run scanner; capture stdout+stderr; || EXIT_CODE=$? prevents set -e from aborting
     EXIT_CODE=0
-    SCAN_OUTPUT=$("$PYTHON" "$SCANNER" "$REPO" "${EXTRA_ARGS[@]}" 2>&1) || EXIT_CODE=$?
+    SCAN_OUTPUT=$("$PYTHON" "$SCANNER" "$REPO" "${WHITELIST_ARGS[@]}" "${EXTRA_ARGS[@]}" 2>&1) || EXIT_CODE=$?
 
     echo "$SCAN_OUTPUT" >> "$OUTPUT_FILE"
     echo "" >> "$OUTPUT_FILE"
