@@ -807,6 +807,72 @@ def scan_package_lock(path: str, rel_path: str) -> list[Finding]:
     return _scan_package_lock_lines(read_lines(path), rel_path)
 
 
+# pnpm-lock.yaml verwendet YAML — ohne externe Abhängigkeit werden kritische Felder per Regex extrahiert.
+_PNPM_RESOLUTION_PAT = re.compile(
+    r'^\s+tarball:\s*["\']?(\S+?)["\']?\s*$', re.IGNORECASE
+)
+_PNPM_REGISTRY_PAT = re.compile(
+    r'^(?:registry|npmRegistryServer):\s*["\']?(\S+?)["\']?\s*$', re.IGNORECASE
+)
+_PNPM_AUTH_PAT = re.compile(
+    r'(?:authToken|_authToken|_password)\s*:\s*\S', re.IGNORECASE
+)
+
+
+def _scan_pnpm_lock_lines(lines: list[str], rel_path: str) -> list[Finding]:
+    findings: list[Finding] = []
+    for line_no, raw_line in enumerate(lines, 1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        m = _PNPM_RESOLUTION_PAT.match(raw_line)
+        if m:
+            resolved = m.group(1).rstrip("'\"")
+            if resolved and not any(resolved.startswith(s) for s in SAFE_REGISTRIES):
+                findings.append(Finding(
+                    category="SUPPLY_CHAIN",
+                    severity="MEDIUM",
+                    source="pnpm-lock.yaml",
+                    detail=f"Aufgelöste tarball-URL zeigt auf Nicht-Standard-Registry: {resolved[:80]}",
+                    file=rel_path,
+                    line=line_no,
+                    context=line[:120],
+                ))
+
+        m = _PNPM_REGISTRY_PAT.match(raw_line)
+        if m:
+            registry = m.group(1).rstrip("'\"")
+            if registry and not any(registry.startswith(s) for s in SAFE_REGISTRIES):
+                findings.append(Finding(
+                    category="SUPPLY_CHAIN",
+                    severity="MEDIUM",
+                    source="pnpm-lock.yaml",
+                    detail=f"Nicht-Standard-pnpm-Registry: {registry}",
+                    file=rel_path,
+                    line=line_no,
+                    context=line[:120],
+                ))
+
+        if _PNPM_AUTH_PAT.search(line):
+            findings.append(Finding(
+                category="EXFILTRATION",
+                severity="MEDIUM",
+                source="pnpm-lock.yaml",
+                detail="Hardcodiertes Authentifizierungstoken in pnpm-lock.yaml",
+                file=rel_path,
+                line=line_no,
+                context=re.sub(r'((?:authToken|_authToken|_password)\s*:\s*)\S+', r'\1***', line)[:120],
+            ))
+
+    return findings
+
+
+def scan_pnpm_lock(path: str, rel_path: str) -> list[Finding]:
+    """Prüft pnpm-lock.yaml auf nicht-standard tarball-URLs, Registry-Overrides und hardcodierte Tokens."""
+    return _scan_pnpm_lock_lines(read_lines(path), rel_path)
+
+
 def _check_minified_lines(lines: list[str], rel_path: str) -> list[Finding]:
     """Markiert JS-Dateien, deren längste Zeile MINIFIED_LINE_THRESHOLD überschreitet.
 
@@ -929,6 +995,8 @@ def scan_file(path: str, config: "ScanConfig") -> list[Finding]:
         return scan_yarnrc(path, rel_path)
     if name in (".yarnrc.yml", ".yarnrc.yaml"):
         return scan_yarnrc_yml(path, rel_path)
+    if name in ("pnpm-lock.yaml", "pnpm-lock.yml"):
+        return scan_pnpm_lock(path, rel_path)
     if ext in JS_EXTENSIONS:
         return scan_js_file(path, rel_path)
 
@@ -968,12 +1036,14 @@ def _scan_tarball(tgz_path: str, label: str) -> list[Finding]:
                     is_js = ext in JS_EXTENSIONS
                     is_pkg = bname == "package.json"
                     is_lock = bname == "package-lock.json"
+                    is_pnpm_lock = bname in ("pnpm-lock.yaml", "pnpm-lock.yml")
                     is_binding_gyp = bname == "binding.gyp"
                     is_npmrc = bname in (".npmrc", ".npmrc.example")
                     is_yarnrc = bname == ".yarnrc"
                     is_yarnrc_yml = bname in (".yarnrc.yml", ".yarnrc.yaml")
 
-                    if not any((is_js, is_pkg, is_lock, is_binding_gyp, is_npmrc, is_yarnrc, is_yarnrc_yml)):
+                    if not any((is_js, is_pkg, is_lock, is_pnpm_lock, is_binding_gyp,
+                                is_npmrc, is_yarnrc, is_yarnrc_yml)):
                         continue
 
                     fobj = tf.extractfile(member)
@@ -991,6 +1061,8 @@ def _scan_tarball(tgz_path: str, label: str) -> list[Finding]:
                         findings.extend(_scan_package_json_lines(lines, rel))
                     elif is_lock:
                         findings.extend(_scan_package_lock_lines(lines, rel))
+                    elif is_pnpm_lock:
+                        findings.extend(_scan_pnpm_lock_lines(lines, rel))
                     elif is_binding_gyp:
                         findings.extend(_scan_binding_gyp_lines(lines, rel))
                     elif is_npmrc:
