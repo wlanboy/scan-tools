@@ -118,7 +118,7 @@ CODE_THREAT_RULES: list[ThreatRule] = [
           r'(?:var|let|const)\s+[a-zA-Z_$][a-zA-Z0-9_$]*\s*=\s*["\'][0-9a-fA-F]{64,}["\']',
           "Sehr langer Hex-String einer Variablen zugewiesen"),
     _rule("OBFUSCATION", "LOW",
-          r'\bunescape\s*\(%[0-9a-fA-F]{2}(?:%[0-9a-fA-F]{2}){5,}\)',
+          r'\bunescape\s*\(\s*["\']?%[0-9a-fA-F]{2}(?:%[0-9a-fA-F]{2}){5,}["\']?\s*\)',
           "unescape() eines prozentkodierten Payloads"),
 
     # --- Exfiltration / Diebstahl von Anmeldedaten ---
