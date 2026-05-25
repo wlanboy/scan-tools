@@ -765,36 +765,52 @@ def _scan_package_lock_lines(lines: list[str], rel_path: str) -> list[Finding]:
     except json.JSONDecodeError:
         return findings
 
-    def check_resolved(pkg_name: str, resolved: str) -> None:
+    def check_pkg(pkg_name: str, pkg_info: dict) -> None:
+        resolved = pkg_info.get("resolved", "")
         if not isinstance(resolved, str) or not resolved:
             return
         if resolved.startswith("file:") or resolved.startswith("node_modules/"):
             return
-        if any(resolved.startswith(s) for s in SAFE_REGISTRIES):
-            return
-        findings.append(Finding(
-            category="SUPPLY_CHAIN",
-            severity="MEDIUM",
-            source="package-lock.json",
-            detail=f"Aufgelöste URL zeigt auf Nicht-Standard-Registry: {resolved[:80]}",
-            file=rel_path,
-            line=0,
-            context=f"{pkg_name}: {resolved[:80]}",
-        ))
+
+        if not any(resolved.startswith(s) for s in SAFE_REGISTRIES):
+            findings.append(Finding(
+                category="SUPPLY_CHAIN",
+                severity="MEDIUM",
+                source="package-lock.json",
+                detail=f"Aufgelöste URL zeigt auf Nicht-Standard-Registry: {resolved[:80]}",
+                file=rel_path,
+                line=0,
+                context=f"{pkg_name}: {resolved[:80]}",
+            ))
+
+        # Fehlendes integrity-Feld ist ein Tamper-Indikator: npm schreibt immer sha512 beim Install.
+        if not pkg_info.get("integrity"):
+            findings.append(Finding(
+                category="SUPPLY_CHAIN",
+                severity="MEDIUM",
+                source="package-lock.json",
+                detail=(
+                    f"Paket ohne integrity-Hash: {pkg_name} — "
+                    "fehlendes sha512 kann auf manuelle Manipulation der Lockfile hinweisen"
+                ),
+                file=rel_path,
+                line=0,
+                context=f"{pkg_name}: resolved={resolved[:60]}",
+            ))
 
     lock_version = data.get("lockfileVersion", 1)
     if lock_version >= 2:
         # v2/v3 format: packages["node_modules/name"].resolved
         for pkg_path, pkg_info in data.get("packages", {}).items():
             if isinstance(pkg_info, dict):
-                check_resolved(pkg_path, pkg_info.get("resolved", ""))
+                check_pkg(pkg_path, pkg_info)
     else:
         # v1 format: dependencies[name].resolved (recursive)
         def walk_deps(deps: dict) -> None:
             for name, info in deps.items():
                 if not isinstance(info, dict):
                     continue
-                check_resolved(name, info.get("resolved", ""))
+                check_pkg(name, info)
                 if "dependencies" in info:
                     walk_deps(info["dependencies"])
         walk_deps(data.get("dependencies", {}))
