@@ -196,6 +196,15 @@ CODE_THREAT_RULES: list[ThreatRule] = [
           r'__webpack_require__\.c\b.{0,60}(?:eval|Function)',
           "Webpack-Interna kombiniert mit eval — mögliche Bundle-Vergiftung"),
 
+    # --- IP-basierte Konditionen (node-ipc-Angriff 2022) ---
+    _rule("SUPPLY_CHAIN", "HIGH",
+          r'(?:ipify\.org|api\.my-ip\.io|checkip\.amazonaws\.com|icanhazip\.com'
+          r'|ifconfig\.me|ipinfo\.io|api\.ipgeolocation\.io|wtfismyip\.com)',
+          "Externer IP-Ermittlungsdienst — bekanntes Muster aus node-ipc-Supply-Chain-Angriff (2022)"),
+    _rule("SUPPLY_CHAIN", "HIGH",
+          r'(?:ip|addr|address)\s*\.(?:startsWith|includes|indexOf|match)\s*\(["\'][\d]{1,3}\.',
+          "IP-Präfix-Prüfung gegen Zahlenliteral — typisches Muster für geografisch bedingte Malware (node-ipc-Stil)"),
+
     # --- Reverse Shells ---
     _rule("REMOTE_EXEC", "HIGH",
           r'(?:net\.connect|net\.createConnection|tls\.connect).{0,120}'
@@ -358,6 +367,20 @@ def _scan_js_split_var(lines: list[str], rel_path: str) -> list[Finding]:
 _PROC_ENV_LINE_PAT = re.compile(r'process\.env\b')
 _CHILD_PROC_LINE_PAT = re.compile(r'require\s*\(\s*["\']child_process["\']')
 
+# node-ipc-Angriff (2022): IP-Ermittlung + destruktive FS-Operation in derselben Datei
+_IP_SOURCE_PAT = re.compile(
+    r'dns\.(?:lookup|resolve\d*)\s*\('
+    r'|os\.networkInterfaces\s*\(\)'
+    r'|ipify\.org|api\.my-ip\.io|checkip\.amazonaws\.com|icanhazip\.com'
+    r'|ifconfig\.me|ipinfo\.io|wtfismyip\.com',
+    re.IGNORECASE,
+)
+_DESTRUCTIVE_FS_PAT = re.compile(
+    r'(?:fs\.)?(?:writeFileSync?|appendFileSync?|unlinkSync?|rmdirSync?'
+    r'|rmSync?|truncateSync?|createWriteStream)\s*\(',
+    re.IGNORECASE,
+)
+
 _COMBINED_CHECKS = [
     (_PROC_ENV_LINE_PAT,   "process.env kombiniert mit Netzwerkaufruf im Install-Skript — mögliche Exfiltration"),
     (_CHILD_PROC_LINE_PAT, "child_process kombiniert mit Netzwerkaufruf im Install-Skript — mögliche Befehlsausführung"),
@@ -414,6 +437,28 @@ def _scan_js_cooccurrence(
     return findings
 
 
+def _scan_js_ip_conditional(lines: list[str], rel_path: str) -> list[Finding]:
+    """Erkennt node-ipc-Stil (2022): IP-Ermittlung + destruktive FS-Operation in derselben Datei."""
+    full_text = "".join(lines)
+    if not _IP_SOURCE_PAT.search(full_text) or not _DESTRUCTIVE_FS_PAT.search(full_text):
+        return []
+    for line_no, raw_line in enumerate(lines, 1):
+        if _IP_SOURCE_PAT.search(raw_line):
+            return [Finding(
+                category="SUPPLY_CHAIN",
+                severity="HIGH",
+                source="IP_CONDITIONAL",
+                detail=(
+                    "IP-Ermittlung (DNS/networkInterfaces/externer Dienst) kombiniert mit destruktiver "
+                    "Dateisystemoperation in derselben Datei — node-ipc-Stil bedingter Angriff (2022)"
+                ),
+                file=rel_path,
+                line=line_no,
+                context=raw_line.strip()[:120],
+            )]
+    return []
+
+
 def _scan_js_lines(lines: list[str], rel_path: str, has_network: bool = False) -> list[Finding]:
     findings: list[Finding] = []
     for line_no, raw_line in enumerate(lines, 1):
@@ -439,6 +484,7 @@ def _scan_js_lines(lines: list[str], rel_path: str, has_network: bool = False) -
                 ))
 
     findings.extend(_scan_js_split_var(lines, rel_path))
+    findings.extend(_scan_js_ip_conditional(lines, rel_path))
 
     if has_network:
         findings.extend(_scan_js_cooccurrence(lines, rel_path, findings))
