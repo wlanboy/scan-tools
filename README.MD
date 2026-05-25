@@ -151,6 +151,7 @@ Erkennt JavaScript-Verschleierungstechniken:
 - Zweistufiges Muster: `var cp = 'child_'+'process'; require(cp)` (HIGH)
 - `_0x`-Variablennamen — typische Ausgabe von JS-Obfuskatoren (MEDIUM)
 - `eval()` eines zusammengesetzten String-Literals (MEDIUM)
+- Dynamisches `import()` mit zusammengesetztem Pfad: `import(base + "/mod")` (MEDIUM)
 - `unescape()` mit prozentkodierten Sequenzen (LOW)
 - Zeilen > 1000 Zeichen — minimierter Code schränkt statische Analyse ein (LOW)
 
@@ -161,10 +162,13 @@ Kombinationen, die auf Credential- oder Datendiebstahl hinweisen:
 - `process.env` + HTTP-Aufruf auf einer Zeile (HIGH)
 - Sensitive Env-Vars (`GITHUB_TOKEN`, `AWS_SECRET`, `NPM_TOKEN`) neben Netzwerkaufrufen (HIGH)
 - `readFileSync` auf SSH-Schlüssel-, AWS-, `.npmrc`-Pfaden (HIGH)
+- `dns.resolve`/`dns.lookup` mit kodiertem oder `process.env`-basiertem Hostnamen — DNS-Exfiltration (HIGH)
+- `dns.resolve`/`dns.lookup` mit dynamisch zusammengesetztem Hostnamen (`+`-Konkatenation) (HIGH)
 - `os.homedir()` + `.ssh` / `.aws` (MEDIUM)
 - `require('keytar')` — OS-Schlüsselbund-Zugriff (MEDIUM)
-- Hardcodierte `_authToken` in `.npmrc`, `.yarnrc`, `.yarnrc.yml` (MEDIUM)
+- Hardcodierte `_authToken` in `.npmrc`, `.yarnrc`, `.yarnrc.yml`, `pnpm-lock.yaml` (MEDIUM)
 - `process.env` in Datei, die auch Netzwerkfunktionen enthält (MEDIUM, kontextsensitiv)
+- `dns`-Modul-Import kombiniert mit `process.env` in derselben Datei (MEDIUM, kontextsensitiv)
 
 #### `FILESYSTEM_ATTACK` (HIGH / MEDIUM)
 
@@ -183,6 +187,8 @@ Dynamische Code- und Befehlsausführung:
 - `new Function()` mit Netzwerk-/Dekodierungsinhalt (HIGH)
 - TCP-Socket an stdio weitergeleitet — Reverse Shell (HIGH)
 - `/bin/sh -i` + Socket/Connect (HIGH)
+- Dynamisches `import("https://...")` — direkter Remote-Code-Import (HIGH)
+- Dynamisches `import(fetch(...))` / `import(Buffer.from(...))` — verschachtelter Netzwerk-/Decode-Aufruf (HIGH)
 - `vm.runInNewContext()` / `vm.runInThisContext()` (MEDIUM)
 - Remote-Code-Fetch + `eval` (MEDIUM)
 
@@ -198,9 +204,14 @@ Dynamische Code- und Befehlsausführung:
 - `Module._compile()` mit verschlüsseltem Buffer — Event-Stream-Angriffsmuster (HIGH)
 - `require.extensions[]` / `Module._extensions[]` — require-Hook-Injektion (HIGH)
 - Yarn-Plugins von externen URLs (HIGH)
+- Externer IP-Ermittlungsdienst (`ipify.org`, `icanhazip.com` u. a.) — node-ipc-Muster 2022 (HIGH)
+- IP-Präfix-Vergleich gegen Zahlenliteral (`ip.startsWith("5.")`) — geografisch bedingte Malware (HIGH)
+- IP-Quelle (dns/networkInterfaces/externer Dienst) + destruktive FS-Operation in derselben Datei — node-ipc Co-Occurrence (HIGH)
 - Git-URL-Abhängigkeiten in `package.json` (MEDIUM)
-- Nicht-Standard-Registry in `.npmrc`, `.yarnrc`, `.yarnrc.yml` (MEDIUM)
+- Nicht-Standard-Registry in `.npmrc`, `.yarnrc`, `.yarnrc.yml`, `pnpm-lock.yaml` (MEDIUM)
 - Nicht-Standard-resolved-URLs in `package-lock.json` (MEDIUM)
+- Fehlender `integrity`-Hash (sha512) in `package-lock.json` — Hinweis auf Lockfile-Manipulation (MEDIUM)
+- Nicht-Standard-tarball-URL in `pnpm-lock.yaml` (MEDIUM)
 - Native `.node`-Addons — nicht statisch analysierbar (MEDIUM)
 - `npm_lifecycle_event` + Netzwerkaufruf (MEDIUM)
 
@@ -209,7 +220,8 @@ Dynamische Code- und Befehlsausführung:
 | Datei | Scanner |
 | ------- | --------- |
 | `package.json` | Lifecycle-Hooks, Git-URLs, gypfile |
-| `package-lock.json` | Aufgelöste Registry-URLs (v1 + v2 Format) |
+| `package-lock.json` | Registry-URLs, fehlende integrity-Hashes (v1 + v2 Format) |
+| `pnpm-lock.yaml` / `pnpm-lock.yml` | tarball-URLs, Registry-Overrides, hardcodierte Tokens |
 | `binding.gyp` | Impliziter node-gyp Install-Hook + verdächtige Aktionen |
 | `.npmrc` / `.npmrc.example` | Registry-Umleitungen, hardcodierte Auth-Tokens |
 | `.yarnrc` | Yarn v1 Registry und Token |
@@ -223,18 +235,23 @@ Mit `--scan-cache` wird zusätzlich der lokale npm-Cache (`~/.npm/_cacache/conte
 
 ### Verwendung npm
 
+> **Wichtig:** Ohne `--include-modules` oder `--scan-cache` werden nur die eigenen Projektdateien gescannt, nicht die installierten Abhängigkeiten — der häufigste Ort für Supply-Chain-Angriffe. Der Scanner gibt beim Start einen Hinweis aus, wenn keiner der beiden Schalter aktiv ist.
+
 ```bash
-# Aktuelles Repository scannen
+# Aktuelles Repository scannen (Hinweis: nur eigene Dateien)
 python3 scan-npm.py
+
+# Vollständige Supply-Chain-Prüfung inkl. node_modules/ (langsam)
+python3 scan-npm.py --include-modules
+
+# npm-Cache ebenfalls scannen (~/.npm/_cacache) — Alternative zu --include-modules
+python3 scan-npm.py --scan-cache
 
 # Bestimmten Pfad scannen, JSON-Ausgabe
 python3 scan-npm.py /pfad/zum/repo --format json
 
 # Nur HIGH-Befunde, node_modules einschließen
 python3 scan-npm.py --min-severity HIGH --include-modules
-
-# npm-Cache ebenfalls scannen (~/.npm/_cacache)
-python3 scan-npm.py --scan-cache
 
 # Pfade via Regex überspringen
 python3 scan-npm.py --skip "vendor/" "dist/"
@@ -454,9 +471,10 @@ bash testproject.sh
 | `.npmrc` | SUPPLY_CHAIN (Nicht-Standard-Registry), EXFILTRATION (hardcodierter Token) |
 | `.yarnrc` | SUPPLY_CHAIN (Nicht-Standard-Registry), EXFILTRATION (Token) |
 | `.yarnrc.yml` | SUPPLY_CHAIN (Registry, externe Plugin-URL HIGH), EXFILTRATION (Token) |
-| `package-lock.json` | SUPPLY_CHAIN (Non-Standard-resolved-URL) |
+| `package-lock.json` | SUPPLY_CHAIN (Non-Standard-resolved-URL, fehlender integrity-Hash) |
+| `pnpm-lock.yaml` | SUPPLY_CHAIN (Non-Standard-tarball-URL), EXFILTRATION (Token) |
 | `binding.gyp` | INSTALL_SCRIPT MEDIUM (impliziter Hook), INSTALL_SCRIPT HIGH (curl + nc in Actions) |
-| `src/evil.js` | Alle CODE_THREAT_RULES: OBFUSCATION, EXFILTRATION, FILESYSTEM_ATTACK, REMOTE_EXEC, CRYPTOMINING, SUPPLY_CHAIN |
+| `src/evil.js` | Alle CODE_THREAT_RULES: OBFUSCATION (inkl. dynamic import), EXFILTRATION (inkl. DNS), FILESYSTEM_ATTACK, REMOTE_EXEC, CRYPTOMINING, SUPPLY_CHAIN (inkl. IP-Conditional) |
 | `src/native_addon.node` | SUPPLY_CHAIN MEDIUM (nicht analysierbarer Nativer Code) |
 
 ---
