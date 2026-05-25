@@ -76,7 +76,8 @@ _FILE_NET_PAT = re.compile(
     r'|require\s*\(\s*["\'](?:https?|http|node-fetch|axios|got|superagent|request)["\']'
     r'|(?:from|import)\s+["\'](?:node-fetch|axios|got|superagent|request)["\']'
     r'|(?:https?|net)\.(?:get|request|connect)\s*\('
-    r'|new\s+WebSocket\s*\(',
+    r'|new\s+WebSocket\s*\('
+    r'|import\s*\(\s*["\']https?://',   # dynamisches import() mit Remote-URL
     re.IGNORECASE,
 )
 
@@ -195,6 +196,17 @@ CODE_THREAT_RULES: list[ThreatRule] = [
     _rule("SUPPLY_CHAIN", "LOW",
           r'__webpack_require__\.c\b.{0,60}(?:eval|Function)',
           "Webpack-Interna kombiniert mit eval — mögliche Bundle-Vergiftung"),
+
+    # --- Dynamisches import() ---
+    _rule("REMOTE_EXEC", "HIGH",
+          r'\bimport\s*\(\s*["\']https?://',
+          "Dynamisches import() mit absoluter Remote-URL — lädt und führt externen Code aus"),
+    _rule("REMOTE_EXEC", "HIGH",
+          r'\bimport\s*\(\s*(?:fetch|http|Buffer\.from|atob)\s*\(',
+          "Dynamisches import() mit Netzwerk-/Dekodierungsaufruf als Argument — Remote-Code-Ausführung"),
+    _rule("OBFUSCATION", "MEDIUM",
+          r'\bimport\s*\(\s*(?:[a-zA-Z_$][a-zA-Z0-9_$]*\s*\+\s*["\']|["\'][^"\']{1,40}["\']\s*\+)',
+          "Dynamisches import() mit zusammengesetztem Pfad — verschleierter Modulname"),
 
     # --- DNS-Exfiltration ---
     _rule("EXFILTRATION", "HIGH",
