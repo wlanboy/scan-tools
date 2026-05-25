@@ -196,6 +196,15 @@ CODE_THREAT_RULES: list[ThreatRule] = [
           r'__webpack_require__\.c\b.{0,60}(?:eval|Function)',
           "Webpack-Interna kombiniert mit eval — mögliche Bundle-Vergiftung"),
 
+    # --- DNS-Exfiltration ---
+    _rule("EXFILTRATION", "HIGH",
+          r'dns\.(?:resolve\d*|lookup)\s*\([^)]*'
+          r'(?:process\.env|Buffer\.from\s*\(|btoa\s*\(|\.toString\s*\(\s*["\'](?:hex|base64)["\'])',
+          "dns.resolve/lookup mit kodiertem oder env-basiertem Hostnamen — DNS-Exfiltrations-Muster"),
+    _rule("EXFILTRATION", "HIGH",
+          r'dns\.(?:resolve\d*|lookup)\s*\([^)]*\+[^)]*\)',
+          "dns.resolve/lookup mit dynamisch zusammengesetztem Hostnamen — Exfiltration via DNS-Subdomain"),
+
     # --- IP-basierte Konditionen (node-ipc-Angriff 2022) ---
     _rule("SUPPLY_CHAIN", "HIGH",
           r'(?:ipify\.org|api\.my-ip\.io|checkip\.amazonaws\.com|icanhazip\.com'
@@ -367,6 +376,39 @@ def _scan_js_split_var(lines: list[str], rel_path: str) -> list[Finding]:
 _PROC_ENV_LINE_PAT = re.compile(r'process\.env\b')
 _CHILD_PROC_LINE_PAT = re.compile(r'require\s*\(\s*["\']child_process["\']')
 
+# DNS-Exfiltration: dns-Modul + process.env in derselben Datei
+_DNS_MODULE_PAT = re.compile(
+    r'require\s*\(\s*["\']dns["\']\)|from\s+["\']dns["\']|import\s+["\']dns["\']',
+    re.IGNORECASE,
+)
+
+
+def _scan_js_dns_exfil(lines: list[str], rel_path: str, existing: list[Finding]) -> list[Finding]:
+    """Meldet MEDIUM wenn dns-Modul und process.env in derselben Datei auftreten und
+    keine HIGH-Regel die Kombination bereits abgedeckt hat."""
+    full_text = "".join(lines)
+    if not _DNS_MODULE_PAT.search(full_text) or not _PROC_ENV_LINE_PAT.search(full_text):
+        return []
+    already_reported = {f.line for f in existing if f.severity == "HIGH" and f.category == "EXFILTRATION"}
+    for line_no, raw_line in enumerate(lines, 1):
+        if line_no in already_reported:
+            continue
+        if _DNS_MODULE_PAT.search(raw_line):
+            return [Finding(
+                category="EXFILTRATION",
+                severity="MEDIUM",
+                source="DNS_EXFIL",
+                detail=(
+                    "dns-Modul kombiniert mit process.env in derselben Datei — "
+                    "prüfen ob Umgebungsvariablen via DNS-Subdomain exfiltriert werden"
+                ),
+                file=rel_path,
+                line=line_no,
+                context=raw_line.strip()[:120],
+            )]
+    return []
+
+
 # node-ipc-Angriff (2022): IP-Ermittlung + destruktive FS-Operation in derselben Datei
 _IP_SOURCE_PAT = re.compile(
     r'dns\.(?:lookup|resolve\d*)\s*\('
@@ -485,6 +527,7 @@ def _scan_js_lines(lines: list[str], rel_path: str, has_network: bool = False) -
 
     findings.extend(_scan_js_split_var(lines, rel_path))
     findings.extend(_scan_js_ip_conditional(lines, rel_path))
+    findings.extend(_scan_js_dns_exfil(lines, rel_path, findings))
 
     if has_network:
         findings.extend(_scan_js_cooccurrence(lines, rel_path, findings))
