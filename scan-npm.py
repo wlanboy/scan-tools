@@ -1340,6 +1340,15 @@ def main() -> int:
         scan_cache=args.scan_cache,
     )
 
+    # Warnung wenn weder node_modules noch npm-Cache gescannt werden —
+    # die meisten Supply-Chain-Angriffe sitzen in installierten Abhängigkeiten, nicht im eigenen Code.
+    if config.output_format == "text" and not config.include_modules and not config.scan_cache:
+        print(
+            "HINWEIS: node_modules/ wird nicht gescannt. Für vollständige Supply-Chain-Prüfung\n"
+            "         --include-modules (langsam, vollständig) oder --scan-cache (npm-Cache) verwenden.",
+            file=sys.stderr,
+        )
+
     # Dateien sammeln: bevorzugt git-getrackte Liste, Fallback auf Dateisystem-Traversierung
     if is_git:
         try:
