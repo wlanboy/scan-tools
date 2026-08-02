@@ -536,7 +536,7 @@ def check_open_fds(target_path: str) -> None:
             if not pid.isdigit():
                 continue
 
-            def record_hit(reason: str) -> None:
+            def record_hit(reason: str, pid: str = pid) -> None:
                 try:
                     with open(f"/proc/{pid}/cmdline") as fh:
                         cmdline = fh.read().replace("\x00", " ")
