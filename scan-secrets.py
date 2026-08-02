@@ -9,7 +9,6 @@ Exit codes:
   1 - Findings detected
   2 - Script error (invalid arguments, not a git repo, etc.)
 
-Compatible with Python 2.7 and 3.x.
 """
 
 import argparse
@@ -23,20 +22,26 @@ import sys
 # Placeholder / false-positive guard
 # ---------------------------------------------------------------------------
 
-_PLACEHOLDER_RE = re.compile(
+# Whole-value templates: the *entire* value is masking/interpolation syntax.
+_PLACEHOLDER_WHOLE_RE = re.compile(
     r'^(?:'
     r'\*+|x{3,}|0{4,}|\.{3,}|\?+|_{4,}'           # masking chars
-    r'|your[-_ ]'                                    # "your-secret-here"
     r'|<[^>]+>'                                      # <TOKEN>, <your-key>
     r'|\$\{[^}]+\}'                                 # ${TOKEN}
     r'|\$[A-Za-z_][A-Za-z0-9_]{2,}'                  # $API_KEY, $api_key (env var ref)
     r'|\{\{[^}]+\}\}'                               # {{token}} (template)
     r'|%\([^)]+\)'                                   # %(key)s (Python format)
-    r'|todo|change.?me|example|placeholder|fake|dummy'
-    r'|test|sample|insert|n/?a|undefined|null|none'
-    r'|empty|missing|replace.?this|edit.?this'
-    r'|password|passwd|secret|token|apikey|api.?key'  # bare field names
     r')$',
+    re.IGNORECASE,
+)
+
+# Placeholder wording that can appear anywhere in the value, e.g.
+# "your-api-key-here" or "REPLACE_WITH_YOUR_TOKEN".
+_PLACEHOLDER_WORD_RE = re.compile(
+    r'your[-_ ]|to.?do|change.?me|example|placeholder|fake|dummy'
+    r'|\btest\b|\bsample\b|\binsert\b|n/?a\b|\bundefined\b|\bnull\b|\bnone\b'
+    r'|\bempty\b|\bmissing\b|replace|edit.?this'
+    r'|\bpassword\b|\bpasswd\b|\bsecret\b|\btoken\b|\bapikey\b|\bapi.?key\b',  # bare field names
     re.IGNORECASE,
 )
 
@@ -46,7 +51,7 @@ def is_placeholder(value):
     if not value or len(value.strip()) < 4:
         return True
     v = value.strip()
-    if _PLACEHOLDER_RE.match(v):
+    if _PLACEHOLDER_WHOLE_RE.match(v) or _PLACEHOLDER_WORD_RE.search(v):
         return True
     # All same character repeated (e.g. "aaaaaaaaaa", "11111111")
     return len(set(v)) == 1
@@ -124,7 +129,7 @@ PATTERNS = [
         'Password',
         re.compile(
             r'(?<![a-zA-Z_])(?:password|passwd|pwd)'
-            r'\s*[=:]\s*["\']([^"\']{4,})["\']',
+            r'\s*[=:]\s*["\']?([^\s"\'#\[\]{},]{4,})["\']?',
             re.IGNORECASE,
         ),
     ),
@@ -134,7 +139,7 @@ PATTERNS = [
         re.compile(
             r'(?<![a-zA-Z_])(?:secret|secret_key|credential|auth_key|'
             r'auth_token|session_key|signing_key|encryption_key|hmac_key)'
-            r'\s*[=:]\s*["\']([^"\']{8,})["\']',
+            r'\s*[=:]\s*["\']?([^\s"\'#\[\]{},]{8,})["\']?',
             re.IGNORECASE,
         ),
     ),
@@ -167,18 +172,12 @@ PATTERNS = [
         'Bitbucket / Atlassian Token',
         re.compile(
             # Bitbucket Cloud personal access tokens (ATBB), newer tokens (ATCTT),
-            # and Atlassian API tokens (ATATT) all use well-known prefixes
-            r'\b(ATBB[A-Za-z0-9]{28,}'
-            r'|ATCTT[A-Za-z0-9_\-]{50,}'
-            r'|ATATT[A-Za-z0-9_\-]{50,})\b',
-        ),
-    ),
-    (
-        'bitbucket_token',
-        'Bitbucket / Atlassian Token',
-        re.compile(
+            # and Atlassian API tokens (ATATT) all use well-known prefixes, or
             # named variables in env / CI config files
-            r'(?:bitbucket[_.\-]?(?:token|app[_.\-]?password|api[_.\-]?key'
+            r'\b(?:ATBB[A-Za-z0-9]{28,}'
+            r'|ATCTT[A-Za-z0-9_\-]{50,}'
+            r'|ATATT[A-Za-z0-9_\-]{50,})\b'
+            r'|(?:bitbucket[_.\-]?(?:token|app[_.\-]?password|api[_.\-]?key'
             r'|access[_.\-]?token|pat)'
             r'|BITBUCKET[_.\-]?(?:TOKEN|APP[_.\-]?PASSWORD|API[_.\-]?KEY'
             r'|ACCESS[_.\-]?TOKEN|PAT))'
@@ -200,6 +199,18 @@ PATTERNS = [
         re.compile(
             # AKIA = long-term, ASIA = STS/temporary, ABIA = service account
             r'\b((?:AKIA|ASIA|ABIA)[0-9A-Z]{16})\b',
+        ),
+    ),
+    (
+        'aws_secret_key',
+        'AWS Secret Access Key',
+        re.compile(
+            # AWS secret keys have no signature, so only flag them next to a
+            # recognizable variable name (base64-alphabet, 40 chars)
+            r'(?:aws[_.\-]?secret[_.\-]?access[_.\-]?key|aws[_.\-]?secret[_.\-]?key'
+            r'|AWS[_.\-]?SECRET[_.\-]?ACCESS[_.\-]?KEY|AWS[_.\-]?SECRET[_.\-]?KEY)'
+            r'\s*[=:]\s*["\']?([A-Za-z0-9/+=]{40})["\']?',
+            re.IGNORECASE,
         ),
     ),
     (
@@ -295,16 +306,16 @@ def scan_line(line_text, allow_patterns, categories):
             continue
         for m in pattern.finditer(line_text):
             matched = m.group(0)
-            # Group 1 is the extracted secret value when the pattern captures it
-            if m.lastindex and m.lastindex >= 1:
+            # basic_auth_url: the password (group 2) is the secret, not the
+            # username (group 1) — a placeholder username shouldn't hide a
+            # real password.
+            if category == 'basic_auth_url' and (m.lastindex or 0) >= 2:
+                secret = m.group(2)
+            elif m.lastindex and m.lastindex >= 1:
                 secret = m.group(1)
             else:
                 secret = matched
             if is_placeholder(secret):
-                continue
-            # basic_auth_url: also check the password group (group 2)
-            if (category == 'basic_auth_url' and (m.lastindex or 0) >= 2
-                    and is_placeholder(m.group(2))):
                 continue
             if matches_any(matched, allow_patterns):
                 continue
