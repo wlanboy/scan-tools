@@ -201,6 +201,12 @@ def collect_maven_files():
     return candidates
 
 
+def is_real_proxy_key(key):
+    """no_proxy / nonProxyHosts are exclusion lists, not an active proxy setting."""
+    k = key.lower()
+    return k != 'no_proxy' and not k.endswith('nonproxyhosts')
+
+
 def main():
     hostname = socket.gethostname()
 
@@ -231,11 +237,14 @@ def main():
 
     print(f"=== PROXY SCAN REPORT: {hostname} ===")
 
-    if not findings:
-        print("RESULT: NO_PROXY_FOUND")
-        return
+    has_real_proxy = any(
+        is_real_proxy_key(key)
+        for entries in findings.values()
+        for key, _ in entries
+    )
 
-    print("RESULT: PROXY_FOUND")
+    print("RESULT: PROXY_FOUND" if has_real_proxy else "RESULT: NO_PROXY_FOUND")
+
     for source in sorted(findings.keys()):
         for key, val in findings[source]:
             print(f"SOURCE={source} KEY={key} VALUE={val}")
