@@ -370,7 +370,7 @@ else:
     try:
         st = os.stat(shim_found)
         import datetime
-        mtime = datetime.datetime.fromtimestamp(st.st_mtime, tz=datetime.UTC).strftime('%Y-%m-%d')
+        mtime = datetime.datetime.fromtimestamp(st.st_mtime, tz=datetime.timezone.utc).strftime('%Y-%m-%d')
         info(f"Size: {st.st_size} bytes, last modified: {mtime}")
     except OSError:
         pass

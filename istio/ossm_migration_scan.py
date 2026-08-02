@@ -9,6 +9,8 @@ Quellen:
   https://docs.redhat.com/en/documentation/red_hat_openshift_service_mesh/3.0/
 """
 
+from __future__ import annotations
+
 import argparse
 import io
 import json
