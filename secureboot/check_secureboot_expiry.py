@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Checks whether this Linux VM is affected by the Microsoft Secure Boot
 certificate expiration in 2026 (UEFI CA 2011, KEK CA 2011 expire June 2026;
@@ -11,7 +10,6 @@ References:
 
 Requires Python 2.7+. No third-party packages needed.
 """
-from __future__ import print_function
 
 import os
 import subprocess
@@ -34,25 +32,25 @@ WARNINGS = [0]
 
 
 def ok(msg):
-    print("  {g}[OK  ]{r} {m}".format(g=GREEN, r=RESET, m=msg))
+    print(f"  {GREEN}[OK  ]{RESET} {msg}")
 
 
 def warn(msg):
-    print("  {y}[WARN]{r} {m}".format(y=YELLOW, r=RESET, m=msg))
+    print(f"  {YELLOW}[WARN]{RESET} {msg}")
     WARNINGS[0] += 1
 
 
 def fail(msg):
-    print("  {re}[FAIL]{r} {m}".format(re=RED, r=RESET, m=msg))
+    print(f"  {RED}[FAIL]{RESET} {msg}")
     ISSUES[0] += 1
 
 
 def info(msg):
-    print("  {c}[INFO]{r} {m}".format(c=CYAN, r=RESET, m=msg))
+    print(f"  {CYAN}[INFO]{RESET} {msg}")
 
 
 def section(title):
-    print("\n{b}=== {t} ==={r}".format(b=BOLD, t=title, r=RESET))
+    print(f"\n{BOLD}=== {title} ==={RESET}")
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +78,7 @@ def read_file(path):
     try:
         with open(path, 'r') as fh:
             return fh.read().strip()
-    except (IOError, OSError):
+    except OSError:
         return ''
 
 
@@ -92,7 +90,7 @@ def _sb_via_efivar():
             data = fh.read()
         if len(data) >= 5:
             return data[4] == 1
-    except (IOError, OSError):
+    except OSError:
         pass
     return None
 
@@ -143,7 +141,7 @@ if os.path.isfile('/etc/os-release'):
         elif line.startswith('PRETTY_NAME='):
             os_pretty = line.split('=', 1)[1].strip().strip('"')
 
-info("OS: {0}".format(os_pretty))
+info(f"OS: {os_pretty}")
 
 # Detect hypervisor / cloud
 hypervisor = 'bare-metal'
@@ -164,7 +162,7 @@ if hypervisor in ('bare-metal', 'none'):
     elif 'amazon' in sys_vendor:
         hypervisor = 'aws'
 
-info("Hypervisor/Cloud: {0}".format(hypervisor))
+info(f"Hypervisor/Cloud: {hypervisor}")
 
 # GCP instance creation date check
 if hypervisor == 'gcp':
@@ -176,17 +174,17 @@ if hypervisor == 'gcp':
             headers={'Metadata-Flavor': 'Google'},
         )
         creation_date = urllib.request.urlopen(req, timeout=3).read().decode('utf-8').strip()
-    except Exception:
+    except (OSError, ValueError):
         creation_date = ''
 
     if creation_date:
-        info("GCP instance creation timestamp: {0}".format(creation_date))
+        info(f"GCP instance creation timestamp: {creation_date}")
         cutoff = '2025-11-07'
         # Simple lexicographic ISO-date comparison
         if creation_date[:10] < cutoff:
-            warn("GCP instance was created before {0} – may need recreation with updated firmware.".format(cutoff))
+            warn(f"GCP instance was created before {cutoff} – may need recreation with updated firmware.")
         else:
-            ok("GCP instance created after {0}.".format(cutoff))
+            ok(f"GCP instance created after {cutoff}.")
     else:
         info("Could not retrieve GCP creation timestamp.")
 
@@ -271,10 +269,10 @@ def check_certificates(mok_flag, label):
 
     db_output = run(['mokutil', mok_flag])
     if db_output is None:
-        warn("Could not read {0} (try running as root).".format(label))
+        warn(f"Could not read {label} (try running as root).")
         return
     if not db_output.strip():
-        warn("{0} is empty or inaccessible.".format(label))
+        warn(f"{label} is empty or inaccessible.")
         return
 
     found_2011_uefi = CERT_2011_UEFI in db_output
@@ -284,8 +282,8 @@ def check_certificates(mok_flag, label):
     found_2023_kek  = any(v in db_output for v in CERT_2023_KEK_VARIANTS)
     found_2023_win  = any(v in db_output for v in CERT_2023_WIN_VARIANTS)
 
-    print("")
-    info("{0} certificate summary:".format(label))
+    print()
+    info(f"{label} certificate summary:")
 
     # UEFI CA – expires 2026-06-27
     if found_2011_uefi and found_2023_uefi:
@@ -295,7 +293,7 @@ def check_certificates(mok_flag, label):
     elif not found_2011_uefi and found_2023_uefi:
         ok("  Microsoft UEFI CA 2011 absent, 2023 replacement present – already migrated.")
     else:
-        info("  Microsoft UEFI CA 2011 not found in {0} (may be in db or firmware).".format(label))
+        info(f"  Microsoft UEFI CA 2011 not found in {label} (may be in db or firmware).")
 
     # KEK CA – expires 2026-06-24
     if found_2011_kek and found_2023_kek:
@@ -343,7 +341,7 @@ def _find_efi_mountpoints():
                     mp = parts[1]
                     if any(k in mp.lower() for k in ('efi', 'boot')):
                         mounts.append(mp)
-    except (IOError, OSError):
+    except OSError:
         pass
     # Always include common static candidates as fallback
     for candidate in ('/boot/efi', '/boot/EFI', '/efi', '/boot'):
@@ -366,15 +364,14 @@ for p in SHIM_PATHS:
         break
 
 if shim_found is None:
-    info("No shim binary found (checked {0} paths across {1} EFI mount point(s)).".format(
-        len(SHIM_PATHS), len(_efi_mounts)))
+    info(f"No shim binary found (checked {len(SHIM_PATHS)} paths across {len(_efi_mounts)} EFI mount point(s)).")
 else:
-    info("Shim binary: {0}".format(shim_found))
+    info(f"Shim binary: {shim_found}")
     try:
         st = os.stat(shim_found)
         import datetime
-        mtime = datetime.datetime.utcfromtimestamp(st.st_mtime).strftime('%Y-%m-%d')
-        info("Size: {0} bytes, last modified: {1}".format(st.st_size, mtime))
+        mtime = datetime.datetime.fromtimestamp(st.st_mtime, tz=datetime.UTC).strftime('%Y-%m-%d')
+        info(f"Size: {st.st_size} bytes, last modified: {mtime}")
     except OSError:
         pass
 
@@ -410,7 +407,7 @@ if cmd_exists('rpm'):
         ver = run(['rpm', '-q', pkg]) or ''
         ver = ver.strip()
         if ver and 'not installed' not in ver:
-            info("{0}: {1}".format(pkg, ver))
+            info(f"{pkg}: {ver}")
 
     # shim version gate: >= 15.8 includes dual-signed 2023 cert support
     shim_ver_raw = run(['rpm', '-q', '--queryformat', '%{VERSION}', 'shim-x64']) or \
@@ -422,12 +419,12 @@ if cmd_exists('rpm'):
             major = int(parts[0])
             minor = int(parts[1]) if len(parts) > 1 else 0
             if major > 15 or (major == 15 and minor >= 8):
-                ok("shim {0} >= 15.8 (includes dual-signed 2023 support).".format(shim_ver_raw))
+                ok(f"shim {shim_ver_raw} >= 15.8 (includes dual-signed 2023 support).")
             else:
-                fail("shim {0} < 15.8 – update required for 2023 certificate support.".format(shim_ver_raw))
+                fail(f"shim {shim_ver_raw} < 15.8 – update required for 2023 certificate support.")
                 info("Run: dnf update shim shim-x64")
         except (ValueError, IndexError):
-            info("shim version: {0}".format(shim_ver_raw))
+            info(f"shim version: {shim_ver_raw}")
 
     # edk2-ovmf minimum version hints per RHEL major version
     # Source: https://developers.redhat.com/articles/2026/02/04/secure-boot-certificate-changes-2026-guidance-rhel-environments
@@ -449,7 +446,7 @@ elif cmd_exists('dpkg'):
         for line in dpkg_out.splitlines():
             if line.startswith('ii'):
                 cols = line.split()
-                info("{0}: {1}".format(pkg, cols[2] if len(cols) > 2 else '?'))
+                info("{}: {}".format(pkg, cols[2] if len(cols) > 2 else '?'))
 
     # shim-signed version gate for Debian/Ubuntu: the upstream shim version
     # is embedded after '+' in the package version (e.g. 1.58+15.8-0ubuntu1)
@@ -466,12 +463,12 @@ elif cmd_exists('dpkg'):
                     major = int(parts[0])
                     minor = int(parts[1]) if len(parts) > 1 else 0
                     if major > 15 or (major == 15 and minor >= 8):
-                        ok("shim-signed {0} (upstream shim {1}) >= 15.8 – includes 2023 cert support.".format(pkg_ver, upstream))
+                        ok(f"shim-signed {pkg_ver} (upstream shim {upstream}) >= 15.8 – includes 2023 cert support.")
                     else:
-                        fail("shim-signed {0} (upstream shim {1}) < 15.8 – update required.".format(pkg_ver, upstream))
+                        fail(f"shim-signed {pkg_ver} (upstream shim {upstream}) < 15.8 – update required.")
                         info("Run: apt-get install --only-upgrade shim shim-signed")
                 except (ValueError, IndexError):
-                    info("shim-signed version: {0}".format(pkg_ver))
+                    info(f"shim-signed version: {pkg_ver}")
             break
 
 # ---------------------------------------------------------------------------
@@ -483,7 +480,7 @@ if cmd_exists('fwupdmgr'):
     info("fwupd is available.")
     devs_out = run(['fwupdmgr', 'get-devices']) or ''
     dev_count = devs_out.count('DeviceId')
-    info("Managed devices: {0}".format(dev_count))
+    info(f"Managed devices: {dev_count}")
     info("To check for firmware updates: fwupdmgr update")
 else:
     info("fwupd not installed. For physical hosts, firmware updates via LVFS are recommended.")
@@ -505,12 +502,12 @@ if hypervisor == 'vmware':
 
     if cmd_exists('vmware-toolsd'):
         tools_ver = run(['vmware-toolsd', '--version']) or ''
-        info("VMware Tools: {0}".format(tools_ver.strip().splitlines()[0] if tools_ver.strip() else 'unknown'))
+        info("VMware Tools: {}".format(tools_ver.strip().splitlines()[0] if tools_ver.strip() else 'unknown'))
 
     # Hardware version readable without root via DMI
     hw_ver = read_file('/sys/class/dmi/id/product_version')
     if hw_ver:
-        info("VM hardware version (DMI): {0}".format(hw_ver))
+        info(f"VM hardware version (DMI): {hw_ver}")
 
     # Platform Key check – readable without root via EFI vars / mokutil
     # VMW.NULLPK means the PK was never properly initialised; the new
@@ -539,9 +536,8 @@ issues   = ISSUES[0]
 warnings = WARNINGS[0]
 
 if issues > 0:
-    print("\n{r}{b}RESULT: AFFECTED – {i} issue(s) found, {w} warning(s).{reset}".format(
-        r=RED, b=BOLD, i=issues, w=warnings, reset=RESET))
-    print("")
+    print(f"\n{RED}{BOLD}RESULT: AFFECTED – {issues} issue(s) found, {warnings} warning(s).{RESET}")
+    print()
     if cmd_exists('apt-get'):
         print("  Required actions (Debian/Ubuntu):")
         print("    apt-get update && apt-get install --only-upgrade shim shim-signed")
@@ -559,13 +555,10 @@ if issues > 0:
         print("  4. GCP: recreate instance from a machine image if firmware is outdated.")
         print("          gcloud compute instances create ... --shielded-secure-boot")
 elif warnings > 0:
-    print("\n{y}{b}RESULT: POSSIBLY AFFECTED – 0 critical issues, {w} warning(s).{reset}".format(
-        y=YELLOW, b=BOLD, w=warnings, reset=RESET))
+    print(f"\n{YELLOW}{BOLD}RESULT: POSSIBLY AFFECTED – 0 critical issues, {warnings} warning(s).{RESET}")
     print("  Review warnings above. Manual verification recommended.")
 else:
     if not sb_enabled:
-        print("\n{g}{b}RESULT: NOT AFFECTED – Secure Boot is disabled on this system.{reset}".format(
-            g=GREEN, b=BOLD, reset=RESET))
+        print(f"\n{GREEN}{BOLD}RESULT: NOT AFFECTED – Secure Boot is disabled on this system.{RESET}")
     else:
-        print("\n{g}{b}RESULT: NOT AFFECTED – All checks passed.{reset}".format(
-            g=GREEN, b=BOLD, reset=RESET))
+        print(f"\n{GREEN}{BOLD}RESULT: NOT AFFECTED – All checks passed.{RESET}")

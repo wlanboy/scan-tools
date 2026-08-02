@@ -461,7 +461,7 @@ def _scan_js_cooccurrence(
             continue
         line_text = raw_line.rstrip("\n\r")
         stripped = line_text.strip()
-        if not stripped or stripped.startswith("//") or stripped.startswith("*"):
+        if not stripped or stripped.startswith(("//", "*")):
             continue
 
         if not found_env and _PROC_ENV_LINE_PAT.search(line_text):
@@ -518,7 +518,7 @@ def _scan_js_lines(lines: list[str], rel_path: str, has_network: bool = False) -
     for line_no, raw_line in enumerate(lines, 1):
         line_text = raw_line.rstrip("\n\r")
         stripped = line_text.strip()
-        if not stripped or stripped.startswith("//") or stripped.startswith("*"):
+        if not stripped or stripped.startswith(("//", "*")):
             continue
 
         # Pro Bedrohungskategorie pro Zeile nur einen Befund melden — vermeidet Rauschen,
@@ -682,7 +682,7 @@ def _scan_npmrc_lines(lines: list[str], rel_path: str) -> list[Finding]:
 
     for line_no, raw_line in enumerate(lines, 1):
         line = raw_line.strip()
-        if not line or line.startswith(";") or line.startswith("#"):
+        if not line or line.startswith((";", "#")):
             continue
 
         m = re.match(r'(?:@[^:]+:)?registry\s*=\s*(.+)', line, re.IGNORECASE)
@@ -824,7 +824,7 @@ def _scan_package_lock_lines(lines: list[str], rel_path: str) -> list[Finding]:
         resolved = pkg_info.get("resolved", "")
         if not isinstance(resolved, str) or not resolved:
             return
-        if resolved.startswith("file:") or resolved.startswith("node_modules/"):
+        if resolved.startswith(("file:", "node_modules/")):
             return
 
         if not any(resolved.startswith(s) for s in SAFE_REGISTRIES):
@@ -1021,7 +1021,7 @@ def scan_binding_gyp(path: str, rel_path: str) -> list[Finding]:
     return _scan_binding_gyp_lines(read_lines(path), rel_path)
 
 
-def scan_file(path: str, config: "ScanConfig") -> list[Finding]:
+def scan_file(path: str, config: ScanConfig) -> list[Finding]:
     ext = Path(path).suffix.lower()
     if ext in SKIP_EXTENSIONS:
         return []
@@ -1094,56 +1094,58 @@ def _scan_tarball(tgz_path: str, label: str) -> list[Finding]:
     """Entpackt und prüft JS/JSON/Konfig-Dateien innerhalb eines gzip-komprimierten Tarballs."""
     findings: list[Finding] = []
     try:
-        with gzip.open(tgz_path, "rb") as gz_fh:
-            with tarfile.open(fileobj=gz_fh, mode="r:") as tf:
-                for member in tf.getmembers():
-                    if not member.isfile() or member.size > MAX_CACHE_MEMBER_BYTES:
-                        continue
+        with (
+            gzip.open(tgz_path, "rb") as gz_fh,
+            tarfile.open(fileobj=gz_fh, mode="r:") as tf,
+        ):
+            for member in tf.getmembers():
+                if not member.isfile() or member.size > MAX_CACHE_MEMBER_BYTES:
+                    continue
 
-                    mname = member.name
-                    ext = Path(mname).suffix.lower()
-                    bname = Path(mname).name.lower()
+                mname = member.name
+                ext = Path(mname).suffix.lower()
+                bname = Path(mname).name.lower()
 
-                    is_js = ext in JS_EXTENSIONS
-                    is_pkg = bname == "package.json"
-                    is_lock = bname == "package-lock.json"
-                    is_pnpm_lock = bname in ("pnpm-lock.yaml", "pnpm-lock.yml")
-                    is_binding_gyp = bname == "binding.gyp"
-                    is_npmrc = bname in (".npmrc", ".npmrc.example")
-                    is_yarnrc = bname == ".yarnrc"
-                    is_yarnrc_yml = bname in (".yarnrc.yml", ".yarnrc.yaml")
+                is_js = ext in JS_EXTENSIONS
+                is_pkg = bname == "package.json"
+                is_lock = bname == "package-lock.json"
+                is_pnpm_lock = bname in ("pnpm-lock.yaml", "pnpm-lock.yml")
+                is_binding_gyp = bname == "binding.gyp"
+                is_npmrc = bname in (".npmrc", ".npmrc.example")
+                is_yarnrc = bname == ".yarnrc"
+                is_yarnrc_yml = bname in (".yarnrc.yml", ".yarnrc.yaml")
 
-                    if not any((is_js, is_pkg, is_lock, is_pnpm_lock, is_binding_gyp,
-                                is_npmrc, is_yarnrc, is_yarnrc_yml)):
-                        continue
+                if not any((is_js, is_pkg, is_lock, is_pnpm_lock, is_binding_gyp,
+                            is_npmrc, is_yarnrc, is_yarnrc_yml)):
+                    continue
 
-                    fobj = tf.extractfile(member)
-                    if fobj is None:
-                        continue
+                fobj = tf.extractfile(member)
+                if fobj is None:
+                    continue
 
-                    raw = fobj.read().decode("utf-8", errors="replace")
-                    rel = f"[cache:{label}]{mname}"
+                raw = fobj.read().decode("utf-8", errors="replace")
+                rel = f"[cache:{label}]{mname}"
 
-                    lines = raw.splitlines(keepends=True)
-                    if is_js:
-                        has_network = bool(_FILE_NET_PAT.search(raw))
-                        findings.extend(_scan_js_lines(lines, rel, has_network=has_network))
-                    elif is_pkg:
-                        findings.extend(_scan_package_json_lines(lines, rel))
-                    elif is_lock:
-                        findings.extend(_scan_package_lock_lines(lines, rel))
-                    elif is_pnpm_lock:
-                        findings.extend(_scan_pnpm_lock_lines(lines, rel))
-                    elif is_binding_gyp:
-                        findings.extend(_scan_binding_gyp_lines(lines, rel))
-                    elif is_npmrc:
-                        findings.extend(_scan_npmrc_lines(lines, rel))
-                    elif is_yarnrc:
-                        findings.extend(_scan_yarnrc_lines(lines, rel))
-                    elif is_yarnrc_yml:
-                        findings.extend(_scan_yarnrc_yml_lines(lines, rel))
+                lines = raw.splitlines(keepends=True)
+                if is_js:
+                    has_network = bool(_FILE_NET_PAT.search(raw))
+                    findings.extend(_scan_js_lines(lines, rel, has_network=has_network))
+                elif is_pkg:
+                    findings.extend(_scan_package_json_lines(lines, rel))
+                elif is_lock:
+                    findings.extend(_scan_package_lock_lines(lines, rel))
+                elif is_pnpm_lock:
+                    findings.extend(_scan_pnpm_lock_lines(lines, rel))
+                elif is_binding_gyp:
+                    findings.extend(_scan_binding_gyp_lines(lines, rel))
+                elif is_npmrc:
+                    findings.extend(_scan_npmrc_lines(lines, rel))
+                elif is_yarnrc:
+                    findings.extend(_scan_yarnrc_lines(lines, rel))
+                elif is_yarnrc_yml:
+                    findings.extend(_scan_yarnrc_yml_lines(lines, rel))
 
-    except Exception:
+    except (OSError, tarfile.TarError, EOFError):
         pass
     return findings
 

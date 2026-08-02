@@ -1,10 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-from __future__ import print_function
 
+import glob
 import os
 import re
-import glob
 import socket
 import xml.etree.ElementTree as ET
 
@@ -85,7 +83,7 @@ def scan_file_generic(path):
                 m = PROXY_PATTERN.match(line)
                 if m:
                     add_finding(path, m.group(2), m.group(3))
-    except (IOError, OSError):
+    except OSError:
         pass
 
 
@@ -98,7 +96,7 @@ def scan_yum_dnf(path):
                     parts = stripped.split('=', 1)
                     if len(parts) == 2:
                         add_finding(path, parts[0].strip(), parts[1].strip())
-    except (IOError, OSError):
+    except OSError:
         pass
 
 
@@ -111,7 +109,7 @@ def scan_wget(path):
                     parts = stripped.split('=', 1)
                     if len(parts) == 2:
                         add_finding(path, parts[0].strip(), parts[1].strip())
-    except (IOError, OSError):
+    except OSError:
         pass
 
 
@@ -124,7 +122,7 @@ def scan_curl(path):
                     parts = stripped.split('=', 1)
                     if len(parts) == 2:
                         add_finding(path, 'proxy', parts[1].strip())
-    except (IOError, OSError):
+    except OSError:
         pass
 
 
@@ -136,12 +134,12 @@ def scan_maven_settings(path):
         ns = ''
         if root.tag.startswith('{'):
             ns = root.tag.split('}')[0] + '}'
-        proxies = root.find('{0}proxies'.format(ns))
+        proxies = root.find(f'{ns}proxies')
         if proxies is None:
             return
-        for proxy in proxies.findall('{0}proxy'.format(ns)):
-            def txt(tag):
-                el = proxy.find('{0}{1}'.format(ns, tag))
+        for proxy in proxies.findall(f'{ns}proxy'):
+            def txt(tag, proxy=proxy):
+                el = proxy.find(f'{ns}{tag}')
                 return el.text.strip() if el is not None and el.text else ''
             active = txt('active')
             protocol = txt('protocol')
@@ -161,7 +159,7 @@ def scan_maven_settings(path):
                 add_finding(path, 'proxy.username', username)
             if nonProxyHosts:
                 add_finding(path, 'proxy.nonProxyHosts', nonProxyHosts)
-    except (IOError, OSError, ET.ParseError):
+    except (OSError, ET.ParseError):
         pass
 
 
@@ -179,13 +177,13 @@ def scan_ansible_cfg(path):
                 m = PROXY_PATTERN.match(stripped)
                 if m:
                     add_finding(path, m.group(2), m.group(3))
-    except (IOError, OSError):
+    except OSError:
         pass
 
 
 def route_file(path):
     lower = path.lower()
-    if lower.endswith('/yum.conf') or lower.endswith('/dnf.conf'):
+    if lower.endswith(('/yum.conf', '/dnf.conf')):
         scan_yum_dnf(path)
     elif lower.endswith('wgetrc'):
         scan_wget(path)
@@ -231,7 +229,7 @@ def main():
             seen.add(path)
             scan_ansible_cfg(path)
 
-    print("=== PROXY SCAN REPORT: {0} ===".format(hostname))
+    print(f"=== PROXY SCAN REPORT: {hostname} ===")
 
     if not findings:
         print("RESULT: NO_PROXY_FOUND")
@@ -240,7 +238,7 @@ def main():
     print("RESULT: PROXY_FOUND")
     for source in sorted(findings.keys()):
         for key, val in findings[source]:
-            print("SOURCE={0} KEY={1} VALUE={2}".format(source, key, val))
+            print(f"SOURCE={source} KEY={key} VALUE={val}")
 
 
 if __name__ == '__main__':

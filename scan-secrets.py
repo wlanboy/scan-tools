@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 scan-secrets.py - Scans a git repository for credentials and secrets:
   Basic Auth (URL and header), Bearer tokens, OAuth tokens/secrets,
@@ -12,16 +11,13 @@ Exit codes:
 
 Compatible with Python 2.7 and 3.x.
 """
-from __future__ import print_function, unicode_literals
 
 import argparse
-import io
 import json
 import os
 import re
 import subprocess
 import sys
-
 
 # ---------------------------------------------------------------------------
 # Placeholder / false-positive guard
@@ -53,9 +49,7 @@ def is_placeholder(value):
     if _PLACEHOLDER_RE.match(v):
         return True
     # All same character repeated (e.g. "aaaaaaaaaa", "11111111")
-    if len(set(v)) == 1:
-        return True
-    return False
+    return len(set(v)) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -241,7 +235,7 @@ def is_binary(path):
     try:
         with open(path, 'rb') as fh:
             return b'\x00' in fh.read(BINARY_CHECK_BYTES)
-    except (IOError, OSError):
+    except OSError:
         return True
 
 
@@ -249,21 +243,7 @@ def is_test_file(path):
     lower = path.lower()
     basename = os.path.basename(lower)
     return (
-        '/test/' in lower
-        or '/tests/' in lower
-        or '\\test\\' in lower
-        or '\\tests\\' in lower
-        or basename.startswith('test_')
-        or basename.endswith('_test.py')
-        or basename.endswith('_test.go')
-        or basename.endswith('.test.ts')
-        or basename.endswith('.test.js')
-        or basename.endswith('.test.jsx')
-        or basename.endswith('.spec.ts')
-        or basename.endswith('.spec.js')
-        or basename.endswith('.spec.jsx')
-        or basename.endswith('test.java')
-        or basename.endswith('_spec.rb')
+        '/test/' in lower or '/tests/' in lower or '\\test\\' in lower or '\\tests\\' in lower or basename.startswith('test_') or basename.endswith(('_test.py', '_test.go', '.test.ts', '.test.js', '.test.jsx', '.spec.ts', '.spec.js', '.spec.jsx', 'test.java', '_spec.rb'))
     )
 
 
@@ -301,7 +281,7 @@ def get_tracked_files(repo_path):
             if f.strip()
         ]
     except subprocess.CalledProcessError as exc:
-        raise RuntimeError('git ls-files failed: {0}'.format(exc))
+        raise RuntimeError(f'git ls-files failed: {exc}')
 
 
 # ---------------------------------------------------------------------------
@@ -323,9 +303,9 @@ def scan_line(line_text, allow_patterns, categories):
             if is_placeholder(secret):
                 continue
             # basic_auth_url: also check the password group (group 2)
-            if category == 'basic_auth_url' and (m.lastindex or 0) >= 2:
-                if is_placeholder(m.group(2)):
-                    continue
+            if (category == 'basic_auth_url' and (m.lastindex or 0) >= 2
+                    and is_placeholder(m.group(2))):
+                continue
             if matches_any(matched, allow_patterns):
                 continue
             yield (category, label, matched)
@@ -349,9 +329,9 @@ def scan_file(path, repo_path, allow_patterns, skip_patterns, categories, skip_t
         return findings
 
     try:
-        with io.open(path, encoding='utf-8', errors='replace') as fh:
+        with open(path, encoding='utf-8', errors='replace') as fh:
             lines = fh.readlines()
-    except (IOError, OSError):
+    except OSError:
         return findings
 
     for line_no, raw_line in enumerate(lines, start=1):
@@ -386,9 +366,9 @@ def print_text_report(findings):
         by_category.setdefault(f['category'], []).append(f)
 
     sep = '=' * 70
-    print('\n{0}'.format(sep))
-    print('  Secrets scan -- {0} finding(s)'.format(len(findings)))
-    print('{0}\n'.format(sep))
+    print(f'\n{sep}')
+    print(f'  Secrets scan -- {len(findings)} finding(s)')
+    print(f'{sep}\n')
 
     printed = set()
     for cat in CATEGORY_ORDER:
@@ -396,30 +376,29 @@ def print_text_report(findings):
         if not items:
             continue
         printed.add(cat)
-        print('  {0} ({1})'.format(items[0]['label'], len(items)))
-        print('  {0}'.format('-' * 40))
+        print('  {} ({})'.format(items[0]['label'], len(items)))
+        print('  {}'.format('-' * 40))
         for f in items:
-            print('  {0}:{1}'.format(f['file'], f['line']))
-            print('    Value  : {0}'.format(f['value'][:80]))
-            print('    Context: {0}'.format(f['context']))
+            print('  {}:{}'.format(f['file'], f['line']))
+            print('    Value  : {}'.format(f['value'][:80]))
+            print('    Context: {}'.format(f['context']))
             print()
 
     # Catch any categories not listed in CATEGORY_ORDER
     for cat, items in by_category.items():
         if cat not in printed and items:
-            print('  {0} ({1})'.format(items[0]['label'], len(items)))
-            print('  {0}'.format('-' * 40))
+            print('  {} ({})'.format(items[0]['label'], len(items)))
+            print('  {}'.format('-' * 40))
             for f in items:
-                print('  {0}:{1}'.format(f['file'], f['line']))
-                print('    Value  : {0}'.format(f['value'][:80]))
-                print('    Context: {0}'.format(f['context']))
+                print('  {}:{}'.format(f['file'], f['line']))
+                print('    Value  : {}'.format(f['value'][:80]))
+                print('    Context: {}'.format(f['context']))
                 print()
 
-    files = set(f['file'] for f in findings)
-    print('{0}'.format(sep))
-    print('  Total: {0} finding(s) in {1} file(s)'.format(
-        len(findings), len(files)))
-    print('{0}\n'.format(sep))
+    files = {f['file'] for f in findings}
+    print(f'{sep}')
+    print(f'  Total: {len(findings)} finding(s) in {len(files)} file(s)')
+    print(f'{sep}\n')
 
 
 def print_json_report(findings):
@@ -514,7 +493,7 @@ Categories: {cats}
 
 def load_allow_file(path):
     patterns = []
-    with io.open(path, encoding='utf-8') as fh:
+    with open(path, encoding='utf-8') as fh:
         for line in fh:
             line = line.strip()
             if line and not line.startswith('#'):
@@ -538,10 +517,10 @@ def load_whitelist(path):
     The 'comment' field is ignored (documentation only).
     """
     try:
-        with io.open(path, encoding='utf-8') as fh:
+        with open(path, encoding='utf-8') as fh:
             data = json.load(fh)
     except ValueError as exc:
-        raise ValueError('Invalid JSON in whitelist "{0}": {1}'.format(path, exc))
+        raise ValueError(f'Invalid JSON in whitelist "{path}": {exc}')
     if isinstance(data, list):
         return data
     if isinstance(data, dict) and 'entries' in data:
@@ -594,7 +573,7 @@ def main():
 
     repo_path = os.path.abspath(args.repo)
     if not os.path.isdir(os.path.join(repo_path, '.git')):
-        print('ERROR: "{0}" is not a git repository root.'.format(repo_path),
+        print(f'ERROR: "{repo_path}" is not a git repository root.',
               file=sys.stderr)
         return 2
 
@@ -602,8 +581,8 @@ def main():
     if args.allow_file:
         try:
             allow_patterns.extend(load_allow_file(args.allow_file))
-        except (IOError, OSError) as exc:
-            print('ERROR: Cannot read allow-file: {0}'.format(exc),
+        except OSError as exc:
+            print(f'ERROR: Cannot read allow-file: {exc}',
                   file=sys.stderr)
             return 2
 
@@ -611,8 +590,8 @@ def main():
     if args.whitelist:
         try:
             whitelist = load_whitelist(args.whitelist)
-        except (IOError, OSError, ValueError) as exc:
-            print('ERROR: Cannot load whitelist: {0}'.format(exc),
+        except (OSError, ValueError) as exc:
+            print(f'ERROR: Cannot load whitelist: {exc}',
                   file=sys.stderr)
             return 2
 
@@ -622,12 +601,11 @@ def main():
     try:
         files = get_tracked_files(repo_path)
     except RuntimeError as exc:
-        print('ERROR: {0}'.format(exc), file=sys.stderr)
+        print(f'ERROR: {exc}', file=sys.stderr)
         return 2
 
     if args.output_format == 'text':
-        print('Scanning {0} tracked file(s) in "{1}" ...'.format(
-            len(files), repo_path))
+        print(f'Scanning {len(files)} tracked file(s) in "{repo_path}" ...')
 
     all_findings = []
     for path in files:

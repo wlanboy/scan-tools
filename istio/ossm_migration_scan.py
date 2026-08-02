@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 OSSM Migration Scanner: Service Mesh 2.x -> 3.0
 Scannt Namespaces nach veralteten Istio-Ressourcen und Labels,
@@ -16,7 +15,6 @@ import json
 import subprocess
 import sys
 from dataclasses import dataclass, field
-from typing import Optional
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
@@ -53,8 +51,8 @@ UNSUPPORTED_SMCP_FIELDS: list[tuple[str, str, str]] = [
      "Feld entfernen - Initialization type nicht unterstützt"),
     ("spec.proxy.networking.initialization.initContainer.runtime.env",
      "Proxy Networking",
-     "Feld entfernen - initContainer env nicht unterstützt. "
-     "Proxy-Umgebungsvariablen via spec.values.meshConfig.defaultConfig.proxyMetadata setzen"),
+     ("Feld entfernen - initContainer env nicht unterstützt. "
+      "Proxy-Umgebungsvariablen via spec.values.meshConfig.defaultConfig.proxyMetadata setzen")),
     ("spec.proxy.networking.protocol.autoDetect",
      "Proxy Networking",
      "Feld entfernen - Protocol autoDetect nicht unterstützt"),
@@ -106,8 +104,8 @@ UNSUPPORTED_SMCP_FIELDS: list[tuple[str, str, str]] = [
     # 7.1.2.7 Security - control plane TLS
     ("spec.security.controlPlane.tls.maxProtocolVersion",
      "Security / TLS",
-     "Feld entfernen - maxProtocolVersion in OSSM 3.0 nicht unterstützt "
-     "(minProtocolVersion bleibt: -> spec.values.meshConfig.tlsDefaults.minProtocolVersion)"),
+     ("Feld entfernen - maxProtocolVersion in OSSM 3.0 nicht unterstützt "
+      "(minProtocolVersion bleibt: -> spec.values.meshConfig.tlsDefaults.minProtocolVersion)")),
     # 7.1.2.7 Security - identity
     ("spec.security.identity.thirdParty.issuer",
      "Security / Identity",
@@ -494,7 +492,7 @@ _SYSTEM_NAMESPACES = frozenset({
 def run_kubectl(args: list[str], tool: str = "kubectl") -> tuple[bool, str]:
     try:
         result = subprocess.run(
-            [tool] + args, capture_output=True, text=True, timeout=30,
+            [tool, *args], capture_output=True, text=True, timeout=30, check=False,
         )
         if result.returncode == 0:
             return True, result.stdout.strip()
@@ -505,7 +503,7 @@ def run_kubectl(args: list[str], tool: str = "kubectl") -> tuple[bool, str]:
         return False, "timeout"
 
 
-def get_json(resource: str, namespace: Optional[str], tool: str) -> Optional[dict]:
+def get_json(resource: str, namespace: str | None, tool: str) -> dict | None:
     args = ["get", resource, "-o", "json"]
     if namespace:
         args += ["-n", namespace]
@@ -534,7 +532,7 @@ def detect_tool() -> str:
     sys.exit(1)
 
 
-def get_namespaces(tool: str, namespace_filter: Optional[str]) -> list[str]:
+def get_namespaces(tool: str, namespace_filter: str | None) -> list[str]:
     if namespace_filter:
         return [namespace_filter]
     ok, out = run_kubectl(
@@ -594,13 +592,13 @@ def check_ossm2_crds(result: ScanResult, tool: str):
     deprecated = {
         "servicemeshcontrolplanes.maistra.io": (
             "ServiceMeshControlPlane (maistra.io) CRD noch installiert",
-            "Durch 'Istio' CRD (sailoperator.io/v1alpha1) ersetzen - "
-            "kein In-Place-Upgrade möglich, Neuinstallation des Operators erforderlich",
+            ("Durch 'Istio' CRD (sailoperator.io/v1alpha1) ersetzen - "
+             "kein In-Place-Upgrade möglich, Neuinstallation des Operators erforderlich"),
         ),
         "servicemeshmemberrolls.maistra.io": (
             "ServiceMeshMemberRoll (maistra.io) CRD noch installiert",
-            "Namespace-Mitgliedschaft jetzt über Labels: "
-            "'istio-injection=enabled' oder 'istio.io/rev=<name>'",
+            ("Namespace-Mitgliedschaft jetzt über Labels: "
+             "'istio-injection=enabled' oder 'istio.io/rev=<name>'"),
         ),
         "servicemeshmembers.maistra.io": (
             "ServiceMeshMember (maistra.io) CRD noch installiert",

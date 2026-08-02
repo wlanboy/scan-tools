@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Helper for bb-pull-project.sh: parse Bitbucket JSON API responses via stdin."""
 
-import sys
 import json
+import sys
+
 
 def load():
     return json.load(sys.stdin)

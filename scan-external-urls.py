@@ -20,7 +20,6 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-
 # ---------------------------------------------------------------------------
 # Regex patterns
 # ---------------------------------------------------------------------------
@@ -159,28 +158,19 @@ def is_test_file(path: str) -> bool:
     lower = path.lower()
     basename = os.path.basename(lower)
     basename_orig = os.path.basename(path)
+    test_dir_markers = ("/test/", "/tests/", "/__tests__/", "\\test\\", "\\tests\\", "\\__tests__\\")
+    test_suffixes = (
+        "_test.py", "_test.go",
+        ".test.ts", ".test.tsx", ".test.js", ".test.jsx",
+        ".spec.ts", ".spec.tsx", ".spec.js", ".spec.jsx",
+        "_spec.rb",
+    )
     return (
-        "/test/" in lower
-        or "/tests/" in lower
-        or "/__tests__/" in lower
-        or "\\test\\" in lower
-        or "\\tests\\" in lower
-        or "\\__tests__\\" in lower
+        any(marker in lower for marker in test_dir_markers)
         or basename.startswith("test_")
-        or basename.endswith("_test.py")
-        or basename.endswith("_test.go")
-        or basename.endswith(".test.ts")
-        or basename.endswith(".test.tsx")
-        or basename.endswith(".test.js")
-        or basename.endswith(".test.jsx")
-        or basename.endswith(".spec.ts")
-        or basename.endswith(".spec.tsx")
-        or basename.endswith(".spec.js")
-        or basename.endswith(".spec.jsx")
-        or basename_orig.endswith("Test.java")
-        or basename_orig.endswith("Tests.java")
-        or basename_orig.startswith("Test") and basename_orig.endswith(".java")
-        or basename.endswith("_spec.rb")
+        or basename.endswith(test_suffixes)
+        or basename_orig.endswith(("Test.java", "Tests.java"))
+        or (basename_orig.startswith("Test") and basename_orig.endswith(".java"))
     )
 
 

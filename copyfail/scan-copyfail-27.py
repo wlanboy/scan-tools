@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-from __future__ import print_function
 
 import datetime
 import hashlib
@@ -49,7 +47,7 @@ findings = []
 
 
 def emit(tag, detail):
-    line = "{0}: {1}".format(tag, detail)
+    line = f"{tag}: {detail}"
     print(line)
     if tag.startswith("FINDING"):
         findings.append(line)
@@ -76,7 +74,7 @@ def get_kernel_version():
         stdout, _ = run_cmd(["uname", "-r"])
         return stdout.strip()
     except OSError as e:
-        print("ERROR: Could not run uname -r: {0}".format(e))
+        print(f"ERROR: Could not run uname -r: {e}")
         sys.exit(2)
 
 
@@ -138,7 +136,7 @@ def check_module_loaded(module_name, finding_tag="FINDING_MODULE_LOADED"):
         emit(tag, module_name)
         return loaded
     except OSError as e:
-        emit("ERROR", "lsmod failed: {0}".format(e))
+        emit("ERROR", f"lsmod failed: {e}")
         return False
 
 
@@ -155,8 +153,8 @@ def check_af_alg_accessible():
         emit("FINDING_AF_ALG_ACCESSIBLE",
              "AF_ALG socket (family 38) createable without privileges — "
              "CopyFail exploit prerequisite met")
-    except socket.error as e:
-        emit("AF_ALG_BLOCKED", "socket creation failed ({0})".format(e))
+    except OSError as e:
+        emit("AF_ALG_BLOCKED", f"socket creation failed ({e})")
 
 
 # ---------------------------------------------------------------------------
@@ -173,13 +171,13 @@ def check_fragnesia_tcp_ulp():
             emit("FINDING_FRAGNESIA_TCP_ULP_ACCESSIBLE",
                  "espintcp TCP_ULP usable without privileges — "
                  "Fragnesia exploit prerequisite met")
-        except socket.error as e:
+        except OSError as e:
             emit("FRAGNESIA_TCP_ULP_BLOCKED",
-                 "setsockopt(TCP_ULP, espintcp) failed ({0})".format(e))
+                 f"setsockopt(TCP_ULP, espintcp) failed ({e})")
         finally:
             sock.close()
-    except socket.error as e:
-        emit("ERROR", "TCP socket creation failed: {0}".format(e))
+    except OSError as e:
+        emit("ERROR", f"TCP socket creation failed: {e}")
 
 
 def check_fragnesia_mitigation():
@@ -193,9 +191,10 @@ def check_fragnesia_mitigation():
             for fname in os.listdir(d):
                 fpath = os.path.join(d, fname)
                 try:
-                    content = open(fpath).read().lower()
-                    if ("install {0} /bin/false".format(FRAGNESIA_MODULE) in content
-                            or "blacklist {0}".format(FRAGNESIA_MODULE) in content):
+                    with open(fpath) as fh:
+                        content = fh.read().lower()
+                    if (f"install {FRAGNESIA_MODULE} /bin/false" in content
+                            or f"blacklist {FRAGNESIA_MODULE}" in content):
                         blacklisted = True
                 except OSError:
                     continue
@@ -204,10 +203,10 @@ def check_fragnesia_mitigation():
 
     if blacklisted:
         emit("FRAGNESIA_MITIGATION_ACTIVE",
-             "{0} blacklisted in modprobe.d".format(FRAGNESIA_MODULE))
+             f"{FRAGNESIA_MODULE} blacklisted in modprobe.d")
     else:
         emit("FINDING_DIRTYFRAG_NO_MITIGATION",
-             "{0} not blacklisted in modprobe.d — mitigation missing".format(FRAGNESIA_MODULE))
+             f"{FRAGNESIA_MODULE} not blacklisted in modprobe.d — mitigation missing")
 
 
 # ---------------------------------------------------------------------------
@@ -223,8 +222,8 @@ def check_af_rxrpc_accessible():
         emit("FINDING_AF_RXRPC_ACCESSIBLE",
              "AF_RXRPC socket (family 34) createable without privileges — "
              "DirtyFrag RxRPC exploit prerequisite met")
-    except socket.error as e:
-        emit("AF_RXRPC_BLOCKED", "socket creation failed ({0})".format(e))
+    except OSError as e:
+        emit("AF_RXRPC_BLOCKED", f"socket creation failed ({e})")
 
 
 # ---------------------------------------------------------------------------
@@ -241,8 +240,8 @@ def check_xfrm_accessible():
         emit("FINDING_XFRM_ACCESSIBLE",
              "NETLINK_XFRM socket createable without privileges — "
              "DirtyFrag xfrm-ESP exploit prerequisite met")
-    except socket.error as e:
-        emit("XFRM_BLOCKED", "NETLINK_XFRM socket creation failed ({0})".format(e))
+    except OSError as e:
+        emit("XFRM_BLOCKED", f"NETLINK_XFRM socket creation failed ({e})")
 
 
 # ---------------------------------------------------------------------------
@@ -255,7 +254,8 @@ def check_namespace_creation():
 
     if os.path.exists(userns_clone):
         try:
-            val = open(userns_clone).read().strip()
+            with open(userns_clone) as fh:
+                val = fh.read().strip()
             if val == "0":
                 emit("NAMESPACE_USERNS_DISABLED",
                      "unprivileged_userns_clone=0 — xfrm-ESP DirtyFrag variant blocked")
@@ -267,13 +267,14 @@ def check_namespace_creation():
 
     if os.path.exists(max_userns):
         try:
-            val = int(open(max_userns).read().strip())
+            with open(max_userns) as fh:
+                val = int(fh.read().strip())
             if val == 0:
                 emit("NAMESPACE_MAX_USERNS_ZERO",
                      "max_user_namespaces=0 — xfrm-ESP DirtyFrag variant blocked")
             else:
                 emit("FINDING_NAMESPACE_MAX_USERNS_NONZERO",
-                     "max_user_namespaces={0} — xfrm-ESP DirtyFrag and Fragnesia variants possible".format(val))
+                     f"max_user_namespaces={val} — xfrm-ESP DirtyFrag and Fragnesia variants possible")
         except (OSError, ValueError):
             pass
 
@@ -284,7 +285,7 @@ def check_namespace_creation():
 
 def check_dirtyfrag_mitigation():
     modprobe_dirs = ["/etc/modprobe.d", "/usr/lib/modprobe.d"]
-    blacklisted: dict[str, bool] = dict((m, False) for m in DIRTYFRAG_MODULES)
+    blacklisted: dict[str, bool] = {m: False for m in DIRTYFRAG_MODULES}
 
     for d in modprobe_dirs:
         if not os.path.isdir(d):
@@ -293,10 +294,11 @@ def check_dirtyfrag_mitigation():
             for fname in os.listdir(d):
                 fpath = os.path.join(d, fname)
                 try:
-                    content = open(fpath).read().lower()
+                    with open(fpath) as fh:
+                        content = fh.read().lower()
                     for module in DIRTYFRAG_MODULES:
-                        if ("install {0} /bin/false".format(module) in content
-                                or "blacklist {0}".format(module) in content):
+                        if (f"install {module} /bin/false" in content
+                                or f"blacklist {module}" in content):
                             blacklisted[module] = True
                 except OSError:
                     continue
@@ -306,10 +308,10 @@ def check_dirtyfrag_mitigation():
     for module, blocked in blacklisted.items():
         if blocked:
             emit("DIRTYFRAG_MITIGATION_ACTIVE",
-                 "{0} blacklisted in modprobe.d".format(module))
+                 f"{module} blacklisted in modprobe.d")
         else:
             emit("FINDING_DIRTYFRAG_NO_MITIGATION",
-                 "{0} not blacklisted in modprobe.d — mitigation missing".format(module))
+                 f"{module} not blacklisted in modprobe.d — mitigation missing")
 
 
 # ---------------------------------------------------------------------------
@@ -335,8 +337,8 @@ def check_passwd_integrity():
             try:
                 if int(uid_str) == 0 and username != "root":
                     emit("FINDING_PASSWD_SHADOW_ROOT",
-                         "/etc/passwd: user '{0}' has UID 0 — "
-                         "possible privilege escalation".format(username))
+                         f"/etc/passwd: user '{username}' has UID 0 — "
+                         "possible privilege escalation")
             except ValueError:
                 pass
 
@@ -344,14 +346,14 @@ def check_passwd_integrity():
         age_sec = time.time() - stat.st_mtime
         if age_sec < 3600:
             emit("FINDING_PASSWD_RECENTLY_MODIFIED",
-                 "{0} mtime is only {1:.0f}s ago — "
-                 "possible RxRPC DirtyFrag exploit target".format(PASSWD_PATH, age_sec))
+                 f"{PASSWD_PATH} mtime is only {age_sec:.0f}s ago — "
+                 "possible RxRPC DirtyFrag exploit target")
         else:
             emit("PASSWD_MTIME_OK",
-                 "{0} last modified {1:.1f}h ago".format(PASSWD_PATH, age_sec / 3600.0))
+                 f"{PASSWD_PATH} last modified {age_sec / 3600.0:.1f}h ago")
 
     except OSError as e:
-        emit("ERROR", "cannot read {0}: {1}".format(PASSWD_PATH, e))
+        emit("ERROR", f"cannot read {PASSWD_PATH}: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -382,15 +384,15 @@ def check_pam_nullok():
                     if line.startswith("#"):
                         continue
                     if "pam_unix.so" in line and "nullok" in line:
-                        nullok_files.append("{0}:{1}".format(path, lineno))
+                        nullok_files.append(f"{path}:{lineno}")
         except OSError:
             continue
 
     if nullok_files:
         for loc in nullok_files:
             emit("FINDING_PAM_NULLOK",
-                 "pam_unix.so with nullok found in {0} — "
-                 "su with empty password accepted (exploit prerequisite)".format(loc))
+                 f"pam_unix.so with nullok found in {loc} — "
+                 "su with empty password accepted (exploit prerequisite)")
     else:
         emit("PAM_NULLOK_NOT_FOUND",
              "no pam_unix.so nullok in su/common-auth configs — "
@@ -412,12 +414,12 @@ def check_audit_log():
             lines = [line for line in stdout.splitlines() if "python" in line.lower()]
             if lines:
                 emit("FINDING_AUDIT_SU_PYTHON",
-                     "{0} audit event(s) show python accessing {1}".format(len(lines), target_path))
+                     f"{len(lines)} audit event(s) show python accessing {target_path}")
                 for line in lines[:5]:
                     print("  " + line[:120])
             else:
                 emit("AUDIT_SU_CLEAN",
-                     "no python access to {0} in audit log".format(target_path))
+                     f"no python access to {target_path} in audit log")
         except OSError:
             emit("AUDIT_LOG", "ausearch not installed — check /var/log/audit/audit.log manually")
             return
@@ -441,13 +443,13 @@ def check_kernel_log():
         ]
         if hits:
             emit("FINDING_KERNEL_LOG",
-                 "{0} suspicious kernel log line(s)".format(len(hits)))
+                 f"{len(hits)} suspicious kernel log line(s)")
             for line in hits[:5]:
                 print("  " + line[:120])
         else:
             emit("KERNEL_LOG_CLEAN", "no relevant entries in dmesg")
     except OSError as e:
-        emit("ERROR", "dmesg failed: {0}".format(e))
+        emit("ERROR", f"dmesg failed: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -474,9 +476,10 @@ def check_mac_policy():
     selinux_status = "/sys/fs/selinux/enforce"
     if os.path.exists(selinux_status):
         try:
-            enforcing = open(selinux_status).read().strip() == "1"
+            with open(selinux_status) as fh:
+                enforcing = fh.read().strip() == "1"
             tag = "SELINUX_ENFORCING" if enforcing else "FINDING_SELINUX_PERMISSIVE"
-            emit(tag, "SELinux enforce={0}".format(enforcing))
+            emit(tag, f"SELinux enforce={enforcing}")
         except OSError:
             pass
     else:
@@ -489,7 +492,8 @@ def check_mac_policy():
 
 def check_su_integrity():
     try:
-        digest = hashlib.sha256(open(SU_PATH, "rb").read()).hexdigest()
+        with open(SU_PATH, "rb") as fh:
+            digest = hashlib.sha256(fh.read()).hexdigest()
         emit("SU_SHA256", digest)
 
         if digest in KNOWN_SU_HASHES.values():
@@ -499,19 +503,19 @@ def check_su_integrity():
                  "hash not in known-good list — verify with package manager")
         else:
             emit("SU_INTEGRITY_HINT",
-                 "no reference hashes configured — run: sha256sum {0}".format(SU_PATH))
+                 f"no reference hashes configured — run: sha256sum {SU_PATH}")
 
         stat = os.stat(SU_PATH)
         age_sec = time.time() - stat.st_mtime
         if age_sec < 3600:
             emit("FINDING_SU_RECENTLY_MODIFIED",
-                 "{0} mtime is only {1:.0f}s ago".format(SU_PATH, age_sec))
+                 f"{SU_PATH} mtime is only {age_sec:.0f}s ago")
         else:
             emit("SU_MTIME_OK",
-                 "{0} last modified {1:.1f}h ago".format(SU_PATH, age_sec / 3600.0))
+                 f"{SU_PATH} last modified {age_sec / 3600.0:.1f}h ago")
 
     except OSError as e:
-        emit("ERROR", "cannot read {0}: {1}".format(SU_PATH, e))
+        emit("ERROR", f"cannot read {SU_PATH}: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -524,13 +528,14 @@ def check_open_fds(target_path):
         for pid in os.listdir("/proc"):
             if not pid.isdigit():
                 continue
-            fd_dir = "/proc/{0}/fd".format(pid)
+            fd_dir = f"/proc/{pid}/fd"
             try:
                 for fd in os.listdir(fd_dir):
-                    link = os.readlink("{0}/{1}".format(fd_dir, fd))
+                    link = os.readlink(f"{fd_dir}/{fd}")
                     if link == target_path:
-                        cmdline = open("/proc/{0}/cmdline".format(pid)).read().replace("\x00", " ")
-                        hits.append("pid={0} cmd={1}".format(pid, cmdline[:60]))
+                        with open(f"/proc/{pid}/cmdline") as fh:
+                            cmdline = fh.read().replace("\x00", " ")
+                        hits.append(f"pid={pid} cmd={cmdline[:60]}")
             except OSError:
                 continue
     except OSError:
@@ -539,10 +544,10 @@ def check_open_fds(target_path):
     label = os.path.basename(target_path).upper().replace(".", "_")
     if hits:
         for h in hits:
-            emit("FINDING_{0}_FD_OPEN".format(label), h)
+            emit(f"FINDING_{label}_FD_OPEN", h)
     else:
-        emit("{0}_FD_CLEAN".format(label),
-             "no process currently has {0} open".format(target_path))
+        emit(f"{label}_FD_CLEAN",
+             f"no process currently has {target_path} open")
 
 
 # ---------------------------------------------------------------------------
@@ -554,8 +559,8 @@ def main():
     kernel_str   = get_kernel_version()
     kernel_tuple = parse_kernel_tuple(kernel_str)
 
-    print("=== COPY.FAIL / DIRTY.FRAG SCAN REPORT: {0} ===".format(hostname))
-    print("KERNEL: {0}".format(kernel_str))
+    print(f"=== COPY.FAIL / DIRTY.FRAG SCAN REPORT: {hostname} ===")
+    print(f"KERNEL: {kernel_str}")
     print()
 
     if kernel_tuple is None:
@@ -572,45 +577,36 @@ def main():
     print("--- Vulnerability Assessment ---")
     if copyfail_vuln:
         emit("FINDING_KERNEL_COPYFAIL",
-             "in vulnerable range {0}.{1}-{2}.{3} (CVE-2026-31431)".format(
-                 COPYFAIL_KERNEL_MIN[0], COPYFAIL_KERNEL_MIN[1],
-                 COPYFAIL_KERNEL_MAX[0], COPYFAIL_KERNEL_MAX[1]))
+             f"in vulnerable range {COPYFAIL_KERNEL_MIN[0]}.{COPYFAIL_KERNEL_MIN[1]}-{COPYFAIL_KERNEL_MAX[0]}.{COPYFAIL_KERNEL_MAX[1]} (CVE-2026-31431)")
     else:
         emit("RESULT_COPYFAIL",
-             "NOT_AFFECTED - kernel outside CopyFail range {0}.{1}-{2}.{3}".format(
-                 COPYFAIL_KERNEL_MIN[0], COPYFAIL_KERNEL_MIN[1],
-                 COPYFAIL_KERNEL_MAX[0], COPYFAIL_KERNEL_MAX[1]))
+             f"NOT_AFFECTED - kernel outside CopyFail range {COPYFAIL_KERNEL_MIN[0]}.{COPYFAIL_KERNEL_MIN[1]}-{COPYFAIL_KERNEL_MAX[0]}.{COPYFAIL_KERNEL_MAX[1]}")
 
     if df_esp_vuln:
         emit("FINDING_KERNEL_DIRTYFRAG_ESP",
-             "kernel >= {0}.{1} - xfrm-ESP DirtyFrag variant present (no patch available)".format(
-                 DIRTYFRAG_ESP_KERNEL_MIN[0], DIRTYFRAG_ESP_KERNEL_MIN[1]))
+             f"kernel >= {DIRTYFRAG_ESP_KERNEL_MIN[0]}.{DIRTYFRAG_ESP_KERNEL_MIN[1]} - xfrm-ESP DirtyFrag variant present (no patch available)")
     else:
         emit("RESULT_DIRTYFRAG_ESP",
-             "NOT_AFFECTED - kernel below xfrm-ESP minimum {0}.{1}".format(
-                 DIRTYFRAG_ESP_KERNEL_MIN[0], DIRTYFRAG_ESP_KERNEL_MIN[1]))
+             f"NOT_AFFECTED - kernel below xfrm-ESP minimum {DIRTYFRAG_ESP_KERNEL_MIN[0]}.{DIRTYFRAG_ESP_KERNEL_MIN[1]}")
 
     if df_rxrpc_vuln:
         emit("FINDING_KERNEL_DIRTYFRAG_RXRPC",
-             "kernel >= {0}.{1} - RxRPC DirtyFrag variant present (no patch available)".format(
-                 DIRTYFRAG_RXRPC_KERNEL_MIN[0], DIRTYFRAG_RXRPC_KERNEL_MIN[1]))
+             f"kernel >= {DIRTYFRAG_RXRPC_KERNEL_MIN[0]}.{DIRTYFRAG_RXRPC_KERNEL_MIN[1]} - RxRPC DirtyFrag variant present (no patch available)")
     else:
         emit("RESULT_DIRTYFRAG_RXRPC",
-             "NOT_AFFECTED - kernel below RxRPC minimum {0}.{1}".format(
-                 DIRTYFRAG_RXRPC_KERNEL_MIN[0], DIRTYFRAG_RXRPC_KERNEL_MIN[1]))
+             f"NOT_AFFECTED - kernel below RxRPC minimum {DIRTYFRAG_RXRPC_KERNEL_MIN[0]}.{DIRTYFRAG_RXRPC_KERNEL_MIN[1]}")
 
     if fragnesia_vuln:
         if build_date:
             emit("FINDING_KERNEL_FRAGNESIA",
-                 "kernel build date {0} is before Fragnesia patch {1} — "
-                 "espintcp ULP variant possible".format(build_date, FRAGNESIA_PATCH_DATE))
+                 f"kernel build date {build_date} is before Fragnesia patch {FRAGNESIA_PATCH_DATE} — "
+                 "espintcp ULP variant possible")
         else:
             emit("FINDING_KERNEL_FRAGNESIA",
                  "kernel build date unknown — Fragnesia patch status uncertain (assume vulnerable)")
     else:
         emit("RESULT_FRAGNESIA",
-             "NOT_AFFECTED — kernel build date {0} >= Fragnesia patch {1}".format(
-                 build_date, FRAGNESIA_PATCH_DATE))
+             f"NOT_AFFECTED — kernel build date {build_date} >= Fragnesia patch {FRAGNESIA_PATCH_DATE}")
     print()
 
     if not any_vuln:
@@ -695,7 +691,7 @@ def main():
 
     print("=== SUMMARY ===")
     if findings:
-        print("FINDINGS ({0}):".format(len(findings)))
+        print(f"FINDINGS ({len(findings)}):")
         for f in findings:
             print("  [!] " + f)
         sys.exit(1)
