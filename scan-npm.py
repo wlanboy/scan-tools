@@ -22,6 +22,8 @@ Exit-Codes:
   2 - Skriptfehler
 """
 
+from __future__ import annotations
+
 import argparse
 import gzip
 import json
@@ -32,6 +34,7 @@ import sys
 import tarfile
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 # ---------------------------------------------------------------------------
 # Verdächtige Muster in package.json Lifecycle-Skripten
@@ -41,6 +44,15 @@ LIFECYCLE_HOOKS = frozenset({
     "preinstall", "install", "postinstall",
     "prepare", "prepack", "postpack",
 })
+
+# Negatives Lookahead auf einen Hostnamen ist nur sicher, wenn direkt danach eine
+# echte Hostgrenze folgt (/, :, Ende, ...) — sonst matcht "registry.npmjs.org" auch
+# als Präfix von "registry.npmjs.org.attacker.com" und der Bypass bleibt unerkannt.
+_SAFE_HOST_BOUNDARY = r'(?![\w.-])'
+_SAFE_INSTALL_SCRIPT_HOSTS = (
+    r'(?:registry\.npmjs\.org|registry\.yarnpkg\.com|npm\.pkg\.github\.com)'
+    + _SAFE_HOST_BOUNDARY
+)
 
 INSTALL_SCRIPT_RULES: list[tuple[str, str]] = [
     # (regex, Beschreibung)
@@ -54,7 +66,7 @@ INSTALL_SCRIPT_RULES: list[tuple[str, str]] = [
     (r'\bchmod\s+[0-9]*[67][0-9]*\s',    "chmod setzt ausführbare Bits im Install-Skript"),
     (r'/etc/passwd|/etc/shadow',          "Zugriff auf sensible Systemdateien"),
     (r'\.ssh[/\\]',                       "Zugriff auf SSH-Verzeichnis"),
-    (r'http[s]?://(?!registry\.npmjs\.org|registry\.yarnpkg\.com|npm\.pkg\.github\.com)',
+    (rf'http[s]?://(?!{_SAFE_INSTALL_SCRIPT_HOSTS})',
                                           "Ausgehender HTTP-Aufruf an Nicht-NPM-Registry im Install-Skript"),
     (r'\bstratum\+tcp\b|\bmonero\b|\bxmrig\b|\bcoinhive\b|\bcryptominer\b',
                                           "Krypto-Mining-Schlüsselwörter im Install-Skript"),
@@ -280,14 +292,38 @@ JS_EXTENSIONS = {
     ".js", ".cjs", ".mjs", ".ts", ".cts", ".mts", ".jsx", ".tsx",
 }
 
-SAFE_REGISTRIES = (
-    "https://registry.npmjs.org",
-    "https://registry.yarnpkg.com",
-    "https://npm.pkg.github.com",
-    "https://pkgs.dev.azure.com",
-    "https://artifactory.",
-    "https://nexus.",
+SAFE_REGISTRY_HOSTS = frozenset({
+    "registry.npmjs.org",
+    "registry.yarnpkg.com",
+    "npm.pkg.github.com",
+    "pkgs.dev.azure.com",
+})
+
+# Self-hosted registries: only the leading hostname label may vary
+# (e.g. "artifactory.mycompany.com"), never an arbitrary string prefix.
+SAFE_REGISTRY_HOST_PREFIXES = (
+    "artifactory.",
+    "nexus.",
 )
+
+
+def is_safe_registry(url: str) -> bool:
+    """Prüft eine Registry-URL anhand des tatsächlichen Hostnamens (nicht per
+    naivem String-Präfix), um Spoofing wie "registry.npmjs.org.evil.com"
+    zuverlässig zu erkennen."""
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return False
+    if parts.scheme != "https":
+        return False
+    host = parts.hostname
+    if not host:
+        return False
+    host = host.lower()
+    if host in SAFE_REGISTRY_HOSTS:
+        return True
+    return any(host.startswith(prefix) for prefix in SAFE_REGISTRY_HOST_PREFIXES)
 
 BINARY_CHECK_BYTES = 8192
 MAX_CACHE_MEMBER_BYTES = 512 * 1024  # 512 KB per member in tarball
@@ -560,7 +596,12 @@ def _scan_package_json_lines(lines: list[str], rel_path: str) -> list[Finding]:
     except json.JSONDecodeError:
         return findings
 
+    if not isinstance(data, dict):
+        return findings
+
     scripts = data.get("scripts", {})
+    if not isinstance(scripts, dict):
+        scripts = {}
 
     # Alle vorhandenen Lifecycle-Hooks als INFO ausgeben (unabhängig von Gefährlichkeit)
     for hook in LIFECYCLE_HOOKS:
@@ -629,14 +670,20 @@ def _scan_package_json_lines(lines: list[str], rel_path: str) -> list[Finding]:
                 ))
 
     # Abhängigkeiten mit Git-URLs / Nicht-Registry-Quellen
+    _safe_dep_hosts = (
+        r'(?:registry\.npmjs\.org|registry\.yarnpkg\.com'
+        r'|npm\.pkg\.github\.com|pkgs\.dev\.azure\.com)' + _SAFE_HOST_BOUNDARY
+    )
     git_url_pat = re.compile(
-        r'^(?:git\+(?:https?|ssh)://|git://|github:|bitbucket:|gitlab:|'
-        r'(?:https?|ssh)://(?!registry\.npmjs\.org|registry\.yarnpkg\.com'
-        r'|npm\.pkg\.github\.com|pkgs\.dev\.azure\.com))',
+        rf'^(?:git\+(?:https?|ssh)://|git://|github:|bitbucket:|gitlab:|'
+        rf'(?:https?|ssh)://(?!{_safe_dep_hosts}))',
         re.IGNORECASE,
     )
     for dep_field in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"):
-        for pkg, version in data.get(dep_field, {}).items():
+        deps = data.get(dep_field, {})
+        if not isinstance(deps, dict):
+            continue
+        for pkg, version in deps.items():
             if not isinstance(version, str):
                 continue
             if git_url_pat.match(version):
@@ -688,7 +735,7 @@ def _scan_npmrc_lines(lines: list[str], rel_path: str) -> list[Finding]:
         m = re.match(r'(?:@[^:]+:)?registry\s*=\s*(.+)', line, re.IGNORECASE)
         if m:
             registry = m.group(1).strip()
-            if not any(registry.startswith(s) for s in SAFE_REGISTRIES):
+            if not is_safe_registry(registry):
                 findings.append(Finding(
                     category="SUPPLY_CHAIN",
                     severity="MEDIUM",
@@ -728,7 +775,7 @@ def _scan_yarnrc_lines(lines: list[str], rel_path: str) -> list[Finding]:
         m = re.match(r'^registry\s+(.+)', line, re.IGNORECASE)
         if m:
             registry = m.group(1).strip()
-            if not any(registry.startswith(s) for s in SAFE_REGISTRIES):
+            if not is_safe_registry(registry):
                 findings.append(Finding(
                     category="SUPPLY_CHAIN",
                     severity="MEDIUM",
@@ -769,7 +816,7 @@ def _scan_yarnrc_yml_lines(lines: list[str], rel_path: str) -> list[Finding]:
         m = re.match(r'^npmRegistryServer:\s*["\']?(.+?)["\']?\s*$', line, re.IGNORECASE)
         if m:
             registry = m.group(1).strip()
-            if not any(registry.startswith(s) for s in SAFE_REGISTRIES):
+            if not is_safe_registry(registry):
                 findings.append(Finding(
                     category="SUPPLY_CHAIN",
                     severity="MEDIUM",
@@ -820,6 +867,9 @@ def _scan_package_lock_lines(lines: list[str], rel_path: str) -> list[Finding]:
     except json.JSONDecodeError:
         return findings
 
+    if not isinstance(data, dict):
+        return findings
+
     def check_pkg(pkg_name: str, pkg_info: dict) -> None:
         resolved = pkg_info.get("resolved", "")
         if not isinstance(resolved, str) or not resolved:
@@ -827,7 +877,7 @@ def _scan_package_lock_lines(lines: list[str], rel_path: str) -> list[Finding]:
         if resolved.startswith(("file:", "node_modules/")):
             return
 
-        if not any(resolved.startswith(s) for s in SAFE_REGISTRIES):
+        if not is_safe_registry(resolved):
             findings.append(Finding(
                 category="SUPPLY_CHAIN",
                 severity="MEDIUM",
@@ -854,14 +904,21 @@ def _scan_package_lock_lines(lines: list[str], rel_path: str) -> list[Finding]:
             ))
 
     lock_version = data.get("lockfileVersion", 1)
+    if not isinstance(lock_version, (int, float)):
+        lock_version = 1
+
     if lock_version >= 2:
         # v2/v3 format: packages["node_modules/name"].resolved
-        for pkg_path, pkg_info in data.get("packages", {}).items():
-            if isinstance(pkg_info, dict):
-                check_pkg(pkg_path, pkg_info)
+        packages = data.get("packages", {})
+        if isinstance(packages, dict):
+            for pkg_path, pkg_info in packages.items():
+                if isinstance(pkg_info, dict):
+                    check_pkg(pkg_path, pkg_info)
     else:
         # v1 format: dependencies[name].resolved (recursive)
         def walk_deps(deps: dict) -> None:
+            if not isinstance(deps, dict):
+                return
             for name, info in deps.items():
                 if not isinstance(info, dict):
                     continue
@@ -900,7 +957,7 @@ def _scan_pnpm_lock_lines(lines: list[str], rel_path: str) -> list[Finding]:
         m = _PNPM_RESOLUTION_PAT.match(raw_line)
         if m:
             resolved = m.group(1).rstrip("'\"")
-            if resolved and not any(resolved.startswith(s) for s in SAFE_REGISTRIES):
+            if resolved and not is_safe_registry(resolved):
                 findings.append(Finding(
                     category="SUPPLY_CHAIN",
                     severity="MEDIUM",
@@ -914,7 +971,7 @@ def _scan_pnpm_lock_lines(lines: list[str], rel_path: str) -> list[Finding]:
         m = _PNPM_REGISTRY_PAT.match(raw_line)
         if m:
             registry = m.group(1).rstrip("'\"")
-            if registry and not any(registry.startswith(s) for s in SAFE_REGISTRIES):
+            if registry and not is_safe_registry(registry):
                 findings.append(Finding(
                     category="SUPPLY_CHAIN",
                     severity="MEDIUM",
@@ -1384,10 +1441,18 @@ def main() -> int:
         print(f"Scanne {len(files)} Datei(en) in '{repo_path}' ...")
 
     all_findings: list[Finding] = []
+    scan_errors: list[str] = []
     for path in files:
         if should_skip(path):
             continue
-        for f in scan_file(path, config):
+        try:
+            file_findings = scan_file(path, config)
+        except Exception as exc:  # noqa: BLE001 - untrusted/malformed repo content must never abort the whole scan
+            rel = os.path.relpath(path, repo_path)
+            scan_errors.append(f"{rel}: {exc}")
+            print(f"FEHLER: Scan von '{rel}' fehlgeschlagen: {exc}", file=sys.stderr)
+            continue
+        for f in file_findings:
             if SEVERITY_ORDER.get(f.severity, 9) <= min_sev_order:
                 all_findings.append(f)
 
@@ -1409,6 +1474,8 @@ def main() -> int:
     else:
         print_text_report(all_findings)
 
+    if scan_errors:
+        return 2
     if all_findings and not config.no_fail:
         return 1
     return 0
