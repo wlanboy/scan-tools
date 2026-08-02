@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import datetime
 import hashlib
 import os
@@ -533,14 +535,27 @@ def check_open_fds(target_path: str) -> None:
         for pid in os.listdir("/proc"):
             if not pid.isdigit():
                 continue
+
+            def record_hit(reason: str) -> None:
+                try:
+                    with open(f"/proc/{pid}/cmdline") as fh:
+                        cmdline = fh.read().replace("\x00", " ")
+                except OSError:
+                    cmdline = ""
+                hits.append(f"pid={pid} cmd={cmdline[:60]} ({reason})")
+
+            try:
+                if os.readlink(f"/proc/{pid}/exe") == target_path:
+                    record_hit("exe")
+            except (OSError, PermissionError):
+                pass
+
             fd_dir = f"/proc/{pid}/fd"
             try:
                 for fd in os.listdir(fd_dir):
                     link = os.readlink(f"{fd_dir}/{fd}")
                     if link == target_path:
-                        with open(f"/proc/{pid}/cmdline") as fh:
-                            cmdline = fh.read().replace("\x00", " ")
-                        hits.append(f"pid={pid} cmd={cmdline[:60]}")
+                        record_hit(f"fd={fd}")
             except (OSError, PermissionError):
                 continue
     except OSError:
@@ -692,7 +707,7 @@ def main() -> None:
         check_passwd_integrity()
         print()
 
-    print("--- Traces: Live Open File Descriptors ---")
+    print("--- Traces: Live Open File Descriptors / Running Processes ---")
     check_open_fds(SU_PATH)
     if df_rxrpc_vuln:
         check_open_fds(PASSWD_PATH)

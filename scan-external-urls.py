@@ -10,6 +10,8 @@ Exit codes:
   2 - Script error (invalid arguments, not a git repo, etc.)
 """
 
+from __future__ import annotations
+
 import argparse
 import ipaddress
 import json
