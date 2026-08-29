@@ -20,6 +20,7 @@ Exit-Codes:
 
 import importlib.util
 import pathlib
+import sys
 import unittest
 
 # scan-npm.py enthält einen Bindestrich im Dateinamen und kann daher nicht
@@ -30,6 +31,10 @@ _spec = importlib.util.spec_from_file_location(
 )
 assert _spec is not None and _spec.loader is not None
 _mod = importlib.util.module_from_spec(_spec)
+# Modul vor exec_module in sys.modules eintragen: dataclasses löst
+# cls.__module__ über sys.modules auf und crasht sonst mit
+# AttributeError: 'NoneType' object has no attribute '__dict__'.
+sys.modules["scan_npm"] = _mod
 _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
 
 _scan_package_json_lines = _mod._scan_package_json_lines
@@ -688,7 +693,8 @@ class TestScanPackageLock(unittest.TestCase):
         Ziel: Aufgelöste URLs von der offiziellen npm-Registry (registry.npmjs.org)
               sollen keinen Befund auslösen.
 
-        Eingabe: resolved zeigt auf https://registry.npmjs.org/...
+        Eingabe: resolved zeigt auf https://registry.npmjs.org/... mit gültigem
+                 integrity-Hash.
 
         Erwartung: Keine SUPPLY_CHAIN-Befunde.
         """
@@ -697,7 +703,8 @@ class TestScanPackageLock(unittest.TestCase):
             "packages": {
                 "node_modules/lodash": {
                     "version": "4.17.21",
-                    "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz"
+                    "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
+                    "integrity": "sha512-v2kDEe57lecTulaDIuNTPy3Ry4/GKY6Y7EQhFdRcnrgH8HUYVdmY2mBNCXAAAK5JhpXjWTVfgQVjVQFkZWG8lg=="
                 }
             }
         }"""
