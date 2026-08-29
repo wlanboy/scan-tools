@@ -5,7 +5,6 @@ import json
 import os
 import re
 import socket
-import sys
 import xml.etree.ElementTree as ET
 from collections import namedtuple
 
@@ -150,7 +149,7 @@ def scan_docker_config(path):
         return
     if not isinstance(data, dict):
         return
-    for env_name, cfg in data.get('proxies', {}).items():
+    for env_name, cfg in data.get('proxies', {}).values():
         if not isinstance(cfg, dict):
             continue
         for key in ('httpProxy', 'httpsProxy', 'ftpProxy', 'noProxy'):
