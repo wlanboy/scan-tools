@@ -19,8 +19,22 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Categories
+# ---------------------------------------------------------------------------
+
+
+class Category(str, Enum):
+    URL = "url"
+    EMAIL = "email"
+    HOSTNAME = "hostname"
+    IP = "ip"
+
 
 # ---------------------------------------------------------------------------
 # Regex patterns
@@ -56,6 +70,21 @@ _IPV6_ROUGH = re.compile(
     r'[0-9a-fA-F]{0,4}(?::[0-9a-fA-F]{0,4}){2,7}'
     r'(?![:\w])',
     re.IGNORECASE,
+)
+
+# Extracts the authority (host[:port]) from a URL, skipping optional
+# userinfo (user@ or user:pass@). Shared by whitelist- and allow-matching.
+_URL_HOST_PATTERN = re.compile(
+    r'https?://(?:[^@/\s:?#]+(?::[^@/\s:?#]*)?@)?([^/\s:?#]+)',
+    re.IGNORECASE,
+)
+
+# A plain domain literal: letters/digits/hyphens per label, dot-separated,
+# at least one dot. Used to tell "mycompany.com" (a real domain the caller
+# means literally) apart from a genuine regex like "test.*staging".
+_DOMAIN_LITERAL_PATTERN = re.compile(
+    r'^[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?'
+    r'(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)+$'
 )
 
 # Positive TLD allowlist: only matches whose last label is in this set are
@@ -101,7 +130,7 @@ ALWAYS_SKIP_EXTENSIONS = {
 
 @dataclass
 class Finding:
-    category: str   # "url" | "email" | "hostname" | "ip"
+    category: Category
     value: str
     file: str
     line: int
@@ -121,7 +150,7 @@ class ScanConfig:
     repo_path: str
     allowlist: list[str] = field(default_factory=list)
     skip_patterns: list[str] = field(default_factory=list)
-    categories: set[str] = field(default_factory=lambda: {"url", "email", "hostname", "ip"})
+    categories: set[Category] = field(default_factory=lambda: set(Category))
     skip_tests: bool = False
     output_format: str = "text"   # "text" | "json"
     no_fail: bool = False
@@ -135,7 +164,9 @@ class ScanConfig:
 # ---------------------------------------------------------------------------
 
 def get_tracked_files(repo_path: str) -> list[str]:
-    """Return all files tracked by git (respects .gitignore automatically)."""
+    """Return all files git would see: tracked files plus untracked files
+    that are not excluded by .gitignore (so new, not-yet-committed files
+    are scanned too)."""
     result = subprocess.run(
         ["git", "-C", repo_path, "ls-files", "--cached", "--others",
          "--exclude-standard"],
@@ -188,82 +219,237 @@ def matches_any(value: str, patterns: list[str]) -> bool:
     return False
 
 
+def _has_known_tld(value: str) -> bool:
+    tld = value.rsplit(".", 1)[-1].lower()
+    return tld in KNOWN_TLDS
+
+
+def _host_matches_any(host: str, hostnames: list[str]) -> bool:
+    """True if host equals one of hostnames, or is a subdomain of one."""
+    return any(host == h or host.endswith("." + h) for h in hostnames)
+
+
+def _extract_url_host(value: str) -> str | None:
+    m = _URL_HOST_PATTERN.match(value)
+    return m.group(1).lower() if m else None
+
+
+def _as_domain_literal(pattern: str) -> str | None:
+    """If pattern is a plain domain (optionally with backslash-escaped dots,
+    e.g. "mycompany\\.com"), return the normalized domain; otherwise None,
+    meaning it should be treated as a genuine regex."""
+    normalized = pattern.replace(r'\.', '.')
+    if _DOMAIN_LITERAL_PATTERN.match(normalized):
+        return normalized.lower()
+    return None
+
+
+def _extract_host_for_category(category: Category, value: str) -> str | None:
+    if category == Category.HOSTNAME:
+        return value.lower()
+    if category == Category.EMAIL:
+        return value.split("@", 1)[-1].lower()
+    if category == Category.URL:
+        return _extract_url_host(value)
+    return None
+
+
+def is_allowlisted(category: Category, value: str, patterns: list[str]) -> bool:
+    """True if a --allow pattern matches this finding.
+
+    A pattern that is a plain domain literal (e.g. "mycompany\\.com") is
+    matched against the value's *host* using domain-suffix rules (exact
+    match, or a subdomain of it) for url/hostname/email findings. This
+    stops a trusted-looking substring match from allowlisting an unrelated
+    host such as "evil-mycompany.com.attacker.net".
+
+    Any other pattern is treated as a free-form regex and searched within
+    the raw value, as before.
+    """
+    domain_patterns: list[str] = []
+    free_patterns: list[str] = []
+    for pattern in patterns:
+        domain = _as_domain_literal(pattern)
+        if domain is not None and category in (Category.URL, Category.HOSTNAME, Category.EMAIL):
+            domain_patterns.append(domain)
+        else:
+            free_patterns.append(pattern)
+
+    if domain_patterns:
+        host = _extract_host_for_category(category, value)
+        if host and _host_matches_any(host, domain_patterns):
+            return True
+
+    return matches_any(value, free_patterns)
+
+
+# ---------------------------------------------------------------------------
+# Per-category detection
+# ---------------------------------------------------------------------------
+
+def _detect_urls(line_text: str, values_so_far: set[str], config: ScanConfig) -> list[str]:
+    return [m.group(0) for m in URL_PATTERN.finditer(line_text)]
+
+
+def _detect_emails(line_text: str, values_so_far: set[str], config: ScanConfig) -> list[str]:
+    hits: list[str] = []
+    for m in EMAIL_PATTERN.finditer(line_text):
+        value = m.group(0)
+        # Avoid reporting the same value already caught as a URL
+        if any(value in v for v in values_so_far):
+            continue
+        # Reject file-extension false positives: foo@bar.py, test@schema.go
+        if not _has_known_tld(value):
+            continue
+        hits.append(value)
+    return hits
+
+
+def _detect_hostnames(line_text: str, values_so_far: set[str], config: ScanConfig) -> list[str]:
+    hits: list[str] = []
+    for m in HOSTNAME_PATTERN.finditer(line_text):
+        host = m.group(0)
+        # Skip function/method calls: subprocess.run(, os.path.join(
+        if m.end() < len(line_text) and line_text[m.end()] == "(":
+            continue
+        # Skip truncated dotted-path prefixes: a JSON/YAML path like
+        # "a.b.meshConfig.ca.address" gets matched only up through the
+        # TLD-shaped "ca" segment — a real hostname wouldn't be immediately
+        # followed by another ".word" with no separator.
+        if (
+            m.end() + 1 < len(line_text)
+            and line_text[m.end()] == "."
+            and line_text[m.end() + 1].isalnum()
+        ):
+            continue
+        # True when this host is the authority of an actual URL (right after
+        # "://"), as opposed to a bare dotted identifier or API-group string.
+        # A host in that position must still be reported even when "url"
+        # isn't itself a scanned category, and the path/apiGroup heuristics
+        # below don't apply to it.
+        is_url_authority = line_text[max(0, m.start() - 3):m.start()] == "://"
+        # Skip file path components: /etc/hostapd/hostapd.conf
+        if m.start() > 0 and line_text[m.start() - 1] == "/" and not is_url_authority:
+            continue
+        # Only report if the TLD is a known real TLD
+        if not _has_known_tld(host):
+            continue
+        # Skip all-uppercase non-TLD part: DOS filenames (MOUSE.COM) or constants
+        non_tld = host.rsplit(".", 1)[0]
+        if non_tld == non_tld.upper() and any(c.isalpha() for c in non_tld):
+            continue
+        # Skip Python/JS import statements: "from textual.app import", "import x.y"
+        before_stripped = line_text[:m.start()].rstrip()
+        if re.search(r'\b(?:from|import)$', before_stripped):
+            continue
+        # Skip Kubernetes API groups and annotation keys: networking.istio.io/v1
+        # or nginx.ingress.kubernetes.io/rewrite-target — hostname followed by /
+        if m.end() < len(line_text) and line_text[m.end()] == "/" and not is_url_authority:
+            continue
+        # Skip bare Kubernetes apiGroup values: "apiGroup: rbac.authorization.k8s.io"
+        if re.search(r'\bapiGroups?\s*:\s+' + re.escape(host) + r'\s*$', line_text):
+            continue
+        # Skip bare YAML list items: "  - containerd.io" (package names, not URLs)
+        if re.match(r'^\s*-\s+' + re.escape(host) + r'\s*$', line_text):
+            continue
+        if any(host in v for v in values_so_far):
+            continue
+        hits.append(host)
+    return hits
+
+
+def _detect_ips(line_text: str, values_so_far: set[str], config: ScanConfig) -> list[str]:
+    if config.ignore_all_ips:
+        return []
+
+    hits: list[str] = []
+    for m in IP_PATTERN.finditer(line_text):
+        ip = m.group(0)
+        if ip not in config.ignore_ips:
+            hits.append(ip)
+
+    for m in _IPV6_ROUGH.finditer(line_text):
+        candidate = m.group(0)
+        try:
+            addr = ipaddress.ip_address(candidate)
+        except ValueError:
+            continue
+        if not isinstance(addr, ipaddress.IPv6Address):
+            continue
+        if str(addr) not in config.ignore_ips and candidate not in config.ignore_ips:
+            hits.append(candidate)
+
+    return hits
+
+
+# ---------------------------------------------------------------------------
+# Per-category whitelisting (whitelist.json)
+# ---------------------------------------------------------------------------
+
+def _whitelisted_ip(value: str, wl: Whitelist) -> bool:
+    try:
+        addr = ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return any(addr in net for net in wl.ip_ranges)
+
+
+def _whitelisted_hostname(value: str, wl: Whitelist) -> bool:
+    return _host_matches_any(value.lower(), wl.hostnames)
+
+
+def _whitelisted_email(value: str, wl: Whitelist) -> bool:
+    domain = value.split("@", 1)[-1].lower()
+    return domain in wl.email_domains
+
+
+def _whitelisted_url(value: str, wl: Whitelist) -> bool:
+    value_lower = value.lower()
+    if any(value_lower.startswith(u) for u in wl.urls):
+        return True
+    host = _extract_url_host(value)
+    return bool(host and _host_matches_any(host, wl.hostnames))
+
+
+@dataclass(frozen=True)
+class CategorySpec:
+    key: Category
+    label: str
+    detect: Callable[[str, set[str], ScanConfig], list[str]]
+    is_whitelisted: Callable[[str, Whitelist], bool]
+
+
+# Single source of truth for per-category behavior and report order —
+# replaces the if/elif chains and parallel label dicts that used to be
+# scattered across scan_line(), is_whitelisted() and print_text_report().
+CATEGORY_SPECS: tuple[CategorySpec, ...] = (
+    CategorySpec(Category.URL, "URL", _detect_urls, _whitelisted_url),
+    CategorySpec(Category.EMAIL, "Email", _detect_emails, _whitelisted_email),
+    CategorySpec(Category.HOSTNAME, "Hostname", _detect_hostnames, _whitelisted_hostname),
+    CategorySpec(Category.IP, "IP Address", _detect_ips, _whitelisted_ip),
+)
+CATEGORY_SPECS_BY_KEY: dict[Category, CategorySpec] = {spec.key: spec for spec in CATEGORY_SPECS}
+
+
+def is_whitelisted(category: Category, value: str, wl: Whitelist) -> bool:
+    return CATEGORY_SPECS_BY_KEY[category].is_whitelisted(value, wl)
+
+
 # ---------------------------------------------------------------------------
 # Per-line scanning
 # ---------------------------------------------------------------------------
 
-def scan_line(line_text: str, config: ScanConfig) -> list[tuple[str, str]]:
+def scan_line(line_text: str, config: ScanConfig) -> list[tuple[Category, str]]:
     """Return list of (category, value) matches in a single line."""
-    hits: list[tuple[str, str]] = []
+    hits: list[tuple[Category, str]] = []
+    values_so_far: set[str] = set()
 
-    if "url" in config.categories:
-        for m in URL_PATTERN.finditer(line_text):
-            hits.append(("url", m.group(0)))
-
-    if "email" in config.categories:
-        for m in EMAIL_PATTERN.finditer(line_text):
-            # Avoid reporting the same value already caught as a URL
-            already = any(m.group(0) in v for c, v in hits if c == "url")
-            if already:
-                continue
-            # Reject file-extension false positives: foo@bar.py, test@schema.go
-            tld = m.group(0).rsplit(".", 1)[-1].lower()
-            if tld not in KNOWN_TLDS:
-                continue
-            hits.append(("email", m.group(0)))
-
-    if "hostname" in config.categories:
-        # Only report hostnames that are NOT part of an already-found URL/email
-        already_values = {v for _, v in hits}
-        for m in HOSTNAME_PATTERN.finditer(line_text):
-            host = m.group(0)
-            # Skip function/method calls: subprocess.run(, os.path.join(
-            if m.end() < len(line_text) and line_text[m.end()] == "(":
-                continue
-            # Skip file path components: /etc/hostapd/hostapd.conf
-            if m.start() > 0 and line_text[m.start() - 1] == "/":
-                continue
-            # Only report if the TLD is a known real TLD
-            suffix = host.rsplit(".", 1)[-1].lower()
-            if suffix not in KNOWN_TLDS:
-                continue
-            # Skip all-uppercase non-TLD part: DOS filenames (MOUSE.COM) or constants
-            non_tld = host.rsplit(".", 1)[0]
-            if non_tld == non_tld.upper() and any(c.isalpha() for c in non_tld):
-                continue
-            # Skip Python/JS import statements: "from textual.app import", "import x.y"
-            before_stripped = line_text[:m.start()].rstrip()
-            if re.search(r'\b(?:from|import)$', before_stripped):
-                continue
-            # Skip Kubernetes API groups and annotation keys: networking.istio.io/v1
-            # or nginx.ingress.kubernetes.io/rewrite-target — hostname followed by /
-            if m.end() < len(line_text) and line_text[m.end()] == "/":
-                continue
-            # Skip bare Kubernetes apiGroup values: "apiGroup: rbac.authorization.k8s.io"
-            if re.search(r'\bapiGroups?\s*:\s+' + re.escape(host) + r'\s*$', line_text):
-                continue
-            # Skip bare YAML list items: "  - containerd.io" (package names, not URLs)
-            if re.match(r'^\s*-\s+' + re.escape(host) + r'\s*$', line_text):
-                continue
-            if not any(host in v for v in already_values):
-                hits.append(("hostname", host))
-
-    if "ip" in config.categories and not config.ignore_all_ips:
-        for m in IP_PATTERN.finditer(line_text):
-            ip = m.group(0)
-            if ip not in config.ignore_ips:
-                hits.append(("ip", ip))
-
-        for m in _IPV6_ROUGH.finditer(line_text):
-            candidate = m.group(0)
-            try:
-                addr = ipaddress.ip_address(candidate)
-                if not isinstance(addr, ipaddress.IPv6Address):
-                    continue
-                if str(addr) not in config.ignore_ips and candidate not in config.ignore_ips:
-                    hits.append(("ip", candidate))
-            except ValueError:
-                pass
+    for spec in CATEGORY_SPECS:
+        if spec.key not in config.categories:
+            continue
+        for value in spec.detect(line_text, values_so_far, config):
+            hits.append((spec.key, value))
+            values_so_far.add(value)
 
     return hits
 
@@ -301,7 +487,7 @@ def scan_file(path: str, config: ScanConfig) -> list[Finding]:
     for line_no, raw_line in enumerate(lines, start=1):
         line_text = raw_line.rstrip("\n\r")
         for category, value in scan_line(line_text, config):
-            if matches_any(value, config.allowlist):
+            if is_allowlisted(category, value, config.allowlist):
                 continue
             if is_whitelisted(category, value, config.whitelist):
                 continue
@@ -320,27 +506,12 @@ def scan_file(path: str, config: ScanConfig) -> list[Finding]:
 # Output formatters
 # ---------------------------------------------------------------------------
 
-CATEGORY_LABELS = {
-    "url":      "URL",
-    "email":    "Email",
-    "hostname": "Hostname",
-    "ip":       "IP Address",
-}
-
-CATEGORY_ICONS = {
-    "url":      "[URL]     ",
-    "email":    "[EMAIL]   ",
-    "hostname": "[HOST]    ",
-    "ip":       "[IP]      ",
-}
-
-
 def print_text_report(findings: list[Finding]) -> None:
     if not findings:
         print("No external references found.")
         return
 
-    by_category: dict[str, list[Finding]] = {}
+    by_category: dict[Category, list[Finding]] = {}
     for f in findings:
         by_category.setdefault(f.category, []).append(f)
 
@@ -348,12 +519,11 @@ def print_text_report(findings: list[Finding]) -> None:
     print(f"  External reference scan — {len(findings)} finding(s)")
     print(f"{'='*70}\n")
 
-    for cat in ("url", "email", "hostname", "ip"):
-        items = by_category.get(cat, [])
+    for spec in CATEGORY_SPECS:
+        items = by_category.get(spec.key, [])
         if not items:
             continue
-        label = CATEGORY_LABELS[cat]
-        print(f"  {label}s ({len(items)})")
+        print(f"  {spec.label}s ({len(items)})")
         print(f"  {'-'*40}")
         for f in items:
             print(f"  {f.file}:{f.line}")
@@ -369,7 +539,7 @@ def print_text_report(findings: list[Finding]) -> None:
 def print_json_report(findings: list[Finding]) -> None:
     data = [
         {
-            "category": f.category,
+            "category": f.category.value,
             "value": f.value,
             "file": f.file,
             "line": f.line,
@@ -410,6 +580,13 @@ Examples:
 
   # Load ignored IPs from file (one IP per line)
   python scan_external_urls.py --ignore-ips-file .scan-ignore-ips
+
+Note on --allow / --allow-file:
+  A pattern written as a plain domain (e.g. "mycompany.com" or the escaped
+  "mycompany\\.com") is matched against the finding's host using domain-suffix
+  rules — it allows that domain and its subdomains only, not any string that
+  merely contains it (so it won't match "evil-mycompany.com.attacker.net").
+  Any other pattern is used as a free-form regex searched in the raw value.
 """,
     )
     parser.add_argument(
@@ -418,8 +595,8 @@ Examples:
     )
     parser.add_argument(
         "--categories", nargs="+",
-        choices=["url", "email", "hostname", "ip"],
-        default=["url", "email", "hostname", "ip"],
+        choices=[c.value for c in Category],
+        default=[c.value for c in Category],
         metavar="CATEGORY",
         help="Categories to scan for: url email hostname ip (default: all)",
     )
@@ -497,36 +674,6 @@ def load_whitelist_file(path: str) -> Whitelist:
     return wl
 
 
-def is_whitelisted(category: str, value: str, wl: Whitelist) -> bool:
-    if category == "ip":
-        try:
-            addr = ipaddress.ip_address(value)
-            return any(addr in net for net in wl.ip_ranges)
-        except ValueError:
-            return False
-
-    if category == "hostname":
-        host = value.lower()
-        return any(host == h or host.endswith("." + h) for h in wl.hostnames)
-
-    if category == "email":
-        domain = value.split("@", 1)[-1].lower()
-        return domain in wl.email_domains
-
-    if category == "url":
-        value_lower = value.lower()
-        if any(value_lower.startswith(u) for u in wl.urls):
-            return True
-        # Strip optional auth info (user@  or  user:pass@) before extracting host
-        m = re.match(r'https?://(?:[^@/\s:?#]+(?::[^@/\s:?#]*)?@)?([^/\s:?#]+)',
-                     value, re.IGNORECASE)
-        if m:
-            host = m.group(1).lower()
-            return any(host == h or host.endswith("." + h) for h in wl.hostnames)
-
-    return False
-
-
 def _find_default_whitelist(repo_path: str) -> str | None:
     candidate = os.path.join(repo_path, "whitelist.json")
     return candidate if os.path.isfile(candidate) else None
@@ -572,7 +719,7 @@ def main() -> int:
         repo_path=repo_path,
         allowlist=allowlist,
         skip_patterns=args.skip or [],
-        categories=set(args.categories),
+        categories={Category(c) for c in args.categories},
         skip_tests=args.skip_tests,
         output_format=args.output_format,
         no_fail=args.no_fail,
