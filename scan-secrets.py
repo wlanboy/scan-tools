@@ -11,12 +11,15 @@ Exit codes:
 
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
 import re
 import subprocess
 import sys
+from dataclasses import asdict, dataclass, field
 
 # ---------------------------------------------------------------------------
 # Placeholder / false-positive guard
@@ -128,7 +131,7 @@ PATTERNS = [
         'password',
         'Password',
         re.compile(
-            r'(?<![a-zA-Z_])(?:password|passwd|pwd)'
+            r'(?<![a-zA-Z])(?:password|passwd|pwd)'
             r'\s*[=:]\s*["\']?([^\s"\'#\[\]{},]{4,})["\']?',
             re.IGNORECASE,
         ),
@@ -137,7 +140,7 @@ PATTERNS = [
         'generic_secret',
         'Generic Secret / Token',
         re.compile(
-            r'(?<![a-zA-Z_])(?:secret|secret_key|credential|auth_key|'
+            r'(?<![a-zA-Z])(?:secret|secret_key|credential|auth_key|'
             r'auth_token|session_key|signing_key|encryption_key|hmac_key)'
             r'\s*[=:]\s*["\']?([^\s"\'#\[\]{},]{8,})["\']?',
             re.IGNORECASE,
@@ -147,7 +150,7 @@ PATTERNS = [
         'api_key',
         'API Key',
         re.compile(
-            r'(?<![a-zA-Z_])(?:api[_.\-]?key|apikey)'
+            r'(?<![a-zA-Z])(?:api[_.\-]?key|apikey)'
             r'\s*[=:]\s*["\']?([A-Za-z0-9\-._]{16,})["\']?',
             re.IGNORECASE,
         ),
@@ -224,6 +227,13 @@ PATTERNS = [
 
 CATEGORY_ORDER = [p[0] for p in PATTERNS]
 
+# Most patterns put the secret to placeholder-check in capture group 1 (or,
+# absent any group, the whole match). Entries here override that when the
+# secret lives in a different group instead of growing an if/elif per category.
+SECRET_GROUP_OVERRIDES = {
+    'basic_auth_url': 2,  # group 1 is the username, group 2 is the password
+}
+
 
 # ---------------------------------------------------------------------------
 # File helpers
@@ -246,15 +256,27 @@ def is_binary(path):
     try:
         with open(path, 'rb') as fh:
             return b'\x00' in fh.read(BINARY_CHECK_BYTES)
-    except OSError:
+    except OSError as exc:
+        print(f'WARNING: cannot read "{path}" ({exc}); skipping.', file=sys.stderr)
         return True
 
 
 def is_test_file(path):
     lower = path.lower()
     basename = os.path.basename(lower)
+    basename_orig = os.path.basename(path)
+    test_dir_markers = ('/test/', '/tests/', '/__tests__/', '\\test\\', '\\tests\\', '\\__tests__\\')
+    test_suffixes = (
+        '_test.py', '_test.go',
+        '.test.ts', '.test.tsx', '.test.js', '.test.jsx',
+        '.spec.ts', '.spec.tsx', '.spec.js', '.spec.jsx',
+        '_spec.rb',
+    )
     return (
-        '/test/' in lower or '/tests/' in lower or '\\test\\' in lower or '\\tests\\' in lower or basename.startswith('test_') or basename.endswith(('_test.py', '_test.go', '.test.ts', '.test.js', '.test.jsx', '.spec.ts', '.spec.js', '.spec.jsx', 'test.java', '_spec.rb'))
+        any(marker in lower for marker in test_dir_markers)
+        or basename.startswith('test_')
+        or basename.endswith(test_suffixes)
+        or basename_orig.endswith(('Test.java', 'Tests.java'))
     )
 
 
@@ -283,57 +305,97 @@ def get_tracked_files(repo_path):
     cmd = ['git', '-C', repo_path, 'ls-files',
            '--cached', '--others', '--exclude-standard']
     try:
-        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        if isinstance(output, bytes):
-            output = output.decode('utf-8', errors='replace')
-        return [
-            os.path.join(repo_path, f)
-            for f in output.splitlines()
-            if f.strip()
-        ]
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, errors='replace', check=True,
+        )
     except subprocess.CalledProcessError as exc:
-        raise RuntimeError(f'git ls-files failed: {exc}')
+        raise RuntimeError(f'git ls-files failed: {exc.stderr or exc}')
+    if result.stderr.strip():
+        print(f'WARNING: git ls-files: {result.stderr.strip()}', file=sys.stderr)
+    return [
+        os.path.join(repo_path, f)
+        for f in result.stdout.splitlines()
+        if f.strip()
+    ]
 
 
 # ---------------------------------------------------------------------------
 # Scanner
 # ---------------------------------------------------------------------------
 
-def scan_line(line_text, allow_patterns, categories):
+@dataclass
+class ScanOptions:
+    """Bundles the knobs that travel together through every scan call."""
+
+    allow_patterns: list = field(default_factory=list)
+    skip_patterns: list = field(default_factory=list)
+    categories: set | None = None
+    skip_tests: bool = False
+    whitelist: list = field(default_factory=list)
+
+
+@dataclass
+class Finding:
+    category: str
+    label: str
+    value: str
+    file: str
+    line: int
+    context: str
+
+    def matches_whitelist_entry(self, entry):
+        """Return True if ALL match fields present in entry match this finding."""
+        if not _WHITELIST_MATCH_FIELDS.intersection(entry):
+            return False  # entry has no match fields — skip it
+        if 'category' in entry and entry['category'] != self.category:
+            return False
+        if 'file' in entry and entry['file'] != self.file:
+            return False
+        if 'file_pattern' in entry and not _regex_field_matches(entry['file_pattern'], self.file):
+            return False
+        if 'value' in entry and entry['value'] != self.value:
+            return False
+        return 'value_pattern' not in entry or _regex_field_matches(
+            entry['value_pattern'], self.value,
+        )
+
+    def is_whitelisted(self, whitelist):
+        return any(self.matches_whitelist_entry(entry) for entry in whitelist)
+
+    def to_dict(self):
+        return asdict(self)
+
+
+def scan_line(line_text, options):
     """Yield (category, label, matched_text) for each finding on this line."""
     for category, label, pattern in PATTERNS:
-        if categories is not None and category not in categories:
+        if options.categories is not None and category not in options.categories:
             continue
         for m in pattern.finditer(line_text):
             matched = m.group(0)
-            # basic_auth_url: the password (group 2) is the secret, not the
-            # username (group 1) — a placeholder username shouldn't hide a
-            # real password.
-            if category == 'basic_auth_url' and (m.lastindex or 0) >= 2:
-                secret = m.group(2)
-            elif m.lastindex and m.lastindex >= 1:
-                secret = m.group(1)
+            group_idx = SECRET_GROUP_OVERRIDES.get(category, 1)
+            if m.lastindex and m.lastindex >= group_idx:
+                secret = m.group(group_idx)
             else:
                 secret = matched
             if is_placeholder(secret):
                 continue
-            if matches_any(matched, allow_patterns):
+            if matches_any(matched, options.allow_patterns):
                 continue
             yield (category, label, matched)
 
 
-def scan_file(path, repo_path, allow_patterns, skip_patterns, categories, skip_tests,
-              whitelist=None):
+def scan_file(path, repo_path, options):
     findings = []
 
     if get_extension(path) in ALWAYS_SKIP_EXTENSIONS:
         return findings
 
-    if skip_tests and is_test_file(path):
+    if options.skip_tests and is_test_file(path):
         return findings
 
     rel_path = os.path.relpath(path, repo_path)
-    if matches_any(rel_path, skip_patterns):
+    if matches_any(rel_path, options.skip_patterns):
         return findings
 
     if is_binary(path):
@@ -342,21 +404,22 @@ def scan_file(path, repo_path, allow_patterns, skip_patterns, categories, skip_t
     try:
         with open(path, encoding='utf-8', errors='replace') as fh:
             lines = fh.readlines()
-    except OSError:
+    except OSError as exc:
+        print(f'WARNING: cannot read "{path}" ({exc}); skipping.', file=sys.stderr)
         return findings
 
     for line_no, raw_line in enumerate(lines, start=1):
         line_text = raw_line.rstrip('\n\r')
-        for category, label, matched in scan_line(line_text, allow_patterns, categories):
-            finding = {
-                'category': category,
-                'label': label,
-                'value': matched,
-                'file': rel_path,
-                'line': line_no,
-                'context': line_text.strip()[:120],
-            }
-            if whitelist and is_whitelisted(finding, whitelist):
+        for category, label, matched in scan_line(line_text, options):
+            finding = Finding(
+                category=category,
+                label=label,
+                value=matched,
+                file=rel_path,
+                line=line_no,
+                context=line_text.strip()[:120],
+            )
+            if options.whitelist and finding.is_whitelisted(options.whitelist):
                 continue
             findings.append(finding)
 
@@ -367,6 +430,16 @@ def scan_file(path, repo_path, allow_patterns, skip_patterns, categories, skip_t
 # Output
 # ---------------------------------------------------------------------------
 
+def _print_category_block(label, items):
+    print(f'  {label} ({len(items)})')
+    print('  {}'.format('-' * 40))
+    for f in items:
+        print(f'  {f.file}:{f.line}')
+        print(f'    Value  : {f.value[:80]}')
+        print(f'    Context: {f.context}')
+        print()
+
+
 def print_text_report(findings):
     if not findings:
         print('No secrets found.')
@@ -374,46 +447,30 @@ def print_text_report(findings):
 
     by_category = {}
     for f in findings:
-        by_category.setdefault(f['category'], []).append(f)
+        by_category.setdefault(f.category, []).append(f)
 
     sep = '=' * 70
     print(f'\n{sep}')
     print(f'  Secrets scan -- {len(findings)} finding(s)')
     print(f'{sep}\n')
 
-    printed = set()
-    for cat in CATEGORY_ORDER:
-        items = by_category.get(cat, [])
+    ordered_categories = list(CATEGORY_ORDER) + [
+        cat for cat in by_category if cat not in CATEGORY_ORDER
+    ]
+    for cat in ordered_categories:
+        items = by_category.get(cat)
         if not items:
             continue
-        printed.add(cat)
-        print('  {} ({})'.format(items[0]['label'], len(items)))
-        print('  {}'.format('-' * 40))
-        for f in items:
-            print('  {}:{}'.format(f['file'], f['line']))
-            print('    Value  : {}'.format(f['value'][:80]))
-            print('    Context: {}'.format(f['context']))
-            print()
+        _print_category_block(items[0].label, items)
 
-    # Catch any categories not listed in CATEGORY_ORDER
-    for cat, items in by_category.items():
-        if cat not in printed and items:
-            print('  {} ({})'.format(items[0]['label'], len(items)))
-            print('  {}'.format('-' * 40))
-            for f in items:
-                print('  {}:{}'.format(f['file'], f['line']))
-                print('    Value  : {}'.format(f['value'][:80]))
-                print('    Context: {}'.format(f['context']))
-                print()
-
-    files = {f['file'] for f in findings}
+    files = {f.file for f in findings}
     print(f'{sep}')
     print(f'  Total: {len(findings)} finding(s) in {len(files)} file(s)')
     print(f'{sep}\n')
 
 
 def print_json_report(findings):
-    print(json.dumps(findings, indent=2))
+    print(json.dumps([f.to_dict() for f in findings], indent=2))
 
 
 # ---------------------------------------------------------------------------
@@ -525,6 +582,8 @@ def load_whitelist(path):
 
     A finding is suppressed when ALL specified fields in an entry match it.
     Valid match fields: category, file, file_pattern, value, value_pattern.
+    'file' and 'value' require an exact match; use 'file_pattern' /
+    'value_pattern' for substring or regex matching.
     The 'comment' field is ignored (documentation only).
     """
     try:
@@ -544,34 +603,12 @@ def load_whitelist(path):
 _WHITELIST_MATCH_FIELDS = {'category', 'file', 'file_pattern', 'value', 'value_pattern'}
 
 
-def _entry_matches(finding, entry):
-    """Return True if ALL specified match fields in entry match the finding."""
-    if not _WHITELIST_MATCH_FIELDS.intersection(entry):
-        return False  # entry has no match fields — skip it
-    if 'category' in entry and entry['category'] != finding['category']:
+def _regex_field_matches(pattern, value):
+    """Return True if pattern matches value; an invalid regex never matches."""
+    try:
+        return bool(re.search(pattern, value, re.IGNORECASE))
+    except re.error:
         return False
-    if 'file' in entry and entry['file'] not in finding['file']:
-        return False
-    if 'file_pattern' in entry:
-        try:
-            if not re.search(entry['file_pattern'], finding['file'], re.IGNORECASE):
-                return False
-        except re.error:
-            return False
-    if 'value' in entry and entry['value'] not in finding['value']:
-        return False
-    if 'value_pattern' in entry:
-        try:
-            if not re.search(entry['value_pattern'], finding['value'], re.IGNORECASE):
-                return False
-        except re.error:
-            return False
-    return True
-
-
-def is_whitelisted(finding, whitelist):
-    """Return True if finding matches any entry in the whitelist."""
-    return any(_entry_matches(finding, entry) for entry in whitelist)
 
 
 # ---------------------------------------------------------------------------
@@ -583,7 +620,9 @@ def main():
     args = parser.parse_args()
 
     repo_path = os.path.abspath(args.repo)
-    if not os.path.isdir(os.path.join(repo_path, '.git')):
+    # A worktree or submodule checkout has ".git" as a *file* pointing at the
+    # real gitdir, not a directory, so check existence rather than isdir().
+    if not os.path.exists(os.path.join(repo_path, '.git')):
         print(f'ERROR: "{repo_path}" is not a git repository root.',
               file=sys.stderr)
         return 2
@@ -618,12 +657,16 @@ def main():
     if args.output_format == 'text':
         print(f'Scanning {len(files)} tracked file(s) in "{repo_path}" ...')
 
+    options = ScanOptions(
+        allow_patterns=allow_patterns,
+        skip_patterns=skip_patterns,
+        categories=categories,
+        skip_tests=args.skip_tests,
+        whitelist=whitelist,
+    )
     all_findings = []
     for path in files:
-        all_findings.extend(scan_file(
-            path, repo_path, allow_patterns, skip_patterns,
-            categories, args.skip_tests, whitelist,
-        ))
+        all_findings.extend(scan_file(path, repo_path, options))
 
     if args.output_format == 'json':
         print_json_report(all_findings)
