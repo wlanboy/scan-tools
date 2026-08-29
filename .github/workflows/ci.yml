@@ -29,9 +29,10 @@ jobs:
         run: uv sync --frozen
 
       - name: Lint & Syntax Check
-        # Prüft das gesamte Projekt (inkl. Submodule) in Millisekunden auf Fehler
         run: uv run ruff check .
 
       - name: Type Check (Optional aber empfohlen)
-        # Wichtig für MCP, um sicherzustellen, dass Tools die richtigen Schemas liefern
         run: uv run pyright .
+
+      - name: Unittests
+        run: uv run pytest .
