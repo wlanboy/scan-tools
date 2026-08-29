@@ -149,7 +149,7 @@ def scan_docker_config(path):
         return
     if not isinstance(data, dict):
         return
-    for env_name, cfg in data.get('proxies', {}).values():
+    for cfg in data.get('proxies', {}).values():
         if not isinstance(cfg, dict):
             continue
         for key in ('httpProxy', 'httpsProxy', 'ftpProxy', 'noProxy'):
