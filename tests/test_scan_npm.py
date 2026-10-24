@@ -1400,6 +1400,19 @@ class TestScanJsLines(unittest.TestCase):
         findings = _scan_js_lines(_lines(line), "evil.js")
         self.assertTrue(_findings_with(findings, category="EXFILTRATION", severity="HIGH"))
 
+    def test_high_rule_wins_over_medium_in_same_category(self):
+        """
+        Ziel: Treffen auf einer Zeile eine MEDIUM- und eine HIGH-Regel derselben Kategorie,
+              soll der HIGH-Befund gemeldet werden (sonst fiele er bei --min-severity HIGH weg).
+
+        Eingabe: _0x-Variable (OBFUSCATION MEDIUM) plus ["ex"+"ec"] (OBFUSCATION HIGH).
+
+        Erwartung: Genau ein OBFUSCATION-Befund mit Schweregrad HIGH.
+        """
+        line = 'var _0x1a2b = cp["ex" + "ec"]("id");'
+        findings = _findings_with(_scan_js_lines(_lines(line), "evil.js"), category="OBFUSCATION")
+        self.assertEqual([f.severity for f in findings], ["HIGH"])
+
     # -----------------------------------------------------------------------
     # 7.7 Kommentar- und Leerzeilen werden ignoriert
     # -----------------------------------------------------------------------

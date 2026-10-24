@@ -40,10 +40,13 @@ from urllib.parse import urlsplit
 # Verdächtige Muster in package.json Lifecycle-Skripten
 # ---------------------------------------------------------------------------
 
-LIFECYCLE_HOOKS = frozenset({
+# Tupel statt Set, damit Befunde in stabiler Reihenfolge ausgegeben werden.
+# preprepare/postprepare/prepublish laufen bei "npm install" im Projekt ebenfalls automatisch.
+LIFECYCLE_HOOKS = (
     "preinstall", "install", "postinstall",
-    "prepare", "prepack", "postpack",
-})
+    "prepublish", "preprepare", "prepare", "postprepare",
+    "prepack", "postpack",
+)
 
 # Negatives Lookahead auf einen Hostnamen ist nur sicher, wenn direkt danach eine
 # echte Hostgrenze folgt (/, :, Ende, ...) — sonst matcht "registry.npmjs.org" auch
@@ -261,6 +264,12 @@ CODE_THREAT_RULES: list[ThreatRule] = [
           r'eval\s*\(\s*(?:["\'][^"\']*["\']\s*\+\s*){1,}["\'][^"\']*["\']\s*\)',
           "eval() eines zusammengesetzten Literals — Verschleierung von Code-Payload"),
 ]
+
+# Pro Zeile und Kategorie wird nur die erste passende Regel gemeldet — daher HIGH vor
+# MEDIUM vor LOW prüfen, sonst verdrängt z. B. _0x (MEDIUM) die Bracket-Regel (HIGH).
+_CODE_RULES_BY_SEVERITY: list[ThreatRule] = sorted(
+    CODE_THREAT_RULES, key=lambda r: ("HIGH", "MEDIUM", "LOW").index(r.severity),
+)
 
 # ---------------------------------------------------------------------------
 # Datenstrukturen
@@ -574,7 +583,7 @@ def _scan_js_lines(lines: list[str], rel_path: str, has_network: bool = False) -
         # Pro Bedrohungskategorie pro Zeile nur einen Befund melden — vermeidet Rauschen,
         # stellt aber sicher, dass alle unterschiedlichen Bedrohungstypen einer Zeile erfasst werden.
         seen_categories: set[str] = set()
-        for rule in CODE_THREAT_RULES:
+        for rule in _CODE_RULES_BY_SEVERITY:
             if rule.pattern.search(line_text) and rule.category not in seen_categories:
                 seen_categories.add(rule.category)
                 findings.append(Finding(
