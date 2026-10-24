@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scan_external_urls.py - Scans a git repository for external URLs, emails,
+scan-external-urls.py - Scans a git repository for external URLs, emails,
 hostnames, and IP addresses that could leak data or cause unintended outbound
 connections in tests or code.
 
@@ -23,6 +23,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Union
 
 # ---------------------------------------------------------------------------
 # Categories
@@ -128,6 +129,8 @@ ALWAYS_SKIP_EXTENSIONS = {
 # Data structures
 # ---------------------------------------------------------------------------
 
+IPNetwork = Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
+
 @dataclass
 class Finding:
     category: Category
@@ -139,7 +142,7 @@ class Finding:
 
 @dataclass
 class Whitelist:
-    ip_ranges: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = field(default_factory=list)
+    ip_ranges: list[IPNetwork] = field(default_factory=list)
     hostnames: list[str] = field(default_factory=list)
     email_domains: list[str] = field(default_factory=list)
     urls: list[str] = field(default_factory=list)
@@ -154,7 +157,7 @@ class ScanConfig:
     skip_tests: bool = False
     output_format: str = "text"   # "text" | "json"
     no_fail: bool = False
-    ignore_ips: set[str] = field(default_factory=set)
+    ignore_ips: list[IPNetwork] = field(default_factory=list)
     ignore_all_ips: bool = False
     whitelist: Whitelist = field(default_factory=Whitelist)
 
@@ -217,6 +220,15 @@ def matches_any(value: str, patterns: list[str]) -> bool:
             if pattern.lower() in value_lower:
                 return True
     return False
+
+
+def _ip_in_networks(value: str, networks: list[IPNetwork]) -> bool:
+    """True if value is an IP address contained in one of networks."""
+    try:
+        addr = ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return any(addr in net for net in networks)
 
 
 def _has_known_tld(value: str) -> bool:
@@ -365,7 +377,7 @@ def _detect_ips(line_text: str, values_so_far: set[str], config: ScanConfig) -> 
     hits: list[str] = []
     for m in IP_PATTERN.finditer(line_text):
         ip = m.group(0)
-        if ip not in config.ignore_ips:
+        if not _ip_in_networks(ip, config.ignore_ips):
             hits.append(ip)
 
     for m in _IPV6_ROUGH.finditer(line_text):
@@ -376,7 +388,7 @@ def _detect_ips(line_text: str, values_so_far: set[str], config: ScanConfig) -> 
             continue
         if not isinstance(addr, ipaddress.IPv6Address):
             continue
-        if str(addr) not in config.ignore_ips and candidate not in config.ignore_ips:
+        if not any(addr in net for net in config.ignore_ips):
             hits.append(candidate)
 
     return hits
@@ -387,11 +399,7 @@ def _detect_ips(line_text: str, values_so_far: set[str], config: ScanConfig) -> 
 # ---------------------------------------------------------------------------
 
 def _whitelisted_ip(value: str, wl: Whitelist) -> bool:
-    try:
-        addr = ipaddress.ip_address(value)
-    except ValueError:
-        return False
-    return any(addr in net for net in wl.ip_ranges)
+    return _ip_in_networks(value, wl.ip_ranges)
 
 
 def _whitelisted_hostname(value: str, wl: Whitelist) -> bool:
@@ -403,12 +411,27 @@ def _whitelisted_email(value: str, wl: Whitelist) -> bool:
     return domain in wl.email_domains
 
 
+def _url_prefix_matches(value: str, prefix: str) -> bool:
+    """True if value starts with prefix at a URL boundary, so that the prefix
+    "http://10.100.0.100" allows "http://10.100.0.100:8080/x" but not
+    "http://10.100.0.100.evil.net/x"."""
+    if not value.startswith(prefix):
+        return False
+    if prefix.endswith(("/", "?", "#")):
+        return True
+    rest = value[len(prefix):]
+    return not rest or rest[0] in "/?#:"
+
+
 def _whitelisted_url(value: str, wl: Whitelist) -> bool:
     value_lower = value.lower()
-    if any(value_lower.startswith(u) for u in wl.urls):
+    if any(_url_prefix_matches(value_lower, u) for u in wl.urls):
         return True
     host = _extract_url_host(value)
-    return bool(host and _host_matches_any(host, wl.hostnames))
+    if not host:
+        return False
+    # A URL whose host is an IP literal is covered by ip_ranges as well.
+    return _host_matches_any(host, wl.hostnames) or _ip_in_networks(host, wl.ip_ranges)
 
 
 @dataclass(frozen=True)
@@ -561,25 +584,25 @@ def build_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   # Scan current directory, fail on any finding
-  python scan_external_urls.py
+  python scan-external-urls.py
 
   # Scan specific repo, skip test files, allow internal domain
-  python scan_external_urls.py /path/to/repo --skip-tests --allow "mycompany\\.com"
+  python scan-external-urls.py /path/to/repo --skip-tests --allow "mycompany\\.com"
 
   # CI pipeline: JSON output, fail on URL or email only
-  python scan_external_urls.py --categories url email --format json
+  python scan-external-urls.py --categories url email --format json
 
   # Load allowlist from file (one regex per line)
-  python scan_external_urls.py --allow-file .scan-allowlist
+  python scan-external-urls.py --allow-file .scan-allowlist
 
   # Ignore all IP addresses (e.g. Ansible/infrastructure repos)
-  python scan_external_urls.py --ignore-all-ips
+  python scan-external-urls.py --ignore-all-ips
 
-  # Ignore specific IP addresses
-  python scan_external_urls.py --ignore-ips 192.168.1.1 10.0.0.1
+  # Ignore specific IP addresses or ranges
+  python scan-external-urls.py --ignore-ips 192.168.1.1 10.0.0.0/8
 
   # Load ignored IPs from file (one IP per line)
-  python scan_external_urls.py --ignore-ips-file .scan-ignore-ips
+  python scan-external-urls.py --ignore-ips-file .scan-ignore-ips
 
 Note on --allow / --allow-file:
   A pattern written as a plain domain (e.g. "mycompany.com" or the escaped
@@ -634,11 +657,11 @@ Note on --allow / --allow-file:
     parser.add_argument(
         "--ignore-ips", nargs="+", default=[],
         metavar="IP",
-        help="IP addresses to ignore (e.g. '192.168.1.1' '10.0.0.1')",
+        help="IP addresses or CIDR ranges to ignore (e.g. '192.168.1.1' '10.0.0.0/8')",
     )
     parser.add_argument(
         "--ignore-ips-file", metavar="FILE",
-        help="File with one IP address per line to ignore (comments with # supported)",
+        help="File with one IP address or CIDR range per line to ignore (comments with # supported)",
     )
     parser.add_argument(
         "--whitelist", metavar="FILE",
@@ -657,21 +680,33 @@ def load_allowlist_file(path: str) -> list[str]:
     return patterns
 
 
+def parse_ip_networks(entries: list[str], source: str) -> list[IPNetwork]:
+    """Parse IP addresses / CIDR ranges, warning about and skipping invalid ones."""
+    networks: list[IPNetwork] = []
+    for entry in entries:
+        try:
+            networks.append(ipaddress.ip_network(entry, strict=False))
+        except ValueError as exc:
+            print(f"WARNING: Invalid IP range '{entry}' in {source}: {exc}", file=sys.stderr)
+    return networks
+
+
 def load_whitelist_file(path: str) -> Whitelist:
     with open(path, encoding="utf-8") as fh:
         data = json.load(fh)
 
     wl = Whitelist()
-    for entry in data.get("ip_ranges", []):
-        try:
-            wl.ip_ranges.append(ipaddress.ip_network(entry, strict=False))
-        except ValueError as exc:
-            print(f"WARNING: Invalid IP range '{entry}' in whitelist: {exc}", file=sys.stderr)
-
+    wl.ip_ranges = parse_ip_networks(data.get("ip_ranges", []), "whitelist")
     wl.hostnames = [h.lower().lstrip("*.") for h in data.get("hostnames", [])]
     wl.email_domains = [d.lower() for d in data.get("email_domains", [])]
     wl.urls = [u.lower() for u in data.get("urls", [])]
     return wl
+
+
+def is_repo_root(path: str) -> bool:
+    """True if path is the root of a git work tree. ".git" is a directory in a
+    normal clone but a file in linked worktrees and submodules."""
+    return os.path.exists(os.path.join(path, ".git"))
 
 
 def _find_default_whitelist(repo_path: str) -> str | None:
@@ -684,7 +719,7 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_path = os.path.abspath(args.repo)
-    if not os.path.isdir(os.path.join(repo_path, ".git")):
+    if not is_repo_root(repo_path):
         print(f"ERROR: '{repo_path}' is not a git repository root.", file=sys.stderr)
         return 2
 
@@ -696,13 +731,14 @@ def main() -> int:
             print(f"ERROR: Cannot read allow-file: {exc}", file=sys.stderr)
             return 2
 
-    ignore_ips = set(args.ignore_ips)
+    ignore_ip_entries = list(args.ignore_ips)
     if args.ignore_ips_file:
         try:
-            ignore_ips.update(load_allowlist_file(args.ignore_ips_file))
+            ignore_ip_entries.extend(load_allowlist_file(args.ignore_ips_file))
         except OSError as exc:
             print(f"ERROR: Cannot read ignore-ips-file: {exc}", file=sys.stderr)
             return 2
+    ignore_ips = parse_ip_networks(ignore_ip_entries, "--ignore-ips")
 
     whitelist = Whitelist()
     whitelist_path = args.whitelist or _find_default_whitelist(repo_path)

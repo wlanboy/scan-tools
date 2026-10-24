@@ -17,7 +17,7 @@ python3 scan-external-urls.py /pfad/zum/repo --skip-tests --allow mycompany.com
 python3 scan-external-urls.py --categories url email --format json
 ```
 
-Der Pfad muss auf das Wurzelverzeichnis des Repositories zeigen, also auf den Ordner mit dem `.git`-Verzeichnis.
+Der Pfad muss auf das Wurzelverzeichnis des Repositories zeigen, also auf den Ordner mit `.git`. Das darf ein Verzeichnis sein (normaler Clone) oder eine Datei (Git-Worktree, Submodul).
 
 ## Welche Dateien gescannt werden
 
@@ -96,20 +96,20 @@ Dauerhafte Ausnahmen, die ein Team pflegt. Das Skript lädt automatisch eine `wh
 
 | Feld | Wirkung |
 | --- | --- |
-| `ip_ranges` | CIDR-Netze oder einzelne Adressen. Gilt nur für Befunde der Kategorie `ip`. Ungültige Einträge erzeugen eine Warnung und werden übersprungen. |
+| `ip_ranges` | CIDR-Netze oder einzelne Adressen, IPv4 und IPv6. Gilt für Befunde der Kategorie `ip` und für URLs mit IP als Host (`http://10.0.0.5:8080/api`). Ungültige Einträge erzeugen eine Warnung und werden übersprungen. |
 | `hostnames` | Domain plus alle Subdomains. Ein führendes `*.` wird entfernt, `*.docker.com` und `docker.com` wirken also gleich. Gilt für Hostnamen und für den Host-Teil von URLs. |
 | `email_domains` | Exakter Vergleich mit dem Teil nach dem `@`. Subdomains zählen nicht. |
-| `urls` | URL-Präfixe. Eine URL ist erlaubt, wenn sie mit einem Eintrag beginnt. |
+| `urls` | URL-Präfixe. Eine URL ist erlaubt, wenn sie mit einem Eintrag beginnt und danach `/`, `?`, `#`, `:` oder nichts mehr folgt. `http://10.100.0.100` erlaubt also `http://10.100.0.100:8080/x`, aber nicht `http://10.100.0.100.evil.net/x`. Endet der Eintrag selbst auf `/`, `?` oder `#`, reicht der Präfix. |
 
 Alle Vergleiche ignorieren Groß-/Kleinschreibung.
 
 ### IP-Adressen ignorieren
 
 - `--ignore-all-ips` schaltet die IP-Erkennung komplett ab. Sinnvoll für Ansible- oder Netzwerk-Repos, in denen IPs gewollt sind.
-- `--ignore-ips 192.168.1.1 10.0.0.1` ignoriert einzelne Adressen.
-- `--ignore-ips-file DATEI` liest eine Adresse pro Zeile, `#` für Kommentare.
+- `--ignore-ips 192.168.1.1 10.0.0.0/8 fe80::/10` ignoriert einzelne Adressen und ganze Netze.
+- `--ignore-ips-file DATEI` liest einen Eintrag pro Zeile, `#` für Kommentare.
 
-Diese Optionen vergleichen den exakten String. Netze gehören in `ip_ranges` der Whitelist.
+Der Vergleich läuft über `ipaddress`, `fe80:0:0::1` und `fe80::1` gelten also als gleich. Ungültige Einträge erzeugen eine Warnung auf stderr und werden übersprungen. Anders als `ip_ranges` in der Whitelist wirken diese Optionen nur auf die Kategorie `ip`, nicht auf URLs.
 
 ## Alle Optionen
 
@@ -124,8 +124,8 @@ Diese Optionen vergleichen den exakten String. Netze gehören in `ip_ranges` der
 | `--format text\|json` | Ausgabeformat, Standard `text` |
 | `--no-fail` | Immer mit Exit-Code 0 beenden |
 | `--ignore-all-ips` | Keine IP-Adressen melden |
-| `--ignore-ips IP ...` | Diese IPs nicht melden |
-| `--ignore-ips-file DATEI` | IPs aus Datei nicht melden |
+| `--ignore-ips IP ...` | Diese IPs oder CIDR-Netze nicht melden |
+| `--ignore-ips-file DATEI` | IPs oder CIDR-Netze aus Datei nicht melden |
 | `--whitelist DATEI` | Whitelist-Datei statt `<repo>/whitelist.json` |
 
 ## Ausgabe
@@ -202,13 +202,11 @@ Ohne `--whitelist` würde jedes Repository seine eigene `whitelist.json` suchen.
 
 ## Bekannte Grenzen
 
-Diese Punkte sind beim Testen aufgefallen (Stand 24.10.2026):
+Stand 24.10.2026:
 
-- **Private IPs in URLs.** `ip_ranges` gilt nur für die Kategorie `ip`. `http://10.0.0.5:8080/api` wird als URL gemeldet, obwohl `10.0.0.0/8` in der Whitelist steht. Bisher hilft nur ein zusätzlicher Eintrag unter `urls`.
-- **URL-Präfixe ohne Grenze.** Ein `urls`-Eintrag `http://10.100.0.100` erlaubt auch `http://10.100.0.100.evil.net/x`. Präfixe deshalb mit abschließendem `/` oder `:` eintragen, also `http://10.100.0.100/`.
-- **Git-Worktrees und Submodule.** Dort ist `.git` eine Datei, kein Verzeichnis. Der Scanner bricht mit "is not a git repository root" ab.
 - **Versionsnummern als IP.** Vierteilige Versionen oder Kapitelnummern wie `1.2.1.0` oder `7.1.1.6` erscheinen als IPv4-Befund.
 - **Kein IPv6 in der mitgelieferten Whitelist.** `::1` und `fe80::/10` werden gemeldet, bis sie in `ip_ranges` stehen.
+- **IPv6 in URLs.** URLs mit eckigen Klammern wie `http://[::1]:8080/` erkennt der URL-Regex nicht. Die Adresse selbst taucht dann als `ip`-Befund auf.
 - **Kein Inline-Ignore.** Einzelne Zeilen lassen sich nicht per Kommentar ausnehmen, nur über `--allow`, `--skip` oder die Whitelist.
 
 ## Tests

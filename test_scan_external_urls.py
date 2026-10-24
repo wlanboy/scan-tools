@@ -52,6 +52,9 @@ scan_line              = _mod.scan_line
 scan_file              = _mod.scan_file
 load_allowlist_file    = _mod.load_allowlist_file
 load_whitelist_file    = _mod.load_whitelist_file
+parse_ip_networks      = _mod.parse_ip_networks
+is_repo_root           = _mod.is_repo_root
+ip_network             = _mod.ipaddress.ip_network
 
 
 # ---------------------------------------------------------------------------
@@ -391,10 +394,30 @@ class TestDetectIps(unittest.TestCase):
         """
         Ziel: Eine IP, die explizit über --ignore-ips angegeben wurde, soll nicht
               gemeldet werden.
-        Eingabe: 'host = 10.0.0.5', ignore_ips={'10.0.0.5'}.
+        Eingabe: 'host = 10.0.0.5', ignore_ips=[10.0.0.5/32].
         Erwartung: Keine Treffer.
         """
-        values = _values_for("host = 10.0.0.5", Category.IP, ignore_ips={"10.0.0.5"})
+        values = _values_for("host = 10.0.0.5", Category.IP, ignore_ips=[ip_network("10.0.0.5")])
+        self.assertEqual(values, [])
+
+    def test_ipv4_ignored_via_cidr_range(self):
+        """
+        Ziel: --ignore-ips soll auch CIDR-Bereiche verstehen, nicht nur einzelne Adressen.
+        Eingabe: 'a = 10.0.0.5, b = 192.168.1.1', ignore_ips=[10.0.0.0/8].
+        Erwartung: Nur '192.168.1.1' wird gemeldet, weil 10.0.0.5 im ignorierten Netz liegt.
+        """
+        values = _values_for("a = 10.0.0.5, b = 192.168.1.1", Category.IP,
+                             ignore_ips=[ip_network("10.0.0.0/8")])
+        self.assertEqual(values, ["192.168.1.1"])
+
+    def test_ipv6_ignored_regardless_of_notation(self):
+        """
+        Ziel: Eine ignorierte IPv6-Adresse soll auch in nicht-normalisierter
+              Schreibweise ignoriert werden.
+        Eingabe: 'addr = fe80:0:0::1', ignore_ips=[fe80::/10].
+        Erwartung: Keine Treffer.
+        """
+        values = _values_for("addr = fe80:0:0::1", Category.IP, ignore_ips=[ip_network("fe80::/10")])
         self.assertEqual(values, [])
 
     def test_all_ips_ignored_via_ignore_all_ips(self):
@@ -564,6 +587,41 @@ class TestIsWhitelisted(unittest.TestCase):
         """
         wl = Whitelist(urls=["https://example.com/"])
         self.assertTrue(is_whitelisted(Category.URL, "https://example.com/path", wl))
+
+    def test_url_prefix_does_not_match_longer_host(self):
+        """
+        Ziel: Ein URL-Präfix ohne abschließenden Slash darf keinen anderen Host
+              freigeben, der nur mit denselben Zeichen beginnt.
+        Eingabe: urls=['http://10.100.0.100'], Werte 'http://10.100.0.100.evil.net/x'
+                 und 'http://10.100.0.1000/x'.
+        Erwartung: Beide False. Vorher reichte ein reines startswith().
+        """
+        wl = Whitelist(urls=["http://10.100.0.100"])
+        self.assertFalse(is_whitelisted(Category.URL, "http://10.100.0.100.evil.net/x", wl))
+        self.assertFalse(is_whitelisted(Category.URL, "http://10.100.0.1000/x", wl))
+
+    def test_url_prefix_matches_at_boundary(self):
+        """
+        Ziel: Ein URL-Präfix ohne Slash soll weiterhin den Host selbst, mit Port
+              und mit Pfad freigeben.
+        Eingabe: urls=['http://10.100.0.100'], Werte ohne Pfad, mit ':8080' und mit '/api'.
+        Erwartung: Alle True.
+        """
+        wl = Whitelist(urls=["http://10.100.0.100"])
+        for value in ("http://10.100.0.100", "http://10.100.0.100:8080", "http://10.100.0.100/api"):
+            self.assertTrue(is_whitelisted(Category.URL, value, wl), value)
+
+    def test_url_with_ip_host_whitelisted_via_ip_ranges(self):
+        """
+        Ziel: Eine URL mit IP-Literal als Host soll über ip_ranges freigegeben werden,
+              ohne dass ein eigener urls-Eintrag nötig ist.
+        Eingabe: ip_ranges=['10.0.0.0/8'], Werte 'http://10.0.0.5:8080/api' und
+                 'http://8.8.8.8/'.
+        Erwartung: Erste URL True, zweite False (liegt nicht im Netz).
+        """
+        wl = Whitelist(ip_ranges=[ip_network("10.0.0.0/8")])
+        self.assertTrue(is_whitelisted(Category.URL, "http://10.0.0.5:8080/api", wl))
+        self.assertFalse(is_whitelisted(Category.URL, "http://8.8.8.8/", wl))
 
     def test_url_host_whitelisted_via_hostnames(self):
         """
@@ -807,6 +865,84 @@ class TestLoadWhitelistFile(unittest.TestCase):
         path = self._write({"ip_ranges": ["not-an-ip"]})
         wl = load_whitelist_file(path)
         self.assertEqual(wl.ip_ranges, [])
+
+
+# ===========================================================================
+# Klasse 12: Tests für parse_ip_networks()
+# ===========================================================================
+
+class TestParseIpNetworks(unittest.TestCase):
+    """Testet das gemeinsame Parsen von IPs und CIDR-Bereichen für --ignore-ips
+    und die Whitelist."""
+
+    def test_addresses_and_ranges_parsed(self):
+        """
+        Ziel: Einzelne Adressen werden zu /32 bzw. /128, Bereiche bleiben Bereiche.
+        Eingabe: ['10.0.0.1', '192.168.0.0/16', '::1'].
+        Erwartung: Drei Netze in gleicher Reihenfolge.
+        """
+        nets = parse_ip_networks(["10.0.0.1", "192.168.0.0/16", "::1"], "test")
+        self.assertEqual(nets, [ip_network("10.0.0.1/32"), ip_network("192.168.0.0/16"),
+                                ip_network("::1/128")])
+
+    def test_host_bits_allowed(self):
+        """
+        Ziel: Bereiche mit gesetzten Host-Bits (z. B. '127.0.0.1/24') sollen nicht
+              abgelehnt, sondern auf das Netz normalisiert werden.
+        Eingabe: ['127.0.0.1/24'].
+        Erwartung: [127.0.0.0/24].
+        """
+        self.assertEqual(parse_ip_networks(["127.0.0.1/24"], "test"), [ip_network("127.0.0.0/24")])
+
+    def test_invalid_entry_skipped(self):
+        """
+        Ziel: Ungültige Einträge werden übersprungen, gültige bleiben erhalten.
+        Eingabe: ['nope', '10.0.0.0/8'].
+        Erwartung: Nur [10.0.0.0/8].
+        """
+        self.assertEqual(parse_ip_networks(["nope", "10.0.0.0/8"], "test"), [ip_network("10.0.0.0/8")])
+
+
+# ===========================================================================
+# Klasse 13: Tests für is_repo_root()
+# ===========================================================================
+
+class TestIsRepoRoot(unittest.TestCase):
+    """Testet die Erkennung des Repository-Wurzelverzeichnisses."""
+
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.path = pathlib.Path(self._tmpdir.name)
+
+    def tearDown(self):
+        self._tmpdir.cleanup()
+
+    def test_git_directory(self):
+        """
+        Ziel: Ein normaler Clone hat ein .git-Verzeichnis.
+        Eingabe: Verzeichnis mit Unterordner '.git'.
+        Erwartung: True.
+        """
+        (self.path / ".git").mkdir()
+        self.assertTrue(is_repo_root(str(self.path)))
+
+    def test_git_file_for_worktree_or_submodule(self):
+        """
+        Ziel: In Worktrees und Submodulen ist .git eine Datei mit 'gitdir: ...'.
+              Auch das ist ein gültiges Wurzelverzeichnis.
+        Eingabe: Verzeichnis mit Datei '.git'.
+        Erwartung: True. Vorher brach der Scanner hier mit Exit-Code 2 ab.
+        """
+        (self.path / ".git").write_text("gitdir: /elsewhere/.git/worktrees/x\n")
+        self.assertTrue(is_repo_root(str(self.path)))
+
+    def test_no_git(self):
+        """
+        Ziel: Ein Verzeichnis ohne .git ist kein Repository.
+        Eingabe: Leeres Verzeichnis.
+        Erwartung: False.
+        """
+        self.assertFalse(is_repo_root(str(self.path)))
 
 
 # ===========================================================================
