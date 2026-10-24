@@ -342,7 +342,9 @@ Das Format ist maschinenlesbar und eignet sich direkt für die Verarbeitung mit 
 
 ### Secrets Funktion
 
-Scannt ein komplettes Git-Repository nach hartcodierten Credentials und Secrets: Basic-Auth-Zugangsdaten (in URLs und HTTP-Headern), Bearer- und OAuth-Token, OAuth-Secrets, API-Keys, SSH/TLS-Private-Keys, AWS-Credentials, GitHub-Token, JWT-Token, Artifactory/JFrog-Token sowie Bitbucket/Atlassian-Token.
+Scannt ein komplettes Git-Repository nach hartcodierten Credentials und Secrets: Basic-Auth-Zugangsdaten (in URLs und HTTP-Headern), Bearer- und OAuth-Token, OAuth-Secrets, API-Keys, SSH/TLS-Private-Keys, AWS-Credentials, GitHub-Token, Slack-Token, JWT-Token, Artifactory/JFrog-Token sowie Bitbucket/Atlassian-Token.
+
+Ausführliche Dokumentation inkl. Whitelist-Format, Ausgabeformat und Grenzen: [`scan-secrets.md`](scan-secrets.md)
 
 ### Secrets Einsatzgebiet
 
@@ -364,8 +366,13 @@ Scannt ein komplettes Git-Repository nach hartcodierten Credentials und Secrets:
 | `oauth_secret` | OAuth Client-/App-/Consumer-Secret | `client_secret = "ab12cd34..."` |
 | `password` | Passwörter in Konfiguration oder Code | `password = "MyR3alP@ss"` |
 | `generic_secret` | Allgemeine Secret-/Credential-Zuweisungen | `signing_key = "abc123..."` |
+| `api_key` | API-Keys (Wert ab 16 Zeichen) | `API_KEY=4f8a9c2e1b7d6f3a` |
 | `artifactory_token` | Artifactory/JFrog API-Keys und Token | `ARTIFACTORY_TOKEN=...`, `_authToken=...` |
 | `bitbucket_token` | Bitbucket/Atlassian Token | `ATBB...`, `ATCTT...`, `ATATT...`, `BITBUCKET_TOKEN=...` |
+| `github_token` | GitHub PAT, OAuth- und App-Token | `ghp_...`, `gho_...`, `ghs_...` |
+| `aws_access_key` | AWS Access Key IDs | `AKIA...`, `ASIA...` |
+| `aws_secret_key` | AWS Secret Access Keys (nur neben bekanntem Variablennamen) | `aws_secret_access_key = ...` |
+| `slack_token` | Slack Bot-/User-/App-Token | `xoxb-...`, `xoxp-...` |
 
 ### Secrets Besonderheiten
 
@@ -373,7 +380,8 @@ Scannt ein komplettes Git-Repository nach hartcodierten Credentials und Secrets:
 - **Einzelzeichen-Wiederholung**: Werte wie `aaaaaaaaaa` oder `11111111` werden ignoriert
 - Nutzt `git ls-files` — prüft nur versionskontrollierte Dateien, respektiert `.gitignore`
 - Binäre Dateien und Lock-Files werden übersprungen
-- Kompatibel mit Python 2.7 und 3.x
+- **JSON-Whitelist** (`--whitelist`): Funde gezielt nach Kategorie, Datei und Wert unterdrücken, Vorlage in [`secrets-whitelist.json`](secrets-whitelist.json)
+- Python 3.7+ (nur Standardbibliothek)
 
 ### Secrets Verwendung
 
@@ -396,6 +404,12 @@ python scan-secrets.py --allow "example\\.com" "localhost"
 # Erlaubmuster aus Datei laden (ein Regex pro Zeile)
 python scan-secrets.py --allow-file .secrets-allowlist
 
+# Strukturierte JSON-Whitelist verwenden
+python scan-secrets.py --whitelist secrets-whitelist.json
+
+# Pfade überspringen (Regex)
+python scan-secrets.py --skip "docs/" "fixtures/"
+
 # Bei Befunden nicht fehlschlagen (für Reporting ohne CI-Abbruch)
 python scan-secrets.py --no-fail
 ```
@@ -406,7 +420,7 @@ python scan-secrets.py --no-fail
 | ------ | ----------- |
 | `0` | Keine Befunde (oder `--no-fail` gesetzt) |
 | `1` | Befunde gefunden |
-| `2` | Skriptfehler (kein Git-Repo, ungültige Argumente) |
+| `2` | Skriptfehler (kein Git-Repo, ungültige Argumente, Whitelist nicht lesbar) |
 
 ---
 
