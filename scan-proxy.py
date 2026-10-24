@@ -21,6 +21,12 @@ PROXY_PATTERN = re.compile(
     re.IGNORECASE
 )
 
+# csh/tcsh sets environment variables with 'setenv NAME value' instead of NAME=value.
+CSH_SETENV_PATTERN = re.compile(
+    r'^setenv\s+(' + _PROXY_KEY_ALTERNATION + r')\s+["\']?([^"\'#\n\r]+)["\']?',
+    re.IGNORECASE
+)
+
 YUM_DNF_PATTERN = re.compile(r'^(proxy(?:_username|_password)?)\s*=\s*(.+)$')
 WGET_PATTERN = re.compile(r'^(https?_proxy|ftp_proxy|no_proxy)\s*=\s*(.+)$', re.IGNORECASE)
 CURL_PATTERN = re.compile(r'^(proxy)\s*=\s*(.+)$', re.IGNORECASE)
@@ -214,6 +220,8 @@ def route_file(path):
         scan_pattern_lines(path, NPM_PATTERN)
     elif lower.endswith(('pip.conf', 'pip.ini')):
         scan_pattern_lines(path, PIP_PATTERN)
+    elif lower.endswith('.csh'):
+        scan_pattern_lines(path, CSH_SETENV_PATTERN)
     else:
         scan_pattern_lines(path, PROXY_PATTERN)
 

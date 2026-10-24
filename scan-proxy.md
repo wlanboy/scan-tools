@@ -64,7 +64,8 @@ Ausnahmelisten zählen nicht als Proxy. `no_proxy`, `NO_PROXY`, `noproxy` (npm),
 | Bereich | Dateien / Quelle | Schlüssel |
 | --- | --- | --- |
 | Prozess-Umgebung | `os.environ` | `http_proxy`, `https_proxy`, `ftp_proxy`, `all_proxy`, `no_proxy`, jeweils klein und groß |
-| System-Shell | `/etc/environment`, `/etc/profile`, `/etc/bashrc`, `/etc/bash.bashrc`, `/etc/sysconfig/proxy`, `/etc/profile.d/*.sh`, `/etc/profile.d/*.csh`, `/etc/environment.d/*.conf` | wie Umgebung, auch mit `export` davor |
+| System-Shell | `/etc/environment`, `/etc/profile`, `/etc/bashrc`, `/etc/bash.bashrc`, `/etc/sysconfig/proxy`, `/etc/profile.d/*.sh`, `/etc/environment.d/*.conf` | wie Umgebung, auch mit `export` davor |
+| csh / tcsh | `/etc/profile.d/*.csh` | wie Umgebung, als `setenv NAME wert` |
 | Benutzer-Shell | `~/.bashrc`, `~/.bash_profile`, `~/.profile` | wie Umgebung |
 | yum / dnf | `/etc/yum.conf`, `/etc/dnf/dnf.conf` | `proxy`, `proxy_username`, `proxy_password` |
 | apt | `/etc/apt/apt.conf`, `/etc/apt/apt.conf.d/*` | `Acquire::http::Proxy`, `Acquire::https::Proxy` |
@@ -78,7 +79,7 @@ Ausnahmelisten zählen nicht als Proxy. `no_proxy`, `NO_PROXY`, `noproxy` (npm),
 | Docker-Client | `~/.docker/config.json` | `proxies.<kontext>`: `httpProxy`, `httpsProxy`, `ftpProxy`, `noProxy` |
 | systemd | `/etc/systemd/system/*.service.d/*.conf`, `/etc/systemd/system.conf.d/*.conf`, `~/.config/systemd/user/*.service.d/*.conf` | `Environment="HTTP_PROXY=…"` usw. |
 
-Welche Regel greift, hängt am Dateinamen. Endet der Pfad auf `yum.conf`, `dnf.conf`, `wgetrc`, `curlrc`, `gitconfig`, `npmrc`, `pip.conf`, `pip.ini` oder `ansible.cfg`, nimmt der Scanner das Muster des jeweiligen Tools. Alles andere liest er wie eine Shell-Datei. Jede Datei liest er nur einmal, auch wenn sie in mehreren Listen steht.
+Welche Regel greift, hängt am Dateinamen. Endet der Pfad auf `yum.conf`, `dnf.conf`, `wgetrc`, `curlrc`, `gitconfig`, `npmrc`, `pip.conf`, `pip.ini`, `ansible.cfg` oder `.csh`, nimmt der Scanner das Muster des jeweiligen Tools. Alles andere liest er wie eine Shell-Datei. Jede Datei liest er nur einmal, auch wenn sie in mehreren Listen steht.
 
 Für den Docker-Daemon ist der systemd-Drop-in die wichtige Stelle. Die übliche Anleitung legt den Proxy in `/etc/systemd/system/docker.service.d/http-proxy.conf` ab, und genau dort sucht der Scanner. `~/.docker/config.json` betrifft dagegen nur die Proxy-Variablen, die der Docker-Client in Container und Builds durchreicht.
 
@@ -102,7 +103,6 @@ Der Scanner liest Dateien Zeile für Zeile mit regulären Ausdrücken. Er führt
 
 - Variablen wertet er nicht aus. Bei `export https_proxy=$http_proxy` steht `$http_proxy` als Wert im Report.
 - Auskommentierte Zeilen ignoriert er, Bedingungen nicht. Ein `export http_proxy=…` innerhalb eines `if` zählt immer.
-- csh-Syntax (`setenv http_proxy …`) erkennt er nicht, obwohl er `/etc/profile.d/*.csh` liest.
 - In curlrc erkennt er nur `proxy = …`. Die Schreibweisen `proxy …`, `proxy: …`, `-x …` und `--proxy …` erkennt er nicht.
 - `use_proxy = off` in wgetrc beachtet er nicht. Der Proxy steht trotzdem im Report.
 - In apt-Konfiguration zählt auch `Acquire::http::Proxy "DIRECT";` als Proxy. Host-spezifische Einträge wie `Acquire::http::Proxy::repo.example "…";` erkennt er nicht.

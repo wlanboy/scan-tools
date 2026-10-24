@@ -36,6 +36,7 @@ _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
 
 PROXY_KEYS           = _mod.PROXY_KEYS
 PROXY_PATTERN        = _mod.PROXY_PATTERN
+CSH_SETENV_PATTERN   = _mod.CSH_SETENV_PATTERN
 YUM_DNF_PATTERN      = _mod.YUM_DNF_PATTERN
 WGET_PATTERN         = _mod.WGET_PATTERN
 CURL_PATTERN         = _mod.CURL_PATTERN
@@ -378,6 +379,44 @@ class TestToolSpecificPatterns(unittest.TestCase):
         self.assertEqual(m.group(1), 'http')
         self.assertEqual(m.group(2), 'http://proxy.example.com:3128')
 
+    def test_csh_setenv_pattern(self):
+        """
+        Ziel: csh/tcsh-Dateien unter /etc/profile.d/*.csh setzen Proxys mit
+              'setenv NAME value' statt 'NAME=value'.
+
+        Eingabe: 'setenv http_proxy http://proxy.example.com:8080'.
+
+        Erwartung: Match mit key='http_proxy', value die URL.
+        """
+        m = CSH_SETENV_PATTERN.match('setenv http_proxy http://proxy.example.com:8080')
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group(1), 'http_proxy')
+        self.assertEqual(m.group(2), 'http://proxy.example.com:8080')
+
+    def test_csh_setenv_pattern_with_quotes(self):
+        """
+        Ziel: Der Wert darf in Anführungszeichen stehen; die Quotes sollen nicht
+              im Wert landen.
+
+        Eingabe: 'setenv HTTPS_PROXY "http://proxy.example.com:8443"'.
+
+        Erwartung: Match mit key='HTTPS_PROXY', value ohne Quotes.
+        """
+        m = CSH_SETENV_PATTERN.match('setenv HTTPS_PROXY "http://proxy.example.com:8443"')
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group(1), 'HTTPS_PROXY')
+        self.assertEqual(m.group(2), 'http://proxy.example.com:8443')
+
+    def test_csh_setenv_pattern_ignores_other_variables(self):
+        """
+        Ziel: setenv für Variablen ohne Proxy-Bezug soll nicht matchen.
+
+        Eingabe: 'setenv PATH /usr/local/bin:/usr/bin'.
+
+        Erwartung: Kein Match.
+        """
+        self.assertIsNone(CSH_SETENV_PATTERN.match('setenv PATH /usr/local/bin:/usr/bin'))
+
 
 # ===========================================================================
 # Klasse 5: Tests für is_real_proxy_key()
@@ -628,6 +667,15 @@ class TestRouteFile(unittest.TestCase):
         Erwartung: Aufruf mit PIP_PATTERN.
         """
         self.assertIs(self._routed_pattern('/home/user/.pip/pip.conf'), PIP_PATTERN)
+
+    def test_csh_routes_to_csh_setenv_pattern(self):
+        """
+        Ziel: Dateien mit Endung '.csh' sollen an CSH_SETENV_PATTERN geroutet
+              werden, weil sie keine 'NAME=value'-Zuweisungen enthalten.
+
+        Erwartung: Aufruf mit CSH_SETENV_PATTERN.
+        """
+        self.assertIs(self._routed_pattern('/etc/profile.d/proxy.csh'), CSH_SETENV_PATTERN)
 
     def test_unknown_file_falls_back_to_generic_pattern(self):
         """
