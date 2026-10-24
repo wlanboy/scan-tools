@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Istio Release CVEs</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Istio Release CVEs</h1>
+    <p id="summary" class="muted">Lade istio-cves.json ...</p>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Suchen: CVE, Version, Beschreibung ..." autofocus>
+      <select id="minor">
+        <option value="">Alle Minor-Versionen</option>
+      </select>
+      <label class="check"><input id="group" type="checkbox"> nach CVE gruppieren</label>
+      <span id="count" class="muted"></span>
+    </div>
+
+    <div class="table-wrap">
+      <table id="table">
+        <thead>
+          <tr>
+            <th data-key="version" data-type="version">Version</th>
+            <th data-key="cve" data-type="cve">CVE</th>
+            <th data-key="cvss" data-type="number">CVSS</th>
+            <th data-key="severity">Severity</th>
+            <th data-key="description" class="nosort">Beschreibung</th>
+            <th data-key="via" >Quelle</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p id="error" class="error" hidden></p>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
