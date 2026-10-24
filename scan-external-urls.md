@@ -235,6 +235,15 @@ Hier sorgt `--no-fail` dafür, dass der Upload trotz Befunden läuft. Die Befund
 
 Ohne `--whitelist` würde jedes Repository seine eigene `whitelist.json` suchen. Mit der Option gilt die zentrale Datei für alle.
 
+Mit `-- --format sarif` (oder `json`) schreibt das Skript pro Repository eine eigene Datei nach `<ausgabe>-sarif/<repo>.sarif`. Die Ausgabedatei enthält dann nur noch Kopfzeilen, Fehlermeldungen und die Zusammenfassung:
+
+```bash
+./scan-all-repos.sh scan-external-urls.py ~/projects results.txt --whitelist whitelist.json -- --format sarif
+# → results.txt, results-sarif/repo-a.sarif, results-sarif/repo-b.sarif, ...
+```
+
+Exit-Code des Wrappers: `0` ohne Befunde, `1` wenn mindestens ein Repository Befunde hat, `2` bei einem Scanner-Fehler.
+
 ## Bekannte Grenzen
 
 Stand 24.10.2026:
