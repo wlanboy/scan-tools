@@ -43,15 +43,18 @@ Scannt ein komplettes Git-Repository nach externen Referenzen, die in Produktion
 | `url` | HTTP/HTTPS-URLs | `https://api.example.com/v2/data` |
 | `email` | E-Mail-Adressen | `admin@company.com` |
 | `hostname` | Vollqualifizierte Hostnamen mit bekannten TLDs | `internal.corp.io` |
-| `ip` | IPv4-Adressen | `10.0.5.12` |
+| `ip` | IPv4- und IPv6-Adressen | `10.0.5.12`, `2001:db8::1` |
 
 ### Besonderheiten
 
-- Nutzt `git ls-files` — prüft nur versionskontrollierte Dateien, respektiert `.gitignore`
+- Nutzt `git ls-files` — prüft versionierte und neue, noch nicht committete Dateien, respektiert `.gitignore`
+- Funktioniert auch in Git-Worktrees und Submodulen (`.git` als Datei)
 - Binäre Dateien (Null-Byte-Erkennung) und Binär-Extensions (`.png`, `.jar`, `.lock` usw.) werden übersprungen
 - **TLD-Allowlist**: Hostnamen werden nur gemeldet, wenn ihre TLD in einer kuratierten Liste bekannter TLDs steht — Python-Methodenaufrufe (`os.path`, `subprocess.run`) oder Java-Paketnamen werden dadurch nicht fälschlicherweise erkannt
 - **Intelligente Ausschlusslogik**: Import-Statements (`from textual.app import`), Kubernetes-API-Groups (`rbac.authorization.k8s.io/`), YAML-Listenelemente und Dateipfad-Komponenten werden nicht als Hostnamen gewertet
-- **Whitelist-System** (`whitelist.json`): IP-Ranges (CIDR), Hostnamen (Wildcard `*.domain.com`) und E-Mail-Domains können dauerhaft erlaubt werden — die Datei wird automatisch geladen
+- **Whitelist-System** (`whitelist.json`): IP-Ranges (CIDR), Hostnamen (Wildcard `*.domain.com`) und E-Mail-Domains können dauerhaft erlaubt werden — die Datei wird automatisch aus dem gescannten Repository geladen
+
+Ausführliche Dokumentation: [`scan-external-urls.md`](scan-external-urls.md)
 
 ### Verwendung
 
@@ -71,10 +74,10 @@ python3 scan-external-urls.py --skip-tests --allow "mycompany\\.com"
 # Alle IP-Adressen ignorieren (z. B. Ansible/Infrastruktur-Repos)
 python3 scan-external-urls.py --ignore-all-ips
 
-# Bestimmte IPs ignorieren
-python3 scan-external-urls.py --ignore-ips 192.168.1.1 10.0.0.1
+# Bestimmte IPs oder Netze ignorieren
+python3 scan-external-urls.py --ignore-ips 192.168.1.1 10.0.0.0/8
 
-# IPs aus Datei ignorieren (eine pro Zeile)
+# IPs oder Netze aus Datei ignorieren (eines pro Zeile)
 python3 scan-external-urls.py --ignore-ips-file .scan-ignore-ips
 
 # Externe Whitelist-Datei laden
@@ -411,7 +414,7 @@ python scan-secrets.py --no-fail
 
 ### Whitelist
 
-Zentrale Konfigurationsdatei für `scan-external-urls.py`. Wird automatisch geladen, wenn sie sich im selben Verzeichnis wie das Scanner-Skript befindet. Über `--whitelist` kann auch eine externe Datei angegeben werden.
+Zentrale Konfigurationsdatei für `scan-external-urls.py`. Wird automatisch geladen, wenn sie im Wurzelverzeichnis des gescannten Repositories liegt. Über `--whitelist` kann auch eine externe Datei angegeben werden, z. B. die `whitelist.json` aus diesem Repo für fremde Repositories.
 
 ### Struktur
 
@@ -426,10 +429,10 @@ Zentrale Konfigurationsdatei für `scan-external-urls.py`. Wird automatisch gela
 
 | Feld | Typ | Wirkung |
 | ------ | ----- | --------- |
-| `ip_ranges` | CIDR-Strings | Alle IP-Adressen in diesen Netzen werden nicht gemeldet |
+| `ip_ranges` | CIDR-Strings | Alle IP-Adressen in diesen Netzen werden nicht gemeldet, auch als Host in URLs |
 | `hostnames` | Hostname-Strings | Exakte Hostnamen oder Wildcard-Basis (`*.domain.com`). Betrifft auch den Host-Teil von URLs. |
 | `email_domains` | Domain-Strings | Domain-Teile von E-Mail-Adressen, die ignoriert werden sollen |
-| `urls` | URL-Präfixe | Vollständige URL-Präfixe, die erlaubt sind |
+| `urls` | URL-Präfixe | URL-Präfixe, die erlaubt sind. Nach dem Präfix muss `/`, `?`, `#`, `:` oder das Ende folgen, `http://10.1.1.1` erlaubt also nicht `http://10.1.1.1.evil.net` |
 
 Die mitgelieferte `whitelist.json` enthält:
 
