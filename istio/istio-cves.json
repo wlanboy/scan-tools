@@ -1,0 +1,1337 @@
+[
+  {
+    "version": "1.31.3",
+    "url": "https://istio.io/latest/news/releases/1.31.x/announcing-1.31.3/",
+    "cves": [
+      {
+        "cve": "CVE-2026-111943",
+        "cvss": "",
+        "severity": "",
+        "description": "CVE-2026-111943 : Updated Go to 1.26.10, which rejects certificate chains that contain any of the compromised eMudhra intermediate keys in istiod, istioctl , and pilot-agent .",
+        "source": "https://istio.io/latest/news/releases/1.31.x/announcing-1.31.3/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.31.2",
+    "url": "https://istio.io/latest/news/releases/1.31.x/announcing-1.31.2/",
+    "cves": [
+      {
+        "cve": "CVE-2026-111497",
+        "cvss": "",
+        "severity": "",
+        "description": "CVE-2026-111497 : Fixed a vulnerability in the Brotli compression library used by Envoy. Users who enable Brotli decompression, for example with an EnvoyFilter , should upgrade.",
+        "source": "https://istio.io/latest/news/releases/1.31.x/announcing-1.31.2/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.31.1",
+    "url": "https://istio.io/latest/news/releases/1.31.x/announcing-1.31.1/",
+    "cves": []
+  },
+  {
+    "version": "1.31.0",
+    "url": "https://istio.io/latest/news/releases/1.31.x/announcing-1.31/",
+    "cves": []
+  },
+  {
+    "version": "1.30.7",
+    "url": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.7/",
+    "cves": [
+      {
+        "cve": "CVE-2026-111943",
+        "cvss": "",
+        "severity": "",
+        "description": "CVE-2026-111943 : Updated Go to 1.26.10, which rejects certificate chains that contain any of the compromised eMudhra intermediate keys in istiod, istioctl , and pilot-agent .",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.7/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.30.6",
+    "url": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.6/",
+    "cves": [
+      {
+        "cve": "CVE-2026-111497",
+        "cvss": "",
+        "severity": "",
+        "description": "CVE-2026-111497 : Fixed a vulnerability in the Brotli compression library used by Envoy. Users who enable Brotli decompression, for example with an EnvoyFilter , should upgrade.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.6/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.30.5",
+    "url": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.5/",
+    "cves": []
+  },
+  {
+    "version": "1.30.4",
+    "url": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+    "cves": [
+      {
+        "cve": "CVE-2026-48521",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-48521 : (CVSS score 5.9): Fixed a null-pointer dereference during ALPN-based HTTP/3 connection-pool selection.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-50572",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-50572 : (CVSS score 5.9): Fixed a use-after-free in the ext_authz raw HTTP client.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73511",
+        "cvss": "5.3",
+        "severity": "",
+        "description": "CVE-2026-73511 : (CVSS score 5.3): Fixed path matching for per-segment parameters.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73512",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73512 : (CVSS score 7.5): Fixed a use-after-free in the QUIC HTTP datagram handler.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73513",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73513 : (CVSS score 7.5): Fixed a heap use-after-free in oghttp2 when HTTP/2 trailers are received without the END_STREAM flag.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73546",
+        "cvss": "7.4",
+        "severity": "",
+        "description": "CVE-2026-73546 : (CVSS score 7.4): Fixed a stored cross-site scripting vulnerability in the HTML stats interface.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73547",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73547 : (CVSS score 7.5): Fixed abnormal termination in ext_authz when handling CONNECT requests without a :path header.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73548",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73548 : (CVSS score 7.5): Fixed cross-user response poisoning on generic HTTP upgrades.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73549",
+        "cvss": "5.3",
+        "severity": "",
+        "description": "CVE-2026-73549 : (CVSS score 5.3): Fixed abnormal termination for scoped IPv6 client addresses with HTTP/3.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73550",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73550 : (CVSS score 7.5): Fixed HTTP/2 memory exhaustion via discarded duplicate Host headers.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73551",
+        "cvss": "5.3",
+        "severity": "",
+        "description": "CVE-2026-73551 : (CVSS score 5.3): Fixed URL normalization of dot and dot-dot path segments with parameters.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73552",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73552 : (CVSS score 7.5): Fixed a bug where safe_regex failed open on non-UTF-8 header bytes in negative-match RBAC policies.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73553",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73553 : (CVSS score 7.5): Fixed an RBAC bypass via ignore_path_parameters_in_path_matching .",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.4/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.30.3",
+    "url": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.3/",
+    "cves": []
+  },
+  {
+    "version": "1.30.2",
+    "url": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+    "cves": [
+      {
+        "cve": "CVE-2026-47204",
+        "cvss": "6.5",
+        "severity": "",
+        "description": "CVE-2026-47204 : (CVSS score 6.5): Fixed a crash or use-after-free when gRPC stats filter performs stat tracking on a direct response route.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47205",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-47205 : (CVSS score 5.9): Fixed a use-after-free crash in the ext_authz filter when per-route service overrides are active and the downstream connection resets during an in-flight authorization check.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47207",
+        "cvss": "6.5",
+        "severity": "",
+        "description": "CVE-2026-47207 : (CVSS score 6.5): Fixed a bug where the ext_proc server sends unexpected ProcessingResponses to Envoy.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47220",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-47220 : (CVSS score 7.5): Fixed a crash bug in the %REQUESTED_SERVER_NAME% formatter where the host or original host is not set correctly but the formatter is configured to access the host value.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47221",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-47221 : (CVSS score 5.9): Fixed an issue when handling HTTP 303 internal redirects for body-less requests. The redirect handling code attempted to drain a request body buffer that was never allocated, causing a segmentation fault.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47692",
+        "cvss": "4.8",
+        "severity": "",
+        "description": "CVE-2026-47692 : (CVSS score 4.8): Fixed a bug where passthrough TLVs combined with added TLVs could exceed the maximum length, resulting in a mismatch between the size reported in the header and the number of bytes written. This could allow a smuggled request from the host writing the PROXY protocol header to the upstream host.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47775",
+        "cvss": "6.8",
+        "severity": "",
+        "description": "CVE-2026-47775 : (CVSS score 6.8): Addressed a padding oracle in the OAuth2 filter’s AES-256-CBC cookie decryption. The filter now supports AES-256-GCM encryption with a gcm. algorithm marker, which authenticates the ciphertext and removes the oracle.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47778",
+        "cvss": "4.4",
+        "severity": "",
+        "description": "CVE-2026-47778 : (CVSS score 4.4): Fixed an issue where Envoy could fail to validate the Subject Alternative Name (SAN) of a peer certificate if the SAN contained an embedded NUL byte. Previously, the SAN parsing was vulnerable to NUL byte truncation in some configurations, potentially leading to incorrect trust decisions.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48042",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-48042 : (CVSS score 7.5): Limited JSON nesting depth to 1000. The limit could be relaxed to 10K by setting the envoy.reloadable_features.limit_json_parser_nesting_depth to false .",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48044",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-48044 : (CVSS score 7.5): Fixed a memory exhaustion vulnerability in the Zstd decompressor where the MaxInflateRatio limit was only checked after each input slice was fully processed, allowing a maliciously crafted compressed payload to expand to hundreds of MB within a single process() call. The inflate ratio limit is now enforced inside the inner decompression loop, matching the gzip and brotli decompressors and aborting decompression as soon as the threshold is breached.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48090",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-48090 : (CVSS score 5.9): Fixed a bug where the asynchronous token change callback could be triggered after the filter had been torn down ( onDestroy() had been called), which could lead to accessing dangling pointers and result in UAF/crash.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48497",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-48497 : (CVSS score 5.9): Fixed sanity checking of the query name length to avoid abnormal process termination. Use ENVOY_BUG in case the sanity check fails.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48706",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-48706 : (CVSS score 5.9): Fixed a TcpStatsdSink buffer overflow issue with a large stats name.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48743",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-48743 : (CVSS score 7.5): Fixed HTTP/3 headers-only request and response content-length validation and reset stream if inconsistent. The change is guarded by runtime guard envoy.reloadable_features.quic_validate_headers_only_content_length .",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.2/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.30.1",
+    "url": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.1/",
+    "cves": [
+      {
+        "cve": "CVE-2026-47774",
+        "cvss": "7.5",
+        "severity": "High",
+        "description": "CVE-2026-47774 (CVSS score 7.5, High): An unauthenticated remote attacker can cause denial of service by exhausting memory in the Envoy process. Cookie header bytes are not fully accounted for during request header size validation, and HPACK header block limits are enforced on encoded bytes without a corresponding limit on total decoded header size, allowing attackers to trigger excessive memory consumption through specially crafted HTTP/2 requests.",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.1/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.30.0",
+    "url": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30/",
+    "cves": [
+      {
+        "cve": "CVE-2026-31837",
+        "cvss": "",
+        "severity": "",
+        "description": "Fixed a critical security vulnerability where Istio’s JWKS fallback mechanism leaked an RSA private key, allowing attackers to forge JWT tokens and bypass authentication when JWKS fetch fails. See CVE-2026-31837 for details. ( Advisory GHSA-v75c-crr9-733c ) Credit : This vulnerability was discovered and reported by 1seal ( https://github.com/1seal ).",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30/change-notes/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-31838",
+        "cvss": "",
+        "severity": "",
+        "description": "Fixed XDS debug endpoints ( syncz , config_dump ) to require authentication. Previously accessible without authentication on plaintext XDS port 15010. Controlled by ENABLE_DEBUG_ENDPOINT_AUTH (same flag as HTTP debug endpoints). ( CVE-2026-31838 ) Credit : This vulnerability was discovered and reported by 1seal ( https://github.com/1seal ).",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30/change-notes/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-39350",
+        "cvss": "",
+        "severity": "",
+        "description": "Fixed serviceAccount matcher regex in AuthorizationPolicy to properly quote the service account name, allowing for correct matching of service accounts with special characters in their names. ( CVE-2026-39350 ) ( Issue #59700 ) Credit : This vulnerability was discovered and reported by Wernerina ( https://github.com/Wernerina ).",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30/change-notes/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-41413",
+        "cvss": "",
+        "severity": "",
+        "description": "Fixed JWKS URI CIDR blocking by using a custom control function in a custom DialContext . The control function filters connections after DNS resolution but before dialing, allowing the block to follow redirects and the issuer discovery path. This also preserves features in the default DialContext like happy eyeballs and dialSerial (trying each resolved IP in order). ( CVE-2026-41413 ) Credit : This vulnerability was discovered and reported by KoreaSecurity ( https://github.com/KoreaSecurity ), 1seal ( https://github.com/1seal ), and AKiileX ( https://github.com/AKiileX ).",
+        "source": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30/change-notes/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.29.10",
+    "url": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.10/",
+    "cves": [
+      {
+        "cve": "CVE-2026-111943",
+        "cvss": "",
+        "severity": "",
+        "description": "Istio 1.29 is built with Go 1.25, which no longer receives fixes, so this release does not include the Go fix for CVE-2026-111943 . istiod, istioctl , and pilot-agent rely on the updated CA bundle only. Upgrade to 1.30.7 or 1.31.3 to get the Go fix.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.10/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.29.9",
+    "url": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.9/",
+    "cves": [
+      {
+        "cve": "CVE-2026-111497",
+        "cvss": "",
+        "severity": "",
+        "description": "CVE-2026-111497 : Fixed a vulnerability in the Brotli compression library used by Envoy. Users who enable Brotli decompression, for example with an EnvoyFilter , should upgrade.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.9/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.29.8",
+    "url": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.8/",
+    "cves": []
+  },
+  {
+    "version": "1.29.7",
+    "url": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+    "cves": [
+      {
+        "cve": "CVE-2026-48521",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-48521 : (CVSS score 5.9): Fixed a null-pointer dereference during ALPN-based HTTP/3 connection-pool selection.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-50572",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-50572 : (CVSS score 5.9): Fixed a use-after-free in the ext_authz raw HTTP client.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73511",
+        "cvss": "5.3",
+        "severity": "",
+        "description": "CVE-2026-73511 : (CVSS score 5.3): Fixed path matching for per-segment parameters.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73512",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73512 : (CVSS score 7.5): Fixed a use-after-free in the QUIC HTTP datagram handler.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73513",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73513 : (CVSS score 7.5): Fixed a heap use-after-free in oghttp2 when HTTP/2 trailers are received without the END_STREAM flag.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73546",
+        "cvss": "7.4",
+        "severity": "",
+        "description": "CVE-2026-73546 : (CVSS score 7.4): Fixed a stored cross-site scripting vulnerability in the HTML stats interface.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73547",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73547 : (CVSS score 7.5): Fixed abnormal termination in ext_authz when handling CONNECT requests without a :path header.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73548",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73548 : (CVSS score 7.5): Fixed cross-user response poisoning on generic HTTP upgrades.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73549",
+        "cvss": "5.3",
+        "severity": "",
+        "description": "CVE-2026-73549 : (CVSS score 5.3): Fixed abnormal termination for scoped IPv6 client addresses with HTTP/3.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73550",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73550 : (CVSS score 7.5): Fixed HTTP/2 memory exhaustion via discarded duplicate Host headers.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73551",
+        "cvss": "5.3",
+        "severity": "",
+        "description": "CVE-2026-73551 : (CVSS score 5.3): Fixed URL normalization of dot and dot-dot path segments with parameters.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73552",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73552 : (CVSS score 7.5): Fixed a bug where safe_regex failed open on non-UTF-8 header bytes in negative-match RBAC policies.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-73553",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-73553 : (CVSS score 7.5): Fixed an RBAC bypass via ignore_path_parameters_in_path_matching .",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.7/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.29.6",
+    "url": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.6/",
+    "cves": []
+  },
+  {
+    "version": "1.29.5",
+    "url": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+    "cves": [
+      {
+        "cve": "CVE-2026-47204",
+        "cvss": "6.5",
+        "severity": "",
+        "description": "CVE-2026-47204 : (CVSS score 6.5): Fixed a crash or use-after-free when gRPC stats filter performs stat tracking on a direct response route.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47205",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-47205 : (CVSS score 5.9): Fixed a use-after-free crash in the ext_authz filter when per-route service overrides are active and the downstream connection resets during an in-flight authorization check.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47207",
+        "cvss": "6.5",
+        "severity": "",
+        "description": "CVE-2026-47207 : (CVSS score 6.5): Fixed a bug where the ext_proc server sends unexpected ProcessingResponses to Envoy.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47220",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-47220 : (CVSS score 7.5): Fixed a crash bug in the %REQUESTED_SERVER_NAME% formatter where the host or original host is not set correctly but the formatter is configured to access the host value.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47221",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-47221 : (CVSS score 5.9): Fixed an issue when handling HTTP 303 internal redirects for body-less requests. The redirect handling code attempted to drain a request body buffer that was never allocated, causing a segmentation fault.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47692",
+        "cvss": "4.8",
+        "severity": "",
+        "description": "CVE-2026-47692 : (CVSS score 4.8): Fixed a bug where passthrough TLVs combined with added TLVs could exceed the maximum length, resulting in a mismatch between the size reported in the header and the number of bytes written. This could allow a smuggled request from the host writing the PROXY protocol header to the upstream host.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47775",
+        "cvss": "6.8",
+        "severity": "",
+        "description": "CVE-2026-47775 : (CVSS score 6.8): Addressed a padding oracle in the OAuth2 filter’s AES-256-CBC cookie decryption. The filter now supports AES-256-GCM encryption with a gcm. algorithm marker, which authenticates the ciphertext and removes the oracle.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47778",
+        "cvss": "4.4",
+        "severity": "",
+        "description": "CVE-2026-47778 : (CVSS score 4.4): Fixed an issue where Envoy could fail to validate the Subject Alternative Name (SAN) of a peer certificate if the SAN contained an embedded NUL byte. Previously, the SAN parsing was vulnerable to NUL byte truncation in some configurations, potentially leading to incorrect trust decisions.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48042",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-48042 : (CVSS score 7.5): Limited JSON nesting depth to 1000. The limit could be relaxed to 10K by setting the envoy.reloadable_features.limit_json_parser_nesting_depth to false .",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48044",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-48044 : (CVSS score 7.5): Fixed a memory exhaustion vulnerability in the Zstd decompressor where the MaxInflateRatio limit was only checked after each input slice was fully processed, allowing a maliciously crafted compressed payload to expand to hundreds of MB within a single process() call. The inflate ratio limit is now enforced inside the inner decompression loop, matching the gzip and brotli decompressors and aborting decompression as soon as the threshold is breached.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48090",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-48090 : (CVSS score 5.9): Fixed a bug where the asynchronous token change callback could be triggered after the filter had been torn down ( onDestroy() had been called), which could lead to accessing dangling pointers and result in UAF/crash.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48497",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-48497 : (CVSS score 5.9): Fixed sanity checking of the query name length to avoid abnormal process termination. Use ENVOY_BUG in case the sanity check fails.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48706",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-48706 : (CVSS score 5.9): Fixed a TcpStatsdSink buffer overflow issue with a large stats name.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48743",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-48743 : (CVSS score 7.5): Fixed HTTP/3 headers-only request and response content-length validation and reset stream if inconsistent. The change is guarded by runtime guard envoy.reloadable_features.quic_validate_headers_only_content_length .",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.5/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.29.4",
+    "url": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.4/",
+    "cves": [
+      {
+        "cve": "CVE-2026-47774",
+        "cvss": "7.5",
+        "severity": "High",
+        "description": "CVE-2026-47774 (CVSS score 7.5, High): An unauthenticated remote attacker can cause denial of service by exhausting memory in the Envoy process. Cookie header bytes are not fully accounted for during request header size validation, and HPACK header block limits are enforced on encoded bytes without a corresponding limit on total decoded header size, allowing attackers to trigger excessive memory consumption through specially crafted HTTP/2 requests.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.4/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.29.3",
+    "url": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.3/",
+    "cves": []
+  },
+  {
+    "version": "1.29.2",
+    "url": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.2/",
+    "cves": []
+  },
+  {
+    "version": "1.29.1",
+    "url": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.1/",
+    "cves": [
+      {
+        "cve": "CVE-2026-26308",
+        "cvss": "7.5",
+        "severity": "High",
+        "description": "CVE-2026-26308 (CVSS score 7.5, High): Fix multivalue header bypass in RBAC.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.1/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-26309",
+        "cvss": "5.3",
+        "severity": "Medium",
+        "description": "CVE-2026-26309 (CVSS score 5.3, Medium): JSON off-by-one write fix.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.1/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-26310",
+        "cvss": "5.9",
+        "severity": "Medium",
+        "description": "CVE-2026-26310 (CVSS score 5.9, Medium): Fix crash in getAddressWithPort() with scoped IPv6 address.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.1/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-26311",
+        "cvss": "5.9",
+        "severity": "Medium",
+        "description": "CVE-2026-26311 (CVSS score 5.9, Medium): HTTP decode methods blocked after downstream reset.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.1/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-26330",
+        "cvss": "5.3",
+        "severity": "Medium",
+        "description": "CVE-2026-26330 (CVSS score 5.3, Medium): Ratelimit response phase crash fix.",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.1/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-31837",
+        "cvss": "8.7",
+        "severity": "High",
+        "description": "CVE-2026-31837 / GHSA-v75c-crr9-733c : (CVSS score 8.7, High): JWKS Resolver Failure May Allow Authentication Bypass Using Known Default Keys. Reported by 1seal .",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.1/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-31838",
+        "cvss": "6.9",
+        "severity": "Medium",
+        "description": "CVE-2026-31838 / GHSA-974c-2wxh-g4ww : (CVSS score 6.9, Medium): Debug Endpoints Allow Cross-Namespace Proxy Data Access. Reported by 1seal .",
+        "source": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29.1/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.29.0",
+    "url": "https://istio.io/latest/news/releases/1.29.x/announcing-1.29/",
+    "cves": []
+  },
+  {
+    "version": "1.28.10",
+    "url": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.10/",
+    "cves": []
+  },
+  {
+    "version": "1.28.9",
+    "url": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+    "cves": [
+      {
+        "cve": "CVE-2026-47204",
+        "cvss": "6.5",
+        "severity": "",
+        "description": "CVE-2026-47204 : (CVSS score 6.5): Fixed a crash or use-after-free when gRPC stats filter performs stat tracking on a direct response route.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47205",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-47205 : (CVSS score 5.9): Fixed a use-after-free crash in the ext_authz filter when per-route service overrides are active and the downstream connection resets during an in-flight authorization check.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47207",
+        "cvss": "6.5",
+        "severity": "",
+        "description": "CVE-2026-47207 : (CVSS score 6.5): Fixed a bug where the ext_proc server sends unexpected ProcessingResponses to Envoy.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47220",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-47220 : (CVSS score 7.5): Fixed a crash bug in the %REQUESTED_SERVER_NAME% formatter where the host or original host is not set correctly but the formatter is configured to access the host value.",
+        "source": "https://istio.io/latest/news/security/istio-security-2026-005/",
+        "via_bulletin": "ISTIO-SECURITY-2026-005"
+      },
+      {
+        "cve": "CVE-2026-47221",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-47221 : (CVSS score 5.9): Fixed an issue when handling HTTP 303 internal redirects for body-less requests. The redirect handling code attempted to drain a request body buffer that was never allocated, causing a segmentation fault.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47692",
+        "cvss": "4.8",
+        "severity": "",
+        "description": "CVE-2026-47692 : (CVSS score 4.8): Fixed a bug where passthrough TLVs combined with added TLVs could exceed the maximum length, resulting in a mismatch between the size reported in the header and the number of bytes written. This could allow a smuggled request from the host writing the PROXY protocol header to the upstream host.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47775",
+        "cvss": "6.8",
+        "severity": "",
+        "description": "CVE-2026-47775 : (CVSS score 6.8): Addressed a padding oracle in the OAuth2 filter’s AES-256-CBC cookie decryption. The filter now supports AES-256-GCM encryption with a gcm. algorithm marker, which authenticates the ciphertext and removes the oracle.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-47778",
+        "cvss": "4.4",
+        "severity": "",
+        "description": "CVE-2026-47778 : (CVSS score 4.4): Fixed an issue where Envoy could fail to validate the Subject Alternative Name (SAN) of a peer certificate if the SAN contained an embedded NUL byte. Previously, the SAN parsing was vulnerable to NUL byte truncation in some configurations, potentially leading to incorrect trust decisions.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48042",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-48042 : (CVSS score 7.5): Limited JSON nesting depth to 1000. The limit could be relaxed to 10K by setting the envoy.reloadable_features.limit_json_parser_nesting_depth to false .",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48044",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-48044 : (CVSS score 7.5): Fixed a memory exhaustion vulnerability in the Zstd decompressor where the MaxInflateRatio limit was only checked after each input slice was fully processed, allowing a maliciously crafted compressed payload to expand to hundreds of MB within a single process() call. The inflate ratio limit is now enforced inside the inner decompression loop, matching the gzip and brotli decompressors and aborting decompression as soon as the threshold is breached.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48090",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-48090 : (CVSS score 5.9): Fixed a bug where the asynchronous token change callback could be triggered after the filter had been torn down ( onDestroy() had been called), which could lead to accessing dangling pointers and result in UAF/crash.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48497",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-48497 : (CVSS score 5.9): Fixed sanity checking of the query name length to avoid abnormal process termination. Use ENVOY_BUG in case the sanity check fails.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48706",
+        "cvss": "5.9",
+        "severity": "",
+        "description": "CVE-2026-48706 : (CVSS score 5.9): Fixed a TcpStatsdSink buffer overflow issue with a large stats name.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-48743",
+        "cvss": "7.5",
+        "severity": "",
+        "description": "CVE-2026-48743 : (CVSS score 7.5): Fixed HTTP/3 headers-only request and response content-length validation and reset stream if inconsistent. The change is guarded by runtime guard envoy.reloadable_features.quic_validate_headers_only_content_length .",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.9/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.28.8",
+    "url": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.8/",
+    "cves": [
+      {
+        "cve": "CVE-2026-47774",
+        "cvss": "7.5",
+        "severity": "High",
+        "description": "CVE-2026-47774 (CVSS score 7.5, High): An unauthenticated remote attacker can cause denial of service by exhausting memory in the Envoy process. Cookie header bytes are not fully accounted for during request header size validation, and HPACK header block limits are enforced on encoded bytes without a corresponding limit on total decoded header size, allowing attackers to trigger excessive memory consumption through specially crafted HTTP/2 requests.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.8/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.28.7",
+    "url": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.7/",
+    "cves": []
+  },
+  {
+    "version": "1.28.6",
+    "url": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.6/",
+    "cves": []
+  },
+  {
+    "version": "1.28.5",
+    "url": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.5/",
+    "cves": [
+      {
+        "cve": "CVE-2026-26308",
+        "cvss": "7.5",
+        "severity": "High",
+        "description": "CVE-2026-26308 (CVSS score 7.5, High): Fix multivalue header bypass in RBAC.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-26309",
+        "cvss": "5.3",
+        "severity": "Medium",
+        "description": "CVE-2026-26309 (CVSS score 5.3, Medium): JSON off-by-one write fix.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-26310",
+        "cvss": "5.9",
+        "severity": "Medium",
+        "description": "CVE-2026-26310 (CVSS score 5.9, Medium): Fix crash in getAddressWithPort() with scoped IPv6 address.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-26311",
+        "cvss": "5.9",
+        "severity": "Medium",
+        "description": "CVE-2026-26311 (CVSS score 5.9, Medium): HTTP decode methods blocked after downstream reset.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-26330",
+        "cvss": "5.3",
+        "severity": "Medium",
+        "description": "CVE-2026-26330 (CVSS score 5.3, Medium): Ratelimit response phase crash fix.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-31837",
+        "cvss": "8.7",
+        "severity": "High",
+        "description": "CVE-2026-31837 / GHSA-v75c-crr9-733c : (CVSS score 8.7, High): JWKS Resolver Failure May Allow Authentication Bypass Using Known Default Keys. Reported by 1seal .",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.5/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-31838",
+        "cvss": "6.9",
+        "severity": "Medium",
+        "description": "CVE-2026-31838 / GHSA-974c-2wxh-g4ww : (CVSS score 6.9, Medium): Debug Endpoints Allow Cross-Namespace Proxy Data Access. Reported by 1seal .",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.5/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.28.4",
+    "url": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.4/",
+    "cves": [
+      {
+        "cve": "CVE-2025-61732",
+        "cvss": "8.6",
+        "severity": "High",
+        "description": "CVE-2025-61732 (CVSS score 8.6, High): A discrepancy between how Go and C/C++ comments were parsed allowed for code smuggling into the resulting cgo binary.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.4/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2025-68121",
+        "cvss": "4.8",
+        "severity": "Moderate",
+        "description": "CVE-2025-68121 (CVSS score 4.8, Moderate): A flaw in crypto/tls session resumption allows resumed handshakes to succeed when they should fail if ClientCAs or RootCAs are mutated between the initial and resumed handshake. This can occur when using Config.Clone with mutations or Config.GetConfigForClient . As a result, clients may resume sessions with unintended servers, and servers may resume sessions with unintended clients.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.4/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.28.3",
+    "url": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.3/",
+    "cves": []
+  },
+  {
+    "version": "1.28.2",
+    "url": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.2/",
+    "cves": [
+      {
+        "cve": "CVE-2025-62408",
+        "cvss": "5.3",
+        "severity": "Moderate",
+        "description": "CVE-2025-62408 (CVSS score 5.3, Moderate): Use after free can crash Envoy due to malfunctioning or compromised DNS. This is a heap use-after-free vulnerability in the c-ares library that can be exploited by an attacker controlling the local DNS infrastructure to cause a Denial of Service (DoS) in Envoy.",
+        "source": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.2/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.28.1",
+    "url": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28.1/",
+    "cves": [
+      {
+        "cve": "CVE-2025-64527",
+        "cvss": "6.5",
+        "severity": "Medium",
+        "description": "CVE-2025-64527 : (CVSS score 6.5, Medium): Envoy crashes when JWT authentication is configured with the remote JWKS fetching.",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-003/",
+        "via_bulletin": "ISTIO-SECURITY-2025-003"
+      },
+      {
+        "cve": "CVE-2025-64763",
+        "cvss": "5.3",
+        "severity": "Medium",
+        "description": "CVE-2025-64763 : (CVSS score 5.3, Medium): Potential request smuggling from early data after the CONNECT upgrade",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-003/",
+        "via_bulletin": "ISTIO-SECURITY-2025-003"
+      },
+      {
+        "cve": "CVE-2025-66220",
+        "cvss": "8.1",
+        "severity": "High",
+        "description": "CVE-2025-66220 : (CVSS score 8.1, High): TLS certificate matcher for match_typed_subject_alt_names may incorrectly treat certificates with OTHERNAME SANs containing an embedded null byte as valid.",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-003/",
+        "via_bulletin": "ISTIO-SECURITY-2025-003"
+      }
+    ]
+  },
+  {
+    "version": "1.28.0",
+    "url": "https://istio.io/latest/news/releases/1.28.x/announcing-1.28/",
+    "cves": []
+  },
+  {
+    "version": "1.27.9",
+    "url": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.9/",
+    "cves": []
+  },
+  {
+    "version": "1.27.8",
+    "url": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.8/",
+    "cves": [
+      {
+        "cve": "CVE-2026-26308",
+        "cvss": "7.5",
+        "severity": "High",
+        "description": "CVE-2026-26308 (CVSS score 7.5, High): Fix multivalue header bypass in RBAC.",
+        "source": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.8/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-26309",
+        "cvss": "5.3",
+        "severity": "Medium",
+        "description": "CVE-2026-26309 (CVSS score 5.3, Medium): JSON off-by-one write fix.",
+        "source": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.8/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-26310",
+        "cvss": "5.9",
+        "severity": "Medium",
+        "description": "CVE-2026-26310 (CVSS score 5.9, Medium): Fix crash in getAddressWithPort() with scoped IPv6 address.",
+        "source": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.8/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-26311",
+        "cvss": "5.9",
+        "severity": "Medium",
+        "description": "CVE-2026-26311 (CVSS score 5.9, Medium): HTTP decode methods blocked after downstream reset.",
+        "source": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.8/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-26330",
+        "cvss": "5.3",
+        "severity": "Medium",
+        "description": "CVE-2026-26330 : (CVSS score 5.3, Medium): Fixed a bug in the gRPC rate limit client that could lead to potential use-after-free issues. Only affects Istio 1.28 and 1.29.",
+        "source": "https://istio.io/latest/news/security/istio-security-2026-001/",
+        "via_bulletin": "ISTIO-SECURITY-2026-001"
+      },
+      {
+        "cve": "CVE-2026-31837",
+        "cvss": "8.7",
+        "severity": "High",
+        "description": "CVE-2026-31837 / GHSA-v75c-crr9-733c : (CVSS score 8.7, High): JWKS Resolver Failure May Allow Authentication Bypass Using Known Default Keys. Reported by 1seal .",
+        "source": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.8/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2026-31838",
+        "cvss": "6.9",
+        "severity": "Medium",
+        "description": "CVE-2026-31838 / GHSA-974c-2wxh-g4ww : (CVSS score 6.9, Medium): Debug Endpoints Allow Cross-Namespace Proxy Data Access. Reported by 1seal .",
+        "source": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.8/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.27.7",
+    "url": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.7/",
+    "cves": [
+      {
+        "cve": "CVE-2025-61732",
+        "cvss": "8.6",
+        "severity": "High",
+        "description": "CVE-2025-61732 (CVSS score 8.6, High): A discrepancy between how Go and C/C++ comments were parsed allowed for code smuggling into the resulting cgo binary.",
+        "source": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.7/",
+        "via_bulletin": ""
+      },
+      {
+        "cve": "CVE-2025-68121",
+        "cvss": "4.8",
+        "severity": "Moderate",
+        "description": "CVE-2025-68121 (CVSS score 4.8, Moderate): A flaw in crypto/tls session resumption allows resumed handshakes to succeed when they should fail if ClientCAs or RootCAs are mutated between the initial and resumed handshake. This can occur when using Config.Clone with mutations or Config.GetConfigForClient . As a result, clients may resume sessions with unintended servers, and servers may resume sessions with unintended clients.",
+        "source": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.7/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.27.6",
+    "url": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.6/",
+    "cves": []
+  },
+  {
+    "version": "1.27.5",
+    "url": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.5/",
+    "cves": [
+      {
+        "cve": "CVE-2025-62408",
+        "cvss": "5.3",
+        "severity": "Moderate",
+        "description": "CVE-2025-62408 (CVSS score 5.3, Moderate): Use after free can crash Envoy due to malfunctioning or compromised DNS. This is a heap use-after-free vulnerability in the c-ares library that can be exploited by an attacker controlling the local DNS infrastructure to cause a Denial of Service (DoS) in Envoy.",
+        "source": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.5/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.27.4",
+    "url": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.4/",
+    "cves": [
+      {
+        "cve": "CVE-2025-64527",
+        "cvss": "6.5",
+        "severity": "Medium",
+        "description": "CVE-2025-64527 : (CVSS score 6.5, Medium): Envoy crashes when JWT authentication is configured with the remote JWKS fetching.",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-003/",
+        "via_bulletin": "ISTIO-SECURITY-2025-003"
+      },
+      {
+        "cve": "CVE-2025-64763",
+        "cvss": "5.3",
+        "severity": "Medium",
+        "description": "CVE-2025-64763 : (CVSS score 5.3, Medium): Potential request smuggling from early data after the CONNECT upgrade",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-003/",
+        "via_bulletin": "ISTIO-SECURITY-2025-003"
+      },
+      {
+        "cve": "CVE-2025-66220",
+        "cvss": "8.1",
+        "severity": "High",
+        "description": "CVE-2025-66220 : (CVSS score 8.1, High): TLS certificate matcher for match_typed_subject_alt_names may incorrectly treat certificates with OTHERNAME SANs containing an embedded null byte as valid.",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-003/",
+        "via_bulletin": "ISTIO-SECURITY-2025-003"
+      }
+    ]
+  },
+  {
+    "version": "1.27.3",
+    "url": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.3/",
+    "cves": [
+      {
+        "cve": "CVE-2025-54588",
+        "cvss": "",
+        "severity": "",
+        "description": "CVE(s) CVE-2025-55162 CVE-2025-54588",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-002/",
+        "via_bulletin": "ISTIO-SECURITY-2025-002"
+      },
+      {
+        "cve": "CVE-2025-55162",
+        "cvss": "",
+        "severity": "",
+        "description": "CVE(s) CVE-2025-55162 CVE-2025-54588",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-002/",
+        "via_bulletin": "ISTIO-SECURITY-2025-002"
+      },
+      {
+        "cve": "CVE-2025-62409",
+        "cvss": "6.6",
+        "severity": "Medium",
+        "description": "CVE-2025-62409 : (CVSS score 6.6, Medium): Large requests and responses can cause TCP connection pool crash.",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-002/",
+        "via_bulletin": "ISTIO-SECURITY-2025-002"
+      },
+      {
+        "cve": "CVE-2025-62504",
+        "cvss": "6.5",
+        "severity": "Medium",
+        "description": "CVE-2025-62504 : (CVSS score 6.5, Medium): Lua modified large enough response body will cause Envoy to crash.",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-002/",
+        "via_bulletin": "ISTIO-SECURITY-2025-002"
+      }
+    ]
+  },
+  {
+    "version": "1.27.2",
+    "url": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.2/",
+    "cves": []
+  },
+  {
+    "version": "1.27.1",
+    "url": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27.1/",
+    "cves": [
+      {
+        "cve": "CVE-2025-54588",
+        "cvss": "7.5",
+        "severity": "High",
+        "description": "CVE-2025-54588 : (CVSS score 7.5, High): Use after free in DNS cache",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-001/",
+        "via_bulletin": "ISTIO-SECURITY-2025-001"
+      },
+      {
+        "cve": "CVE-2025-55162",
+        "cvss": "6.3",
+        "severity": "Moderate",
+        "description": "CVE-2025-55162 : (CVSS score 6.3, Moderate): OAuth2 Filter Signout route will not clear cookies because of missing “secure;” flag",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-001/",
+        "via_bulletin": "ISTIO-SECURITY-2025-001"
+      }
+    ]
+  },
+  {
+    "version": "1.27.0",
+    "url": "https://istio.io/latest/news/releases/1.27.x/announcing-1.27/",
+    "cves": []
+  },
+  {
+    "version": "1.26.8",
+    "url": "https://istio.io/latest/news/releases/1.26.x/announcing-1.26.8/",
+    "cves": [
+      {
+        "cve": "CVE-2025-62408",
+        "cvss": "5.3",
+        "severity": "Moderate",
+        "description": "CVE-2025-62408 (CVSS score 5.3, Moderate): Use after free can crash Envoy due to malfunctioning or compromised DNS. This is a heap use-after-free vulnerability in the c-ares library that can be exploited by an attacker controlling the local DNS infrastructure to cause a Denial of Service (DoS) in Envoy.",
+        "source": "https://istio.io/latest/news/releases/1.26.x/announcing-1.26.8/",
+        "via_bulletin": ""
+      }
+    ]
+  },
+  {
+    "version": "1.26.7",
+    "url": "https://istio.io/latest/news/releases/1.26.x/announcing-1.26.7/",
+    "cves": [
+      {
+        "cve": "CVE-2025-64527",
+        "cvss": "6.5",
+        "severity": "Medium",
+        "description": "CVE-2025-64527 : (CVSS score 6.5, Medium): Envoy crashes when JWT authentication is configured with the remote JWKS fetching.",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-003/",
+        "via_bulletin": "ISTIO-SECURITY-2025-003"
+      },
+      {
+        "cve": "CVE-2025-64763",
+        "cvss": "5.3",
+        "severity": "Medium",
+        "description": "CVE-2025-64763 : (CVSS score 5.3, Medium): Potential request smuggling from early data after the CONNECT upgrade",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-003/",
+        "via_bulletin": "ISTIO-SECURITY-2025-003"
+      },
+      {
+        "cve": "CVE-2025-66220",
+        "cvss": "8.1",
+        "severity": "High",
+        "description": "CVE-2025-66220 : (CVSS score 8.1, High): TLS certificate matcher for match_typed_subject_alt_names may incorrectly treat certificates with OTHERNAME SANs containing an embedded null byte as valid.",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-003/",
+        "via_bulletin": "ISTIO-SECURITY-2025-003"
+      }
+    ]
+  },
+  {
+    "version": "1.26.6",
+    "url": "https://istio.io/latest/news/releases/1.26.x/announcing-1.26.6/",
+    "cves": [
+      {
+        "cve": "CVE-2025-54588",
+        "cvss": "",
+        "severity": "",
+        "description": "CVE(s) CVE-2025-55162 CVE-2025-54588",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-002/",
+        "via_bulletin": "ISTIO-SECURITY-2025-002"
+      },
+      {
+        "cve": "CVE-2025-55162",
+        "cvss": "",
+        "severity": "",
+        "description": "CVE(s) CVE-2025-55162 CVE-2025-54588",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-002/",
+        "via_bulletin": "ISTIO-SECURITY-2025-002"
+      },
+      {
+        "cve": "CVE-2025-62409",
+        "cvss": "6.6",
+        "severity": "Medium",
+        "description": "CVE-2025-62409 : (CVSS score 6.6, Medium): Large requests and responses can cause TCP connection pool crash.",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-002/",
+        "via_bulletin": "ISTIO-SECURITY-2025-002"
+      },
+      {
+        "cve": "CVE-2025-62504",
+        "cvss": "6.5",
+        "severity": "Medium",
+        "description": "CVE-2025-62504 : (CVSS score 6.5, Medium): Lua modified large enough response body will cause Envoy to crash.",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-002/",
+        "via_bulletin": "ISTIO-SECURITY-2025-002"
+      }
+    ]
+  },
+  {
+    "version": "1.26.5",
+    "url": "https://istio.io/latest/news/releases/1.26.x/announcing-1.26.5/",
+    "cves": []
+  },
+  {
+    "version": "1.26.4",
+    "url": "https://istio.io/latest/news/releases/1.26.x/announcing-1.26.4/",
+    "cves": [
+      {
+        "cve": "CVE-2025-54588",
+        "cvss": "7.5",
+        "severity": "High",
+        "description": "CVE-2025-54588 : (CVSS score 7.5, High): Use after free in DNS cache",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-001/",
+        "via_bulletin": "ISTIO-SECURITY-2025-001"
+      },
+      {
+        "cve": "CVE-2025-55162",
+        "cvss": "6.3",
+        "severity": "Moderate",
+        "description": "CVE-2025-55162 : (CVSS score 6.3, Moderate): OAuth2 Filter Signout route will not clear cookies because of missing “secure;” flag",
+        "source": "https://istio.io/latest/news/security/istio-security-2025-001/",
+        "via_bulletin": "ISTIO-SECURITY-2025-001"
+      }
+    ]
+  },
+  {
+    "version": "1.26.3",
+    "url": "https://istio.io/latest/news/releases/1.26.x/announcing-1.26.3/",
+    "cves": []
+  },
+  {
+    "version": "1.26.2",
+    "url": "https://istio.io/latest/news/releases/1.26.x/announcing-1.26.2/",
+    "cves": []
+  },
+  {
+    "version": "1.26.1",
+    "url": "https://istio.io/latest/news/releases/1.26.x/announcing-1.26.1/",
+    "cves": []
+  },
+  {
+    "version": "1.26.0",
+    "url": "https://istio.io/latest/news/releases/1.26.x/announcing-1.26/",
+    "cves": []
+  }
+]
