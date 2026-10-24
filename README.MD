@@ -52,7 +52,10 @@ Scannt ein komplettes Git-Repository nach externen Referenzen, die in Produktion
 - Binäre Dateien (Null-Byte-Erkennung) und Binär-Extensions (`.png`, `.jar`, `.lock` usw.) werden übersprungen
 - **TLD-Allowlist**: Hostnamen werden nur gemeldet, wenn ihre TLD in einer kuratierten Liste bekannter TLDs steht — Python-Methodenaufrufe (`os.path`, `subprocess.run`) oder Java-Paketnamen werden dadurch nicht fälschlicherweise erkannt
 - **Intelligente Ausschlusslogik**: Import-Statements (`from textual.app import`), Kubernetes-API-Groups (`rbac.authorization.k8s.io/`), YAML-Listenelemente und Dateipfad-Komponenten werden nicht als Hostnamen gewertet
+- **Versionsnummern**: `version = "1.2.3.4"`, `pkg==1.2.3.4` oder längere Punktketten (`25.0.5.0.9`) werden nicht als IP gemeldet
 - **Whitelist-System** (`whitelist.json`): IP-Ranges (CIDR), Hostnamen (Wildcard `*.domain.com`) und E-Mail-Domains können dauerhaft erlaubt werden — die Datei wird automatisch aus dem gescannten Repository geladen
+- **Inline-Ignore**: `scan:ignore` in einer Zeile (meist im Kommentar) unterdrückt alle Befunde dieser Zeile
+- **SARIF-Ausgabe** (`--format sarif`) für GitHub Code Scanning und GitLab
 
 Ausführliche Dokumentation: [`scan-external-urls.md`](scan-external-urls.md)
 
@@ -67,6 +70,9 @@ python3 scan-external-urls.py /pfad/zum/repo
 
 # Nur URLs und E-Mails, JSON-Ausgabe für CI
 python3 scan-external-urls.py --categories url email --format json
+
+# SARIF für GitHub Code Scanning / GitLab
+python3 scan-external-urls.py --format sarif > external-urls.sarif
 
 # Testdateien überspringen, interne Domain erlauben
 python3 scan-external-urls.py --skip-tests --allow "mycompany\\.com"
@@ -451,6 +457,7 @@ Zentrale Konfigurationsdatei für `scan-external-urls.py`. Wird automatisch gela
 Die mitgelieferte `whitelist.json` enthält:
 
 - Private IP-Ranges nach RFC 1918 (10.x, 172.16.x, 192.168.x) sowie Loopback
+- IPv6-Loopback (`::1`) und Link-Local (`fe80::/10`)
 - Standard-Infrastruktur-Hosts (GitHub, Docker, Helm, k3s, Proxmox, HashiCorp usw.)
 - Projektspezifische lokale Adressen
 
