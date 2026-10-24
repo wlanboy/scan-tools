@@ -80,9 +80,69 @@ Wenn brotli4j drin ist, auf 1.24.0 heben (siehe oben). Wer Brotli gar nicht brau
 Auch reine Java-Dienste laufen selten allein:
 
 - Base-Images neu bauen und das Betriebssystem aktualisieren (`apt-get upgrade`), weil `libbrotli` und `curl` aus dem OS kommen.
-- Envoy auf 1.37.8, 1.38.6, 1.39.3 oder 1.40.0 aktualisieren.
-- Istio auf 1.29.9, 1.30.6 oder 1.31.2 aktualisieren. 1.29 ist end of life.
+- Service Mesh prüfen: Envoy und Istio sind betroffen (siehe eigenen Abschnitt [Istio und Envoy](#istio-und-envoy)).
 - Node- oder Python-Tools im selben Image (Build-Steps, Sidecars) mit aktualisieren.
+
+## Istio und Envoy
+
+### Warum beide betroffen sind
+
+Envoy ist ein in C++ geschriebener Proxy und linkt die native Google-Brotli-Bibliothek (`decode.c`) statisch ins eigene Binary. Der verwundbare Decoder steckt damit fest im Envoy-Binary jeder betroffenen Version. Das ist dieselbe Ursache wie bei Node und Python, nur in einem anderen Wirt.
+
+Istios Data Plane *ist* Envoy: Jeder Sidecar (Container `istio-proxy`) und jedes Gateway (Ingress/Egress) läuft als Envoy-Prozess. Die Bibliothek liegt also in jedem Proxy-Pod.
+
+Entscheidend ist aber der Unterschied zwischen „Code ist vorhanden" und „Code wird erreicht":
+
+- Der Overflow greift nur, wenn Envoy tatsächlich Brotli **entpackt**. Das macht der HTTP-Filter `envoy.filters.http.decompressor` mit der Brotli-Extension (`envoy.extensions.compression.brotli.decompressor.v3.Brotli`).
+- In Istio ist das **nicht Default**. Es wird typischerweise per `EnvoyFilter` eingeschaltet. Ohne eine solche Konfiguration ist der verwundbare Pfad nicht erreichbar.
+- Reines ausgehendes **Komprimieren** (`compressor`) ruft den Decoder nicht auf und ist nicht der verwundbare Pfad.
+- Entpackt wird: eingehende Request-Bodies mit `Content-Encoding: br` und Antworten von Upstreams. Beides erreicht ein nicht authentifizierter Angreifer.
+
+Kurz: Binary vorhanden = potenziell betroffen. Decompressor konfiguriert = tatsächlich exponiert.
+
+### Prüfen, ob man betroffen ist
+
+Zwei Fragen, zwei Checks. Da viele Istio-Versionen im Einsatz sind, zuerst den Überblick über das ganze Mesh verschaffen.
+
+**1. Welche Istio-/Envoy-Versionen laufen wo?**
+
+```bash
+# Control-Plane- und Data-Plane-Versionen im Mesh
+istioctl version
+
+# Jeder Proxy mit seiner Istio-Version (zeigt alle Sidecars + Gateways)
+istioctl proxy-status
+
+# Envoy-Version eines konkreten Proxys
+istioctl proxy-config bootstrap <pod>.<namespace> -o json | grep -i build_version
+# oder direkt im Pod
+kubectl exec <pod> -c istio-proxy -- pilot-agent request GET server_info | jq -r .version
+```
+
+Betroffene Envoy-Versionen: 1.39.2, 1.38.5, 1.37.7, 1.36.11 und jeweils älter. Gefixt in 1.40.0, 1.39.3, 1.38.6, 1.37.8, 1.36.12 (1.36 ist unsupported).
+
+**2. Ist Brotli-Decompression überhaupt konfiguriert?**
+
+```bash
+# EnvoyFilter, die Brotli einschalten (clusterweit)
+kubectl get envoyfilter -A -o yaml | grep -i brotli
+
+# Laufende Konfiguration eines Proxys durchsuchen
+istioctl proxy-config all <pod>.<namespace> -o json | grep -i brotli
+```
+
+Auf die Treffer achten:
+
+- `...brotli.decompressor...` → verwundbarer Pfad aktiv → **betroffen**.
+- Nur `...brotli.compressor...` oder gar kein Treffer → über diese Lücke nicht exponiert.
+
+Gateways nicht vergessen: dieselben Checks gegen die Ingress-/Egress-Gateway-Pods laufen lassen.
+
+### Was tun
+
+- Istio auf 1.29.9, 1.30.6 oder 1.31.2 aktualisieren. 1.29 ist end of life, also besser auf eine unterstützte Linie wechseln. Der Fix kommt über den Envoy-Bump, ein Istio-Upgrade reicht, Envoy wird nicht separat installiert.
+- Wo ein Decompressor konfiguriert ist und das Upgrade nicht sofort geht: als Übergangslösung den `EnvoyFilter` mit der Brotli-Decompression entfernen, oder eingehend am Gateway Requests mit `Content-Encoding: br` ablehnen (siehe [Übergangslösung am Proxy](#übergangslösung-am-proxy)).
+- Wo nichts entpackt wird, ist man nicht exponiert. Trotzdem beim nächsten Turnus patchen, weil das verwundbare Binary vorhanden bleibt und eine spätere Konfigurationsänderung den Pfad aktivieren würde.
 
 ## Node.js
 
@@ -148,3 +208,6 @@ Apache `mod_brotli` entpackt kein Brotli. Nginx entpackt standardmäßig auch ni
 - [Netty 4.1: HttpContentDecompressor](https://netty.io/4.1/xref/io/netty/handler/codec/http/HttpContentDecompressor.html)
 - [Jetty 12.1: BrotliCompression](https://javadoc.jetty.org/jetty-12.1/org/eclipse/jetty/compression/brotli/BrotliCompression.html)
 - [Maven: jetty-compression-brotli 12.1.1](https://mvnrepository.com/artifact/org.eclipse.jetty.compression/jetty-compression-brotli/12.1.1)
+- [Envoy Security Advisory: Out-of-Bounds Write in Brotli Decompressor (GHSA-3wvj-j6qm-62mr)](https://github.com/envoyproxy/envoy/security/advisories/GHSA-3wvj-j6qm-62mr)
+- [Istio: Announcing Istio 1.30.6](https://istio.io/latest/news/releases/1.30.x/announcing-1.30.6/)
+- [Istio Security Bulletin ISTIO-SECURITY-2026-007 (PR)](https://github.com/istio/istio.io/pull/17737)
