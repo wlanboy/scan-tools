@@ -144,6 +144,47 @@ Gateways nicht vergessen: dieselben Checks gegen die Ingress-/Egress-Gateway-Pod
 - Wo ein Decompressor konfiguriert ist und das Upgrade nicht sofort geht: als Übergangslösung den `EnvoyFilter` mit der Brotli-Decompression entfernen, oder eingehend am Gateway Requests mit `Content-Encoding: br` ablehnen (siehe [Übergangslösung am Proxy](#übergangslösung-am-proxy)).
 - Wo nichts entpackt wird, ist man nicht exponiert. Trotzdem beim nächsten Turnus patchen, weil das verwundbare Binary vorhanden bleibt und eine spätere Konfigurationsänderung den Pfad aktivieren würde.
 
+### Kann man Brotli in Istio deaktivieren?
+
+Einen globalen „Brotli aus"-Schalter gibt es nicht. Die Brotli-Bibliothek ist fest ins Envoy-Binary kompiliert; rausbekommt man sie nur per Envoy-Rebuild, also praktisch per Istio-Upgrade. Abschalten lässt sich nur der Pfad, der sie erreicht:
+
+- **Default ist bereits „aus".** Istio entpackt Brotli nicht von sich aus. Wenn der Check oben keinen `decompressor` findet, ist nichts zu deaktivieren.
+- **Falls ein Decompressor konfiguriert ist**, den auslösenden `EnvoyFilter` entfernen (`kubectl delete envoyfilter …`) oder die Brotli-Decompression darin herausnehmen. Envoy fällt dann auf gzip/deflate zurück.
+
+Als zusätzliche Absicherung eingehend am Ingress-Gateway `Content-Encoding: br` hart ablehnen, unabhängig von sonstiger Konfiguration:
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: reject-brotli
+  namespace: istio-system
+spec:
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.lua
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+          inlineCode: |
+            function envoy_on_request(handle)
+              local ce = handle:headers():get("content-encoding")
+              if ce and string.find(string.lower(ce), "br", 1, true) then
+                handle:respond({[":status"] = "415"}, "brotli not accepted")
+              end
+            end
+```
+
+Das deckt nur die eingehende Richtung ab. Antworten von Upstreams werden ohnehin nur dann entpackt, wenn dafür ein Response-Decompressor konfiguriert ist — den gegebenenfalls genauso entfernen. Für Sidecars statt des Gateways `context: SIDECAR_INBOUND` verwenden. Das bleibt eine Übergangslösung; der saubere Fix ist das Istio-Upgrade.
+
 ## Node.js
 
 Node.js bündelt Brotli direkt. Betroffen sind jedes eingebaute `fetch()`, `zlib.brotliDecompress*`, `body-parser` und damit Express. Es gibt keinen Konfigurationsschalter, nur das Update.
