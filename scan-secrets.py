@@ -41,8 +41,9 @@ _PLACEHOLDER_WHOLE_RE = re.compile(
 # Placeholder wording that can appear anywhere in the value, e.g.
 # "your-api-key-here" or "REPLACE_WITH_YOUR_TOKEN".
 _PLACEHOLDER_WORD_RE = re.compile(
-    r'your[-_ ]|to.?do|change.?me|example|placeholder|fake|dummy'
-    r'|\btest\b|\bsample\b|\binsert\b|n/?a\b|\bundefined\b|\bnull\b|\bnone\b'
+    r'your[-_ ]|(?<![a-z0-9])to.?do|change.?me|example|placeholder|fake|dummy'
+    r'|\btest\b|\bsample\b|\binsert\b|(?<![a-z0-9])n/?a(?![a-z0-9])'
+    r'|\bundefined\b|\bnull\b|\bnone\b'
     r'|\bempty\b|\bmissing\b|replace|edit.?this'
     r'|\bpassword\b|\bpasswd\b|\bsecret\b|\btoken\b|\bapikey\b|\bapi.?key\b',  # bare field names
     re.IGNORECASE,
@@ -60,11 +61,48 @@ def is_placeholder(value):
     return len(set(v)) == 1
 
 
+# Unquoted values that are code, not literals: password = os.environ["PW"],
+# getpass.getpass(), config.get("pw") or a type annotation (password: string;).
+_CODE_REF_RE = re.compile(
+    r'^(?:'
+    r'(?:os|process|self|this|settings|config|cfg|conf|env|args|options|opts'
+    r'|params|props|request|req|ctx|context)(?:\.[\w$]+)+'  # attribute access
+    r'|[A-Za-z_$][\w$.]*\(.*'                               # function call
+    r'|(?:str|string|bytes|secretstr|char)\??'              # type annotation
+    r')[;,).]*$',
+    re.IGNORECASE,
+)
+
+
+def is_code_reference(value):
+    """Return True if an unquoted value is a variable, call or type, not a secret."""
+    return bool(_CODE_REF_RE.match(value.strip()))
+
+
 # ---------------------------------------------------------------------------
 # Credential patterns
 # Each entry: (category, human_label, compiled_regex)
 # Group 1 (if present) captures the secret value used for placeholder checks.
+# Patterns built with _value() capture it in the named group dq, sq or raw.
 # ---------------------------------------------------------------------------
+
+# Separator between key and value. The optional quote lets JSON and dict
+# literals ("password": "...") match; := and => cover Go, PHP and Ruby.
+_ASSIGN = r'["\']?\s*(?::=|=>|[=:])\s*'
+
+
+def _value(min_len):
+    """Regex for a value after _ASSIGN: quoted, or bare up to a delimiter.
+
+    Quoted values may contain '#', ',' or brackets; a bare value stops there
+    because '#' usually starts a comment. Neither may contain whitespace.
+    """
+    return (
+        rf'(?:"(?P<dq>[^"\s]{{{min_len},}})"'
+        rf"|'(?P<sq>[^'\s]{{{min_len},}})'"
+        rf'|(?P<raw>[^\s"\'#\[\]{{}},]{{{min_len},}}))'
+    )
+
 
 PATTERNS = [
     (
@@ -95,7 +133,7 @@ PATTERNS = [
         'basic_auth_header',
         'Basic Auth Header',
         re.compile(
-            r'(?:Authorization|authorization)\s*[=:]\s*["\']?\s*'
+            r'(?:Authorization|authorization)' + _ASSIGN + r'["\']?\s*'
             r'Basic\s+([A-Za-z0-9+/]{8,}={0,2})',
             re.IGNORECASE,
         ),
@@ -104,7 +142,7 @@ PATTERNS = [
         'bearer_token',
         'Bearer Token',
         re.compile(
-            r'(?:Authorization|authorization)\s*[=:]\s*["\']?\s*'
+            r'(?:Authorization|authorization)' + _ASSIGN + r'["\']?\s*'
             r'Bearer\s+([A-Za-z0-9\-._~+/]{20,})',
             re.IGNORECASE,
         ),
@@ -114,7 +152,7 @@ PATTERNS = [
         'OAuth Token',
         re.compile(
             r'(?:oauth_token|access_token|oauth_access_token|'
-            r'refresh_token|id_token)\s*[=:]\s*["\']?([^\s"\'#\[\]{},]{10,})["\']?',
+            r'refresh_token|id_token)' + _ASSIGN + _value(10),
             re.IGNORECASE,
         ),
     ),
@@ -123,7 +161,7 @@ PATTERNS = [
         'OAuth Secret',
         re.compile(
             r'(?:client_secret|clientSecret|oauth_secret|consumer_secret|'
-            r'app_secret|api_secret|token_secret)\s*[=:]\s*["\']?([^\s"\'#\[\]{},]{8,})["\']?',
+            r'app_secret|api_secret|token_secret)' + _ASSIGN + _value(8),
             re.IGNORECASE,
         ),
     ),
@@ -131,8 +169,8 @@ PATTERNS = [
         'password',
         'Password',
         re.compile(
-            r'(?<![a-zA-Z])(?:password|passwd|pwd)'
-            r'\s*[=:]\s*["\']?([^\s"\'#\[\]{},]{4,})["\']?',
+            # no leading '/': "/etc/passwd: root" is a path, not a key
+            r'(?<![a-zA-Z/])(?:password|passwd|pwd)' + _ASSIGN + _value(4),
             re.IGNORECASE,
         ),
     ),
@@ -142,7 +180,7 @@ PATTERNS = [
         re.compile(
             r'(?<![a-zA-Z])(?:secret|secret_key|credential|auth_key|'
             r'auth_token|session_key|signing_key|encryption_key|hmac_key)'
-            r'\s*[=:]\s*["\']?([^\s"\'#\[\]{},]{8,})["\']?',
+            + _ASSIGN + _value(8),
             re.IGNORECASE,
         ),
     ),
@@ -151,7 +189,7 @@ PATTERNS = [
         'API Key',
         re.compile(
             r'(?<![a-zA-Z])(?:api[_.\-]?key|apikey)'
-            r'\s*[=:]\s*["\']?([A-Za-z0-9\-._]{16,})["\']?',
+            + _ASSIGN + r'["\']?([A-Za-z0-9\-._]{16,})["\']?',
             re.IGNORECASE,
         ),
     ),
@@ -166,7 +204,7 @@ PATTERNS = [
             r'|ARTIFACTORY[_.\-]?(?:API[_.\-]?KEY|TOKEN|PASSWORD|API[_.\-]?TOKEN)'
             r'|JFROG[_.\-]?(?:TOKEN|API[_.\-]?KEY|PASSWORD)'
             r'|jfrog[_.\-]?(?:token|api[_.\-]?key|password))'
-            r'\s*[=:]\s*["\']?([A-Za-z0-9\-._]{20,})["\']?',
+            + _ASSIGN + r'["\']?([A-Za-z0-9\-._]{20,})["\']?',
             re.IGNORECASE,
         ),
     ),
@@ -184,7 +222,7 @@ PATTERNS = [
             r'|access[_.\-]?token|pat)'
             r'|BITBUCKET[_.\-]?(?:TOKEN|APP[_.\-]?PASSWORD|API[_.\-]?KEY'
             r'|ACCESS[_.\-]?TOKEN|PAT))'
-            r'\s*[=:]\s*["\']?([A-Za-z0-9\-._]{16,})["\']?',
+            + _ASSIGN + r'["\']?([A-Za-z0-9\-._]{16,})["\']?',
             re.IGNORECASE,
         ),
     ),
@@ -212,7 +250,7 @@ PATTERNS = [
             # recognizable variable name (base64-alphabet, 40 chars)
             r'(?:aws[_.\-]?secret[_.\-]?access[_.\-]?key|aws[_.\-]?secret[_.\-]?key'
             r'|AWS[_.\-]?SECRET[_.\-]?ACCESS[_.\-]?KEY|AWS[_.\-]?SECRET[_.\-]?KEY)'
-            r'\s*[=:]\s*["\']?([A-Za-z0-9/+=]{40})["\']?',
+            + _ASSIGN + r'["\']?([A-Za-z0-9/+=]{40})["\']?',
             re.IGNORECASE,
         ),
     ),
@@ -233,6 +271,11 @@ CATEGORY_ORDER = [p[0] for p in PATTERNS]
 SECRET_GROUP_OVERRIDES = {
     'basic_auth_url': 2,  # group 1 is the username, group 2 is the password
 }
+
+# Broad keyword patterns that also fire inside more specific key names, e.g.
+# "client_secret" (oauth_secret) or "BITBUCKET_APP_PASSWORD" (bitbucket_token).
+# They are dropped when a specific pattern matched the same text.
+GENERIC_CATEGORIES = {'password', 'generic_secret', 'api_key'}
 
 
 # ---------------------------------------------------------------------------
@@ -261,7 +304,10 @@ def is_binary(path):
         return True
 
 
-def is_test_file(path):
+def is_test_file(rel_path):
+    # Leading separator so a top-level test/ directory matches the markers;
+    # the absolute path is not used, or a repo under ~/test/ would be all tests.
+    path = os.sep + rel_path
     lower = path.lower()
     basename = os.path.basename(lower)
     basename_orig = os.path.basename(path)
@@ -302,21 +348,25 @@ def matches_any(value, patterns):
 # ---------------------------------------------------------------------------
 
 def get_tracked_files(repo_path):
-    cmd = ['git', '-C', repo_path, 'ls-files',
+    # -z: without it git quotes non-ASCII names ("zug\303\244nge.yml").
+    cmd = ['git', '-C', repo_path, 'ls-files', '-z',
            '--cached', '--others', '--exclude-standard']
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, errors='replace', check=True,
-        )
+        result = subprocess.run(cmd, capture_output=True, check=True)
     except subprocess.CalledProcessError as exc:
-        raise RuntimeError(f'git ls-files failed: {exc.stderr or exc}')
-    if result.stderr.strip():
-        print(f'WARNING: git ls-files: {result.stderr.strip()}', file=sys.stderr)
-    return [
-        os.path.join(repo_path, f)
-        for f in result.stdout.splitlines()
-        if f.strip()
-    ]
+        stderr = exc.stderr.decode(errors='replace').strip()
+        raise RuntimeError(f'git ls-files failed: {stderr or exc}')
+    stderr = result.stderr.decode(errors='replace').strip()
+    if stderr:
+        print(f'WARNING: git ls-files: {stderr}', file=sys.stderr)
+    paths = dict.fromkeys(
+        os.path.join(repo_path, os.fsdecode(f))
+        for f in result.stdout.split(b'\0')
+        if f
+    )
+    # --cached also lists files deleted from the work tree and submodule
+    # directories; symlinks may point outside the repo. Keep regular files.
+    return [p for p in paths if os.path.isfile(p) and not os.path.islink(p)]
 
 
 # ---------------------------------------------------------------------------
@@ -366,23 +416,39 @@ class Finding:
         return asdict(self)
 
 
+def _secret_of(category, m):
+    """Return (secret, is_bare) for match m; is_bare means an unquoted _value()."""
+    named = m.groupdict()
+    if named:
+        return named['dq'] or named['sq'] or named['raw'], named['raw'] is not None
+    group_idx = SECRET_GROUP_OVERRIDES.get(category, 1)
+    if m.lastindex and m.lastindex >= group_idx:
+        return m.group(group_idx), False
+    return m.group(0), False
+
+
 def scan_line(line_text, options):
     """Yield (category, label, matched_text) for each finding on this line."""
+    hits = []
     for category, label, pattern in PATTERNS:
         if options.categories is not None and category not in options.categories:
             continue
         for m in pattern.finditer(line_text):
             matched = m.group(0)
-            group_idx = SECRET_GROUP_OVERRIDES.get(category, 1)
-            if m.lastindex and m.lastindex >= group_idx:
-                secret = m.group(group_idx)
-            else:
-                secret = matched
-            if is_placeholder(secret):
+            secret, bare = _secret_of(category, m)
+            if is_placeholder(secret) or (bare and is_code_reference(secret)):
                 continue
             if matches_any(matched, options.allow_patterns):
                 continue
-            yield (category, label, matched)
+            hits.append((category, label, m.span(), matched))
+
+    specific = [span for cat, _, span, _ in hits if cat not in GENERIC_CATEGORIES]
+    for category, label, (start, end), matched in hits:
+        if category in GENERIC_CATEGORIES and any(
+            s < end and start < e for s, e in specific
+        ):
+            continue
+        yield (category, label, matched)
 
 
 def scan_file(path, repo_path, options):
@@ -391,10 +457,10 @@ def scan_file(path, repo_path, options):
     if get_extension(path) in ALWAYS_SKIP_EXTENSIONS:
         return findings
 
-    if options.skip_tests and is_test_file(path):
+    rel_path = os.path.relpath(path, repo_path)
+    if options.skip_tests and is_test_file(rel_path):
         return findings
 
-    rel_path = os.path.relpath(path, repo_path)
     if matches_any(rel_path, options.skip_patterns):
         return findings
 
@@ -591,12 +657,12 @@ def load_whitelist(path):
             data = json.load(fh)
     except ValueError as exc:
         raise ValueError(f'Invalid JSON in whitelist "{path}": {exc}')
-    if isinstance(data, list):
-        return data
     if isinstance(data, dict) and 'entries' in data:
-        return data['entries']
+        data = data['entries']
+    if isinstance(data, list) and all(isinstance(entry, dict) for entry in data):
+        return data
     raise ValueError(
-        'Whitelist must be a JSON array or an object with an "entries" key'
+        'Whitelist must be a JSON array of objects or an object with an "entries" key'
     )
 
 
@@ -631,7 +697,7 @@ def main():
     if args.allow_file:
         try:
             allow_patterns.extend(load_allow_file(args.allow_file))
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             print(f'ERROR: Cannot read allow-file: {exc}',
                   file=sys.stderr)
             return 2
