@@ -54,6 +54,7 @@ load_allowlist_file    = _mod.load_allowlist_file
 load_whitelist_file    = _mod.load_whitelist_file
 parse_ip_networks      = _mod.parse_ip_networks
 is_repo_root           = _mod.is_repo_root
+build_sarif_report     = _mod.build_sarif_report
 ip_network             = _mod.ipaddress.ip_network
 
 
@@ -430,6 +431,54 @@ class TestDetectIps(unittest.TestCase):
         values = _values_for("host = 192.168.1.1", Category.IP, ignore_all_ips=True)
         self.assertEqual(values, [])
 
+    def test_version_numbers_not_reported_as_ip(self):
+        """
+        Ziel: Vierteilige Versionsnummern mit eindeutigem Kontext sollen nicht als
+              IP gemeldet werden.
+        Eingabe: Version-Schlüsselwörter (auch mit Präfix und Anführungszeichen),
+                 Pin-Operatoren aus pip/npm sowie längere Punktketten (OIDs).
+        Erwartung: Keine Treffer in allen Zeilen.
+        """
+        lines = [
+            'version = "1.2.3.4"',
+            '"version": "1.2.3.4",',
+            "APP_VERSION=1.2.3.4",
+            "Version 7.1.1.6",
+            "brotlicffi==1.2.1.0",
+            "pkg>=1.2.3.4",
+            '"lib": "^1.2.3.4"',
+            "oid = 1.3.6.1.4.1.2021",
+            "build 1.2.3.4.5",
+        ]
+        for line in lines:
+            self.assertEqual(_values_for(line, Category.IP), [], line)
+
+    def test_ip_with_similar_context_still_reported(self):
+        """
+        Ziel: Die Versions-Heuristik darf echte IPs nicht verschlucken.
+        Eingabe: 'server = 10.0.0.1' ('ver' als Wortende), ein Vergleich mit
+                 String-Literal, ein Satzende nach der IP und 'user@host'-Notation.
+        Erwartung: Die IP wird jeweils gemeldet.
+        """
+        lines = [
+            "server = 10.0.0.1",
+            'if ip == "10.0.0.1":',
+            "Gateway ist 10.0.0.1.",
+            "ssh root@10.0.0.1",
+        ]
+        for line in lines:
+            self.assertEqual(_values_for(line, Category.IP), ["10.0.0.1"], line)
+
+    def test_bare_double_colon_not_reported(self):
+        """
+        Ziel: Ein alleinstehendes '::' (Regex-Gruppe '(?::', C++-Scope) soll nicht
+              als IPv6-Adresse gemeldet werden, '::1' aber weiterhin.
+        Eingabe: r"(?::[a-f]{0,4})" und 'bind = ::1'.
+        Erwartung: Erste Zeile ohne Treffer, zweite mit '::1'.
+        """
+        self.assertEqual(_values_for(r"pattern = r'(?::[a-f]{0,4})'", Category.IP), [])
+        self.assertEqual(_values_for("bind = ::1", Category.IP), ["::1"])
+
     def test_valid_ipv6_detected(self):
         """
         Ziel: Eine gültige IPv6-Adresse soll erkannt werden, auch wenn das Roh-Pattern
@@ -763,6 +812,22 @@ class TestScanFile(unittest.TestCase):
         findings = scan_file(path, config)
         self.assertEqual(findings, [])
 
+    def test_inline_ignore_marker_suppresses_line(self):
+        """
+        Ziel: Der Marker 'scan:ignore' soll alle Befunde der Zeile unterdrücken,
+              egal in welcher Schreibweise, aber nur in dieser Zeile.
+        Eingabe: Zeile 1 mit URL und '# scan:ignore', Zeile 2 mit '// SCAN:IGNORE',
+                 Zeile 3 mit URL ohne Marker.
+        Erwartung: Nur der Befund aus Zeile 3.
+        """
+        path = self._write("app.py", (
+            'a = "https://one.example.com/"  # scan:ignore\n'
+            'b = "https://two.example.com/"  // SCAN:IGNORE\n'
+            'c = "https://three.example.com/"\n'
+        ))
+        findings = scan_file(path, _config(repo_path=self.repo_path))
+        self.assertEqual([(f.line, f.value) for f in findings], [(3, "https://three.example.com/")])
+
     def test_context_is_truncated_and_stripped(self):
         """
         Ziel: Das context-Feld eines Findings soll die Zeile getrimmt und auf maximal
@@ -904,7 +969,45 @@ class TestParseIpNetworks(unittest.TestCase):
 
 
 # ===========================================================================
-# Klasse 13: Tests für is_repo_root()
+# Klasse 13: Tests für build_sarif_report()
+# ===========================================================================
+
+class TestBuildSarifReport(unittest.TestCase):
+    """Testet die SARIF-2.1.0-Ausgabe."""
+
+    def test_structure_and_result(self):
+        """
+        Ziel: Ein Finding soll als SARIF-Result mit Regel, Datei und Zeile erscheinen.
+        Eingabe: Ein URL-Finding in 'src/app.py', Zeile 7.
+        Erwartung: version 2.1.0, eine Regel pro Kategorie, ein Result mit
+                   ruleId 'url', relativer URI und startLine 7.
+        """
+        finding = Finding(Category.URL, "https://example.com/", "src/app.py", 7, "x")
+        sarif = build_sarif_report([finding])
+        self.assertEqual(sarif["version"], "2.1.0")
+        run = sarif["runs"][0]
+        self.assertEqual([r["id"] for r in run["tool"]["driver"]["rules"]],
+                         ["url", "email", "hostname", "ip"])
+        result = run["results"][0]
+        self.assertEqual(result["ruleId"], "url")
+        self.assertIn("https://example.com/", result["message"]["text"])
+        location = result["locations"][0]["physicalLocation"]
+        self.assertEqual(location["artifactLocation"]["uri"], "src/app.py")
+        self.assertEqual(location["region"]["startLine"], 7)
+
+    def test_no_findings_gives_empty_results(self):
+        """
+        Ziel: Ohne Befunde soll trotzdem ein gültiges SARIF-Log entstehen.
+        Eingabe: Leere Liste.
+        Erwartung: results ist eine leere Liste, das Ganze ist JSON-serialisierbar.
+        """
+        sarif = build_sarif_report([])
+        self.assertEqual(sarif["runs"][0]["results"], [])
+        json.dumps(sarif)
+
+
+# ===========================================================================
+# Klasse 14: Tests für is_repo_root()
 # ===========================================================================
 
 class TestIsRepoRoot(unittest.TestCase):

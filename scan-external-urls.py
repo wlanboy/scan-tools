@@ -110,6 +110,19 @@ KNOWN_TLDS = {
     # NOTE: "id" omitted — conflicts with JS/Python attribute access (this.id, obj.id)
 }
 
+# Text right before an IPv4 match that marks it as a version number rather
+# than an address: "version = 1.2.3.4", "APP_VERSION=1.2.3.4",
+# "brotlicffi==1.2.1.0", "^1.2.3.4". A quote directly before the match does
+# not count for the pin operators, so `ip == "10.0.0.1"` is still reported.
+_VERSION_PREFIX_PATTERN = re.compile(
+    r'(?:(?:\b|_)(?:version|ver)["\']?\s*[:=]?\s*["\']?'
+    r'|(?:[=<>~!]=|[\^~])\s*)$',
+    re.IGNORECASE,
+)
+
+# Marker that suppresses every finding on the line it appears on.
+INLINE_IGNORE_MARKER = "scan:ignore"
+
 # Binary file detection: read first 8 KB and look for null bytes
 BINARY_CHECK_BYTES = 8192
 
@@ -155,7 +168,7 @@ class ScanConfig:
     skip_patterns: list[str] = field(default_factory=list)
     categories: set[Category] = field(default_factory=lambda: set(Category))
     skip_tests: bool = False
-    output_format: str = "text"   # "text" | "json"
+    output_format: str = "text"   # "text" | "json" | "sarif"
     no_fail: bool = False
     ignore_ips: list[IPNetwork] = field(default_factory=list)
     ignore_all_ips: bool = False
@@ -370,6 +383,17 @@ def _detect_hostnames(line_text: str, values_so_far: set[str], config: ScanConfi
     return hits
 
 
+def _is_version_like(line_text: str, start: int, end: int) -> bool:
+    """True if the IPv4-shaped match at [start, end) is really a version or
+    dotted number: part of a longer dotted run (1.2.3.4.5, SNMP OIDs) or
+    preceded by a version keyword or pin operator."""
+    if line_text[end:end + 1] == "." and line_text[end + 1:end + 2].isdigit():
+        return True
+    if start >= 2 and line_text[start - 1] == "." and line_text[start - 2].isdigit():
+        return True
+    return bool(_VERSION_PREFIX_PATTERN.search(line_text[:start]))
+
+
 def _detect_ips(line_text: str, values_so_far: set[str], config: ScanConfig) -> list[str]:
     if config.ignore_all_ips:
         return []
@@ -377,11 +401,17 @@ def _detect_ips(line_text: str, values_so_far: set[str], config: ScanConfig) -> 
     hits: list[str] = []
     for m in IP_PATTERN.finditer(line_text):
         ip = m.group(0)
+        if _is_version_like(line_text, m.start(), m.end()):
+            continue
         if not _ip_in_networks(ip, config.ignore_ips):
             hits.append(ip)
 
     for m in _IPV6_ROUGH.finditer(line_text):
         candidate = m.group(0)
+        # A bare "::" is almost always C++ scope syntax or a regex "(?::",
+        # not the unspecified address.
+        if candidate == "::":
+            continue
         try:
             addr = ipaddress.ip_address(candidate)
         except ValueError:
@@ -509,6 +539,8 @@ def scan_file(path: str, config: ScanConfig) -> list[Finding]:
 
     for line_no, raw_line in enumerate(lines, start=1):
         line_text = raw_line.rstrip("\n\r")
+        if INLINE_IGNORE_MARKER in line_text.lower():
+            continue
         for category, value in scan_line(line_text, config):
             if is_allowlisted(category, value, config.allowlist):
                 continue
@@ -573,6 +605,52 @@ def print_json_report(findings: list[Finding]) -> None:
     print(json.dumps(data, indent=2))
 
 
+SARIF_SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json"  # scan:ignore
+
+
+def build_sarif_report(findings: list[Finding]) -> dict:
+    """SARIF 2.1.0 log with one rule per category, for GitHub code scanning,
+    GitLab and other SARIF consumers."""
+    rules = [
+        {
+            "id": spec.key.value,
+            "name": f"External{spec.label.replace(' ', '')}",
+            "shortDescription": {"text": f"External {spec.label.lower()} in repository"},
+            "defaultConfiguration": {"level": "warning"},
+        }
+        for spec in CATEGORY_SPECS
+    ]
+    results = [
+        {
+            "ruleId": f.category.value,
+            "level": "warning",
+            "message": {"text": f"{CATEGORY_SPECS_BY_KEY[f.category].label}: {f.value}"},
+            "locations": [{
+                "physicalLocation": {
+                    "artifactLocation": {
+                        "uri": Path(f.file).as_posix(),
+                        "uriBaseId": "%SRCROOT%",
+                    },
+                    "region": {"startLine": f.line},
+                },
+            }],
+        }
+        for f in findings
+    ]
+    return {
+        "$schema": SARIF_SCHEMA,
+        "version": "2.1.0",
+        "runs": [{
+            "tool": {"driver": {"name": "scan-external-urls", "rules": rules}},
+            "results": results,
+        }],
+    }
+
+
+def print_sarif_report(findings: list[Finding]) -> None:
+    print(json.dumps(build_sarif_report(findings), indent=2))
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -592,6 +670,9 @@ Examples:
   # CI pipeline: JSON output, fail on URL or email only
   python scan-external-urls.py --categories url email --format json
 
+  # SARIF for GitHub code scanning / GitLab
+  python scan-external-urls.py --format sarif > external-urls.sarif
+
   # Load allowlist from file (one regex per line)
   python scan-external-urls.py --allow-file .scan-allowlist
 
@@ -603,6 +684,10 @@ Examples:
 
   # Load ignored IPs from file (one IP per line)
   python scan-external-urls.py --ignore-ips-file .scan-ignore-ips
+
+Ignoring single lines:
+  Add the marker "scan:ignore" anywhere on a line (usually in a comment)
+  to suppress every finding on that line.
 
 Note on --allow / --allow-file:
   A pattern written as a plain domain (e.g. "mycompany.com" or the escaped
@@ -642,9 +727,9 @@ Note on --allow / --allow-file:
         help="Skip common test file/directory patterns",
     )
     parser.add_argument(
-        "--format", choices=["text", "json"], default="text",
+        "--format", choices=["text", "json", "sarif"], default="text",
         dest="output_format",
-        help="Output format: text (default) or json",
+        help="Output format: text (default), json or sarif",
     )
     parser.add_argument(
         "--no-fail", action="store_true",
@@ -779,6 +864,8 @@ def main() -> int:
 
     if config.output_format == "json":
         print_json_report(all_findings)
+    elif config.output_format == "sarif":
+        print_sarif_report(all_findings)
     else:
         print_text_report(all_findings)
 
