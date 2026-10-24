@@ -60,11 +60,33 @@ E-Mails mit unbekannter TLD fallen ebenfalls raus. `foo@bar.py` ist kein Befund.
 
 ### IP-Adressen
 
-IPv4 erkennt ein Regex. Für IPv6 sucht ein grobes Muster Kandidaten, und `ipaddress.ip_address()` prüft jeden davon. So fallen Uhrzeiten, CSS-Werte und Hashes raus.
+IPv4 erkennt ein Regex. Für IPv6 sucht ein grobes Muster Kandidaten, und `ipaddress.ip_address()` prüft jeden davon. So fallen Uhrzeiten, CSS-Werte und Hashes raus. Ein alleinstehendes `::` meldet der Scanner nicht, das ist fast immer C++-Syntax oder eine Regex-Gruppe `(?::`.
+
+Vierteilige Versionsnummern sehen aus wie IPv4. Der Scanner überspringt sie, wenn der Kontext eindeutig ist:
+
+- Davor steht ein Versions-Schlüsselwort: `version = "1.2.3.4"`, `"version": "1.2.3.4"`, `APP_VERSION=1.2.3.4`, `Version 7.1.1.6`
+- Davor steht ein Pin-Operator aus pip oder npm: `==`, `>=`, `<=`, `~=`, `!=`, `^`, `~`
+- Die Zahl ist Teil einer längeren Punktkette: `25.0.5.0.9`, OIDs wie `1.3.6.1.4.1.2021`
+
+Mehr rät der Scanner nicht. Kapitelnummern in Kommentaren (`# 7.1.1.6 Proxy`) oder Fließtext (`auf 1.2.1.0 aktualisieren`) bleiben Befunde, weil sich das nicht zuverlässig von `# 10.0.0.1 Gateway` unterscheiden lässt. Für solche Zeilen gibt es `scan:ignore` (siehe unten).
 
 ## Erlauben und Ignorieren
 
-Es gibt drei Wege, bekannte Werte auszublenden. Sie wirken zusammen.
+Es gibt vier Wege, bekannte Werte auszublenden. Sie wirken zusammen.
+
+### `scan:ignore` in der Zeile
+
+Steht `scan:ignore` irgendwo in einer Zeile, meldet der Scanner für diese Zeile nichts. Groß-/Kleinschreibung spielt keine Rolle. Meist kommt der Marker in einen Kommentar:
+
+```python
+SARIF_SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json"  # scan:ignore
+```
+
+```yaml
+endpoint: https://partner.example.com/api  # scan:ignore, vertraglich vereinbart
+```
+
+Der Marker gilt nur für seine eigene Zeile. In Formaten ohne Kommentare wie JSON geht das nicht, dort helfen `--allow` oder die Whitelist. Ein kurzer Grund hinter dem Marker hilft beim nächsten Review.
 
 ### `--allow` und `--allow-file`
 
@@ -121,7 +143,7 @@ Der Vergleich läuft über `ipaddress`, `fe80:0:0::1` und `fe80::1` gelten also 
 | `--allow-file DATEI` | Erlaubte Muster aus Datei |
 | `--skip MUSTER ...` | Regex auf den relativen Pfad, passende Dateien werden übersprungen (z. B. `docs/` `fixtures/`) |
 | `--skip-tests` | Testdateien überspringen |
-| `--format text\|json` | Ausgabeformat, Standard `text` |
+| `--format text\|json\|sarif` | Ausgabeformat, Standard `text` |
 | `--no-fail` | Immer mit Exit-Code 0 beenden |
 | `--ignore-all-ips` | Keine IP-Adressen melden |
 | `--ignore-ips IP ...` | Diese IPs oder CIDR-Netze nicht melden |
@@ -167,6 +189,8 @@ Mit `--format json` kommt ein Array, eine Zeile pro Befund. Die Zeile "Scanning 
 ]
 ```
 
+Mit `--format sarif` kommt ein SARIF-2.1.0-Log, das GitHub Code Scanning, GitLab und viele IDE-Plugins direkt lesen. Jede Kategorie ist eine Regel (`url`, `email`, `hostname`, `ip`), jeder Befund ein Result mit Level `warning`, relativem Dateipfad und Zeile. Auch hier entfällt die Zeile "Scanning ...".
+
 ## Exit-Codes
 
 | Code | Bedeutung |
@@ -190,6 +214,17 @@ external-urls:
 
 Der Job schlägt bei Befunden fehl. Für einen reinen Report ohne Abbruch `--no-fail` anhängen.
 
+```yaml
+# GitHub Actions mit Code Scanning
+- name: Scan external URLs
+  run: python3 scan-tools/scan-external-urls.py . --skip-tests --format sarif --no-fail > external-urls.sarif
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: external-urls.sarif
+```
+
+Hier sorgt `--no-fail` dafür, dass der Upload trotz Befunden läuft. Die Befunde erscheinen dann im Security-Tab und als Annotation im Pull Request.
+
 ## Viele Repositories auf einmal
 
 `scan-all-repos.sh` ruft den Scanner für jedes Git-Repository eine Ebene unter einem Verzeichnis auf. Optionen nach `--` gehen an den Scanner:
@@ -204,10 +239,9 @@ Ohne `--whitelist` würde jedes Repository seine eigene `whitelist.json` suchen.
 
 Stand 24.10.2026:
 
-- **Versionsnummern als IP.** Vierteilige Versionen oder Kapitelnummern wie `1.2.1.0` oder `7.1.1.6` erscheinen als IPv4-Befund.
-- **Kein IPv6 in der mitgelieferten Whitelist.** `::1` und `fe80::/10` werden gemeldet, bis sie in `ip_ranges` stehen.
+- **Versionsnummern ohne Kontext.** Kapitelnummern und Versionen im Fließtext (`# 7.1.1.6 Proxy`, `auf 1.2.1.0 aktualisieren`) erscheinen als IPv4-Befund. Abhilfe ist `scan:ignore` oder `--skip`.
 - **IPv6 in URLs.** URLs mit eckigen Klammern wie `http://[::1]:8080/` erkennt der URL-Regex nicht. Die Adresse selbst taucht dann als `ip`-Befund auf.
-- **Kein Inline-Ignore.** Einzelne Zeilen lassen sich nicht per Kommentar ausnehmen, nur über `--allow`, `--skip` oder die Whitelist.
+- **`scan:ignore` nur für die eigene Zeile.** Es gibt keine Variante für die nächste Zeile oder eine ganze Datei. Ganze Dateien schließt `--skip` aus.
 
 ## Tests
 
