@@ -227,9 +227,21 @@ if ($http_content_encoding ~* "\bbr\b") {
 }
 ```
 
+In HAProxy per ACL im `frontend` (oder `listen`):
+
+```haproxy
+http-request deny deny_status 415 if { req.hdr(content-encoding) -m sub -i br }
+```
+
+`-m sub -i br` prüft case-insensitiv auf das Teilwort `br`; bei den üblichen Encodings (`gzip`, `deflate`, `compress`, `identity`) gibt es keine Fehltreffer. Wer ganz sauber auf das Token prüfen will, nimmt eine Regex:
+
+```haproxy
+http-request deny deny_status 415 if { req.hdr(content-encoding) -m reg -i (^|,)[[:space:]]*br([[:space:]]*(;|,|$)) }
+```
+
 Ausgehend `br` aus `Accept-Encoding` entfernen und Antworten mit `Content-Encoding: br` vor dem Entpacken verwerfen. Nur den Header zu ändern reicht nicht, denn ein bösartiger Server schickt Brotli trotzdem.
 
-Apache `mod_brotli` entpackt kein Brotli. Nginx entpackt standardmäßig auch nicht. Beide sind als Proxy selbst nicht betroffen.
+Apache `mod_brotli` entpackt kein Brotli. Nginx entpackt standardmäßig auch nicht. HAProxy kann Brotli gar nicht (nur gzip/deflate, und nur beim Komprimieren von Antworten). Alle drei sind als Proxy selbst nicht betroffen und taugen damit als Filterpunkt.
 
 ## Quellen
 
