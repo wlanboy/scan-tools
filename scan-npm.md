@@ -188,7 +188,7 @@ Zusätzlich, unabhängig von der Liste oben:
 | HIGH | IP-Präfix-Vergleich gegen Zahl: `ip.startsWith("5.")` |
 | HIGH | IP-Quelle und löschende/schreibende Dateioperation in derselben Datei (node-ipc-Angriff 2022) |
 | HIGH | Yarn-Plugin von externer URL in `.yarnrc.yml` |
-| MEDIUM | Abhängigkeit mit `git+https://`, `git+ssh://`, `git://`, `github:`, `gitlab:`, `bitbucket:` oder HTTP(S)-URL außerhalb der Standard-Registries |
+| MEDIUM | Abhängigkeit mit `git+https://`, `git+ssh://`, `git://`, `github:`, `gitlab:`, `bitbucket:` oder HTTP(S)-URL außerhalb von `registry.npmjs.org`, `registry.yarnpkg.com`, `npm.pkg.github.com`, `pkgs.dev.azure.com` |
 | MEDIUM | Nicht-Standard-Registry in `.npmrc`, `.yarnrc`, `.yarnrc.yml`, `pnpm-lock.yaml` |
 | MEDIUM | `resolved`-URL in `package-lock.json` bzw. `tarball`-URL in `pnpm-lock.yaml` außerhalb der Standard-Registries |
 | MEDIUM | Paket ohne `integrity` in `package-lock.json` |
@@ -242,7 +242,7 @@ Einige Muster sind allein normal und werden erst im Zusammenhang verdächtig. Da
 - **`process.env` und `child_process`** meldet der Scanner nur dann als MEDIUM, wenn dieselbe Datei auch Netzwerkcode enthält (`fetch(`, `axios(`, `got(`, `http.get(`, `net.connect(`, `new WebSocket(`, `import()` mit URL u. a.). Er meldet nur das erste Vorkommen pro Datei und überspringt Zeilen, die schon einen anderen Fund haben.
 - **`dns` mit `process.env`** in einer Datei ergibt einen MEDIUM-Fund, aber nur wenn in der Datei noch kein HIGH-Fund der Kategorie `EXFILTRATION` steht.
 - **IP-Quelle und Dateioperation** (node-ipc-Muster) ergeben einen HIGH-Fund pro Datei, wenn beides in derselben Datei vorkommt.
-- **In Lifecycle-Hooks** zählen `process.env` und `child_process` nur zusammen mit `curl`, `wget`, `fetch(` oder einer URL im selben Hook.
+- **In Lifecycle-Hooks** zählen `process.env` und `child_process` nur zusammen mit `curl`, `wget`, `fetch(`, `require('http')` oder einer URL im selben Hook.
 
 Weitere Regeln gegen Rauschen:
 

@@ -115,6 +115,8 @@ python3 scan-external-urls.py --no-fail
 
 Scannt Node.js-Projekte auf Indikatoren für bekannte JavaScript-Trojaner und Supply-Chain-Angriffe. Der Scanner erkennt sowohl Konfigurations-Level-Probleme (verdächtige `package.json`-Hooks) als auch Code-Level-Bedrohungen (Verschleierung, Exfiltration, Reverse Shells) direkt in JS/TS-Quelldateien. Optional kann er auch den lokalen npm-Cache auf kompromittierte Pakete prüfen.
 
+Ausführliche Dokumentation inkl. aller Regeln, Kontextregeln, Ausgabeformat und Grenzen: [`scan-npm.md`](scan-npm.md)
+
 ### NPM Einsatzgebiet
 
 - **Abhängigkeits-Audits** — vor dem Einbinden fremder npm-Pakete deren Code auf Schadsoftware prüfen
@@ -127,7 +129,7 @@ Scannt Node.js-Projekte auf Indikatoren für bekannte JavaScript-Trojaner und Su
 
 #### `LIFECYCLE_HOOKS_FOUND` (INFO)
 
-Inventarisiert alle npm-Lifecycle-Hooks (`preinstall`, `install`, `postinstall`, `prepare`, `prepack`, `postpack`). Diese Hooks werden bei `npm install` **automatisch ohne Benutzerbestätigung ausgeführt** — jeder Hook ist potenziell ein Angriffspunkt.
+Inventarisiert alle npm-Lifecycle-Hooks (`preinstall`, `install`, `postinstall`, `prepublish`, `preprepare`, `prepare`, `postprepare`, `prepack`, `postpack`). Diese Hooks werden bei `npm install` **automatisch ohne Benutzerbestätigung ausgeführt** — jeder Hook ist potenziell ein Angriffspunkt.
 
 #### `INSTALL_SCRIPT` (HIGH / MEDIUM)
 
