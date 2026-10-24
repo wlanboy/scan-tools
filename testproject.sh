@@ -297,8 +297,8 @@ const miner = require('xmrig');
 // HIGH: bekannte Krypto-Mining-Domain
 const miningLib = 'https://coinhive.com/lib/coinhive.min.js';
 
-// MEDIUM: Mining-Algorithmusname
-const algorithm = 'CryptoNight';
+// MEDIUM: Mining-Algorithmusname neben Mining-Schluesselwort
+const miningCfg = { algo: 'CryptoNight', pool: 'pool.example.com' };
 
 // ── DNS EXFILTRATION ─────────────────────────────────────────────────────────
 
