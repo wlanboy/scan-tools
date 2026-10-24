@@ -101,9 +101,23 @@ Bevor ein Treffer gemeldet wird, prüft der Scanner den eigentlichen Secret-Wert
 - Maskierungen: `****`, `xxx`, `0000`, `...`, `????`, `____`
 - Template- und Variablensyntax: `<your-key>`, `${TOKEN}`, `$API_KEY`, `{{token}}`, `%(key)s`
 - Werte, die Platzhalter-Wörter enthalten: `your-`, `todo`, `changeme`, `example`, `placeholder`, `fake`, `dummy`, `test`, `sample`, `insert`, `n/a`, `undefined`, `null`, `none`, `empty`, `missing`, `replace`, `edit this`
-- Werte, die selbst nur ein Feldname sind: `password`, `passwd`, `secret`, `token`, `apikey`, `api_key`
+- Werte, die einen Feldnamen als eigenes Wort enthalten: `password`, `passwd`, `secret`, `token`, `apikey`, `api_key`
 
-Der Wort-Filter greift auch innerhalb längerer Werte. Ein echtes Passwort wie `MyExamplePass1` würde deshalb nicht gemeldet.
+Die Wörter `example`, `fake`, `dummy`, `placeholder`, `replace` und `changeme` werden auch innerhalb längerer Werte erkannt. Ein echtes Passwort wie `MyExamplePass1` würde deshalb nicht gemeldet. `todo` und `n/a` zählen dagegen nur, wenn sie nicht mitten in einem Wort stehen (`Photodoc`, `Kx9Lpqna` werden gemeldet).
+
+### Code statt Wert
+
+Bei schlüsselbasierten Kategorien (`password`, `oauth_token`, `oauth_secret`, `generic_secret`) werden **unquotierte** Werte verworfen, die offensichtlich Code sind:
+
+- Attributzugriffe auf typische Objekte: `os.environ`, `process.env.DB_PW`, `self._pw`, `settings.DB_PASSWORD`, `config.x`, `args.password` usw.
+- Funktionsaufrufe: `getpass.getpass()`, `config.get("pw")`, `vault_read(`
+- Typannotationen: `password: string;`, `password: str`
+
+Quotierte Werte (`password = "config.abc"`) gelten immer als Literal und werden gemeldet.
+
+### Überlappende Muster
+
+Generische Muster (`password`, `generic_secret`, `api_key`) greifen auch in spezifischeren Schlüsselnamen, z. B. `secret` in `client_secret` oder `PASSWORD` in `BITBUCKET_APP_PASSWORD`. Trifft ein spezifisches Muster dieselbe Stelle, wird nur der spezifische Fund gemeldet. Mit `--categories generic_secret` allein bleibt der generische Fund erhalten.
 
 ### `--allow`
 
@@ -145,9 +159,11 @@ Regeln:
 
 ### Dateiauswahl
 
-Gescannt werden alle Dateien, die `git ls-files --cached --others --exclude-standard` liefert: versionierte Dateien plus neue, noch nicht versionierte Dateien, die nicht in `.gitignore` stehen.
+Gescannt werden alle Dateien, die `git ls-files --cached --others --exclude-standard` liefert: versionierte Dateien plus neue, noch nicht versionierte Dateien, die nicht in `.gitignore` stehen. Dateinamen mit Umlauten oder anderen Nicht-ASCII-Zeichen werden korrekt verarbeitet.
 
 Immer übersprungen werden:
+
+- Symlinks, Submodule und im Arbeitsverzeichnis gelöschte Dateien
 
 - Binärdateien (Null-Byte in den ersten 8 KB)
 - Bilder, Archive, Java-Artefakte (`.jar`, `.war`, `.class`), kompilierte Dateien, Fonts, Audio/Video
@@ -155,7 +171,7 @@ Immer übersprungen werden:
 
 Mit `--skip-tests` zusätzlich:
 
-- Dateien unter `test/`, `tests/`, `__tests__/`
+- Dateien unter `test/`, `tests/`, `__tests__/` (bezogen auf den Pfad innerhalb des Repositories)
 - Dateinamen, die mit `test_` beginnen
 - Dateinamen auf `_test.py`, `_test.go`, `.test.{js,jsx,ts,tsx}`, `.spec.{js,jsx,ts,tsx}`, `_spec.rb`, `Test.java`, `Tests.java`
 
@@ -224,6 +240,8 @@ Warnungen (z. B. nicht lesbare Dateien) und Fehler gehen auf `stderr`.
 
 - **Nur der aktuelle Stand**: Die Git-Historie wird nicht durchsucht. Ein Secret, das in einem früheren Commit entfernt wurde, bleibt unentdeckt, ist aber weiterhin abrufbar. Für die Historie eignen sich Tools wie `gitleaks` oder `trufflehog`.
 - **Zeilenbasiert**: Secrets, die über mehrere Zeilen verteilt sind, werden nicht erkannt. Bei Private Keys reicht der PEM-Header als Treffer.
-- **`#` beendet den Wert**: Bei schlüsselbasierten Kategorien (`password`, `api_key`, `oauth_secret` usw.) wird `#` als Kommentarbeginn gewertet. Aus `password: "Xk9#mQ2v"` wird nur `Xk9` gelesen; das ist kürzer als 4 Zeichen, also gibt es keinen Fund. Leerzeichen, Anführungszeichen, Kommas sowie `[]{}` beenden den Wert ebenfalls.
+- **Unquotierte Werte enden an `#`**: Ohne Anführungszeichen wird `#` als Kommentarbeginn gewertet. Aus `password: Xk9#mQ2v` wird nur `Xk9` gelesen; das ist kürzer als 4 Zeichen, also gibt es keinen Fund. Kommas und `[]{}` beenden einen unquotierten Wert ebenfalls. In Anführungszeichen (`"Xk9#mQ2v"`) gehören diese Zeichen zum Wert.
+- **Keine Leerzeichen im Wert**: Werte mit Leerzeichen werden nicht erkannt, auch nicht in Anführungszeichen. Das verhindert Fehlalarme bei UI-Texten wie `"password": "Passwort eingeben"`.
+- **Übersetzungsdateien**: Einzelne Wörter als Wert, z. B. `"password": "Kennwort"` in i18n-JSON, werden als Passwort gemeldet. Solche Dateien per `--skip` oder Whitelist ausschließen.
 - **Platzhalter-Filter**: Echte Secrets, die zufällig ein Platzhalter-Wort wie `test` oder `example` enthalten, werden verworfen.
 - **Kein Entropie-Check**: Secrets ohne bekannten Schlüsselnamen oder Präfix (z. B. ein nacktes Token in einer Variablen namens `x`) werden nicht gefunden.
