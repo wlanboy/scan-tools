@@ -246,5 +246,5 @@ Stand 24.10.2026:
 ## Tests
 
 ```bash
-uv run pytest test_scan_external_urls.py -v
+uv run pytest tests/test_scan_external_urls.py -v
 ```

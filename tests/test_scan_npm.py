@@ -27,7 +27,7 @@ import unittest
 # direkt mit 'import' geladen werden — importlib übernimmt das manuell.
 _spec = importlib.util.spec_from_file_location(
     "scan_npm",
-    pathlib.Path(__file__).parent / "scan-npm.py",
+    pathlib.Path(__file__).parent.parent / "scan-npm.py",
 )
 assert _spec is not None and _spec.loader is not None
 _mod = importlib.util.module_from_spec(_spec)

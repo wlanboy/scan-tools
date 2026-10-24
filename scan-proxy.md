@@ -122,7 +122,7 @@ Ein `NO_PROXY_FOUND` heißt also nur, dass in den oben gelisteten Quellen nichts
 ## Tests
 
 ```bash
-uv run pytest test_scan_proxy.py
+uv run pytest tests/test_scan_proxy.py
 ```
 
 Die Tests decken alle Muster, das Routing nach Dateinamen, die Maven-`active`-Logik, Docker-`config.json` und den Exit-Code ab.

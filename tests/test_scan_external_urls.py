@@ -29,7 +29,7 @@ import unittest
 # nicht direkt mit 'import' geladen werden — importlib übernimmt das manuell.
 _spec = importlib.util.spec_from_file_location(
     "scan_external_urls",
-    pathlib.Path(__file__).parent / "scan-external-urls.py",
+    pathlib.Path(__file__).parent.parent / "scan-external-urls.py",
 )
 assert _spec is not None and _spec.loader is not None
 _mod = importlib.util.module_from_spec(_spec)

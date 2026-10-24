@@ -27,7 +27,7 @@ import unittest
 # direkt mit 'import' geladen werden — importlib übernimmt das manuell.
 _spec = importlib.util.spec_from_file_location(
     "scan_secrets",
-    pathlib.Path(__file__).parent / "scan-secrets.py",
+    pathlib.Path(__file__).parent.parent / "scan-secrets.py",
 )
 assert _spec is not None and _spec.loader is not None
 _mod = importlib.util.module_from_spec(_spec)
@@ -231,7 +231,7 @@ class TestLoadWhitelist(unittest.TestCase):
 
     def test_bundled_template(self):
         """Die mitgelieferte secrets-whitelist.json ist gültig."""
-        path = pathlib.Path(__file__).parent / 'secrets-whitelist.json'
+        path = pathlib.Path(__file__).parent.parent / 'secrets-whitelist.json'
         self.assertTrue(load_whitelist(str(path)))
 
 

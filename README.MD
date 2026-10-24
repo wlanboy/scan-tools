@@ -18,7 +18,7 @@ Eine Sammlung einfacher Security-Scanner für Git-Repositories, Node.js-Projekte
 | [`scan-proxy.py`](#3-scan-proxypy) | Alle Proxy-Konfigurationen eines Systems inventarisieren |
 | [`scan-secrets.py`](#4-scan-secretspy) | Credentials und Secrets im Git-Repository aufspüren |
 | [`whitelist.json`](#5-whitelistjson) | Erlaubte Hosts/IPs/Domains für den URL-Scanner |
-| [`test_scan_npm.py`](#6-test_scan_npmpy) | Unit-Tests für den NPM-Scanner (pytest / unittest) |
+| [`tests/test_scan_npm.py`](#6-teststest_scan_npmpy) | Unit-Tests für den NPM-Scanner (pytest / unittest) |
 | [`testproject.sh`](#7-testprojectsh) | Test-Fixture, das alle NPM-Scanner-Regeln triggert |
 
 ---
@@ -463,12 +463,12 @@ Die mitgelieferte `whitelist.json` enthält:
 
 ---
 
-## 6. `test_scan_npm.py`
+## 6. `tests/test_scan_npm.py`
 
 Unit-Tests für `scan-npm.py` auf Basis von `pytest` / `unittest`. Prüft alle Erkennungsregeln isoliert gegen kontrollierte Eingabe-Strings.
 
 ```bash
-uv run pytest test_scan_npm.py -v
+uv run pytest tests/test_scan_npm.py -v
 ```
 
 ---
@@ -522,7 +522,7 @@ bash testproject.sh
 uv sync --dev
 
 # Tests ausführen
-uv run pytest test_scan_npm.py -v
+uv run pytest tests/test_scan_npm.py -v
 
 # Linting
 uv run ruff check .
