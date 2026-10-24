@@ -17,7 +17,7 @@ def cloud_urls():
 
 def cloud_next():
     data = load()
-    print(data.get('next', ''))
+    print(data.get('next') or '')
 
 def server_urls():
     data = load()

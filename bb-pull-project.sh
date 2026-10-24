@@ -28,6 +28,7 @@
 #   BB_CLOUD     Set to 1 to use Bitbucket Cloud API
 #   TARGET_DIR   Directory where repos are cloned (default: ./repos)
 #   PARALLEL     Number of parallel git operations (default: 4)
+#   BB_GIT_USER  Username for git clone/pull (default: BB_USER)
 
 set -euo pipefail
 
@@ -38,6 +39,7 @@ BB_TOKEN="${BB_TOKEN:?BB_TOKEN is required}"
 BB_PROJECT="${BB_PROJECT:?BB_PROJECT is required}"
 TARGET_DIR="${TARGET_DIR:-./repos}"
 PARALLEL="${PARALLEL:-4}"
+BB_GIT_USER="${BB_GIT_USER:-$BB_USER}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BB_PARSE="${SCRIPT_DIR}/bb_parse.py"
@@ -81,7 +83,7 @@ if [[ "$BB_CLOUD" == "1" ]]; then
     NEXT="https://api.bitbucket.org/2.0/repositories/${BB_PROJECT}?pagelen=100"
     while [[ -n "$NEXT" ]]; do
         log "  Fetching Cloud page ${PAGE}: ${NEXT}"
-        RESPONSE=$(bb_curl "$NEXT")
+        RESPONSE=$(bb_curl "$NEXT") || { err "API request failed (curl exit $?): ${NEXT}"; exit 1; }
 
         while IFS= read -r url; do
             [[ -n "$url" ]] && CLONE_URLS+=("$url")
@@ -98,7 +100,8 @@ else
     PAGE=1
     while :; do
         log "  Fetching Server page ${PAGE} (start=${START}, limit=${LIMIT})"
-        RESPONSE=$(bb_curl "${BB_URL}/rest/api/1.0/projects/${BB_PROJECT}/repos?start=${START}&limit=${LIMIT}")
+        API_URL="${BB_URL}/rest/api/1.0/projects/${BB_PROJECT}/repos?start=${START}&limit=${LIMIT}"
+        RESPONSE=$(bb_curl "$API_URL") || { err "API request failed (curl exit $?): ${API_URL}"; exit 1; }
 
         while IFS= read -r url; do
             [[ -n "$url" ]] && CLONE_URLS+=("$url")
@@ -120,6 +123,22 @@ if [[ "$TOTAL" -eq 0 ]]; then
     exit 1
 fi
 log "Found ${TOTAL} repositories in project '${BB_PROJECT}'"
+
+# ── Git authentication ────────────────────────────────────────────────────────
+# Hand the credentials to git via environment-only config (git >= 2.31), so the
+# token stays out of the process list and .git/config. Never prompt: a prompt
+# inside the parallel xargs workers would hang the run.
+
+if [[ "$BB_CLOUD" == "1" ]]; then
+    GIT_HOST="https://bitbucket.org/"
+else
+    GIT_HOST="${BB_URL%/}/"
+fi
+export GIT_TERMINAL_PROMPT=0
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0="http.${GIT_HOST}.extraHeader"
+export GIT_CONFIG_VALUE_0="Authorization: Basic $(printf '%s:%s' "$BB_GIT_USER" "$BB_TOKEN" | base64 | tr -d '\n')"
+log "Git auth: user '${BB_GIT_USER}' for ${GIT_HOST}"
 
 # ── Clone or pull each repo ───────────────────────────────────────────────────
 
