@@ -138,7 +138,8 @@ CODE_THREAT_RULES: list[ThreatRule] = [
           r'process\.env\b.{0,120}(?:require\s*\(["\'](?:https?|http)["\']|fetch\s*\(|axios|request\s*\()',
           "process.env-Lesen kombiniert mit HTTP-Aufruf — Exfiltration von Umgebungsvariablen"),
     _rule("EXFILTRATION", "HIGH",
-          r'(?:HOME|npm_config_registry|npm_token|NPM_TOKEN|AWS_SECRET|GITHUB_TOKEN'
+          # (?-i:...) — Variablennamen case-sensitiv, sonst trifft "HOME" auch "homeUrl = 'https://…'"
+          r'\b(?-i:HOME\b|npm_config_registry|npm_token|NPM_TOKEN|AWS_SECRET|GITHUB_TOKEN'
           r'|GITLAB_TOKEN|CI_JOB_TOKEN|DOCKER_PASSWORD).{0,80}(?:http|fetch|axios|send)',
           "Sensibler Umgebungsvariablenname neben Netzwerkaufruf — Exfiltration von Anmeldedaten"),
     _rule("EXFILTRATION", "HIGH",
@@ -178,7 +179,7 @@ CODE_THREAT_RULES: list[ThreatRule] = [
           r'|jsecoin\.com|monerominer\.',
           "Bekannte Krypto-Mining-Dienst-Domain"),
     _rule("CRYPTOMINING", "MEDIUM",
-          r'\bCryptoNight\b|\bRandomX\b|\bEthash\b.{0,30}(?:worker|mine|pool|hash)',
+          r'(?:\bCryptoNight\b|\bRandomX\b|\bEthash\b).{0,30}(?:worker|mine|pool|hash)',
           "Krypto-Mining-Algorithmusname neben Mining-Schlüsselwörtern"),
 
     # --- Remote-Ausführung ---
@@ -203,7 +204,7 @@ CODE_THREAT_RULES: list[ThreatRule] = [
           r'require\.extensions\[|Module\._extensions\[',
           "Einschleusen in require.extensions — Supply-Chain-Hook"),
     _rule("SUPPLY_CHAIN", "MEDIUM",
-          r'npm_lifecycle_event|npm_package_name.{0,80}(?:fetch|http|send)',
+          r'(?:npm_lifecycle_event|npm_package_name).{0,80}(?:fetch|http|send)',
           "npm-Lifecycle-Umgebungsvariable neben Netzwerkaufruf — Exfiltration zur Installationszeit"),
     _rule("SUPPLY_CHAIN", "LOW",
           r'__webpack_require__\.c\b.{0,60}(?:eval|Function)',
@@ -244,7 +245,7 @@ CODE_THREAT_RULES: list[ThreatRule] = [
           r'(?:stdin|stdout|stderr|pipe|shell)',
           "TCP-Socket an stdio angebunden — Reverse-Shell-Muster"),
     _rule("REMOTE_EXEC", "HIGH",
-          r'/bin/sh|/bin/bash.{0,30}(?:-i|-c).{0,30}(?:socket|connect|pipe)',
+          r'(?:/bin/sh|/bin/bash).{0,30}(?:-i|-c).{0,30}(?:socket|connect|pipe)',
           "Shell mit -i/-c kombiniert mit Socket/Connect — Reverse Shell"),
 
     # --- String Splitting / dynamische Property-Zugriffe ---
@@ -352,6 +353,17 @@ def get_tracked_files(repo_path: str) -> list[str]:
     ]
 
 
+def get_node_modules_files(repo_path: str) -> list[str]:
+    """node_modules/ steht fast immer in .gitignore und fehlt daher in git ls-files —
+    für --include-modules wird es deshalb direkt vom Dateisystem gelesen."""
+    files: list[str] = []
+    for root, dirs, fnames in os.walk(repo_path):
+        dirs[:] = [d for d in dirs if d != ".git"]
+        if "node_modules" in Path(os.path.relpath(root, repo_path)).parts:
+            files.extend(os.path.join(root, f) for f in fnames)
+    return files
+
+
 def read_lines(path: str) -> list[str]:
     try:
         with open(path, encoding="utf-8", errors="replace") as fh:
@@ -361,9 +373,12 @@ def read_lines(path: str) -> list[str]:
 
 
 def _find_hook_line(lines: list[str], hook: str) -> int:
-    for i, line in enumerate(lines, 1):
-        if hook in line:
-            return i
+    # Zuerst den JSON-Schlüssel in Anführungszeichen suchen, sonst trifft "install"
+    # bereits die Zeile mit "preinstall".
+    for needle in (f'"{hook}"', hook):
+        for i, line in enumerate(lines, 1):
+            if needle in line:
+                return i
     return 0
 
 
@@ -437,10 +452,9 @@ def _scan_js_dns_exfil(lines: list[str], rel_path: str, existing: list[Finding])
     full_text = "".join(lines)
     if not _DNS_MODULE_PAT.search(full_text) or not _PROC_ENV_LINE_PAT.search(full_text):
         return []
-    already_reported = {f.line for f in existing if f.severity == "HIGH" and f.category == "EXFILTRATION"}
+    if any(f.severity == "HIGH" and f.category == "EXFILTRATION" for f in existing):
+        return []
     for line_no, raw_line in enumerate(lines, 1):
-        if line_no in already_reported:
-            continue
         if _DNS_MODULE_PAT.search(raw_line):
             return [Finding(
                 category="EXFILTRATION",
@@ -602,6 +616,8 @@ def _scan_package_json_lines(lines: list[str], rel_path: str) -> list[Finding]:
     scripts = data.get("scripts", {})
     if not isinstance(scripts, dict):
         scripts = {}
+    # Nicht-String-Werte (z. B. "postinstall": 1) würden re.search/Slicing crashen lassen
+    scripts = {k: v for k, v in scripts.items() if isinstance(v, str)}
 
     # Alle vorhandenen Lifecycle-Hooks als INFO ausgeben (unabhängig von Gefährlichkeit)
     for hook in LIFECYCLE_HOOKS:
@@ -774,7 +790,8 @@ def _scan_yarnrc_lines(lines: list[str], rel_path: str) -> list[Finding]:
 
         m = re.match(r'^registry\s+(.+)', line, re.IGNORECASE)
         if m:
-            registry = m.group(1).strip()
+            # Yarn v1 schreibt Werte in Anführungszeichen: registry "https://registry.yarnpkg.com"
+            registry = m.group(1).strip().strip("\"'")
             if not is_safe_registry(registry):
                 findings.append(Finding(
                     category="SUPPLY_CHAIN",
@@ -786,7 +803,8 @@ def _scan_yarnrc_lines(lines: list[str], rel_path: str) -> list[Finding]:
                     context=line[:120],
                 ))
 
-        if re.search(r'[/_:](?:_authToken|_password)\s*=\s*\S+', line, re.IGNORECASE):
+        # Beide Schreibweisen: //host/:_authToken=xyz  und  "//host/:_authToken" "xyz"
+        if re.search(r'[/_:](?:_authToken|_password)["\']?(?:\s*=\s*|\s+)\S+', line, re.IGNORECASE):
             findings.append(Finding(
                 category="EXFILTRATION",
                 severity="MEDIUM",
@@ -794,7 +812,7 @@ def _scan_yarnrc_lines(lines: list[str], rel_path: str) -> list[Finding]:
                 detail="Hardcodiertes Authentifizierungstoken in .yarnrc",
                 file=rel_path,
                 line=line_no,
-                context=re.sub(r'((?:_authToken|_password)\s*=\s*)\S+', r'\1***', line)[:120],
+                context=re.sub(r'((?:_authToken|_password)["\']?(?:\s*=\s*|\s+))\S+', r'\1***', line)[:120],
             ))
 
     return findings
@@ -871,6 +889,9 @@ def _scan_package_lock_lines(lines: list[str], rel_path: str) -> list[Finding]:
         return findings
 
     def check_pkg(pkg_name: str, pkg_info: dict) -> None:
+        # Workspace-Symlinks (v2/v3): "resolved" ist ein relativer Pfad, kein integrity-Feld
+        if pkg_info.get("link"):
+            return
         resolved = pkg_info.get("resolved", "")
         if not isinstance(resolved, str) or not resolved:
             return
@@ -1222,7 +1243,10 @@ def scan_npm_cache(cache_dir: str, verbose: bool = False) -> list[Finding]:
     count = 0
     for root, _, fnames in os.walk(content_dir):
         for fname in fnames:
-            findings.extend(_scan_tarball(os.path.join(root, fname), fname[:16]))
+            try:
+                findings.extend(_scan_tarball(os.path.join(root, fname), fname[:16]))
+            except Exception as exc:  # noqa: BLE001 - ein defektes/präpariertes Paket darf den Cache-Scan nicht abbrechen
+                print(f"FEHLER: Cache-Blob '{fname[:16]}' fehlgeschlagen: {exc}", file=sys.stderr)
             count += 1
 
     if verbose:
@@ -1415,6 +1439,9 @@ def main() -> int:
         except (subprocess.CalledProcessError, FileNotFoundError) as exc:
             print(f"FEHLER: git ls-files fehlgeschlagen: {exc}", file=sys.stderr)
             return 2
+        if config.include_modules:
+            tracked = set(files)
+            files.extend(f for f in get_node_modules_files(repo_path) if f not in tracked)
     else:
         files = []
         for root, dirs, fnames in os.walk(repo_path):
