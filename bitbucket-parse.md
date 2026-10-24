@@ -14,7 +14,8 @@
 
 ## Voraussetzungen
 
-- `bash`, `curl`, `git`, `xargs`
+- `bash`, `curl`, `xargs`, `base64`
+- `git` 2.31+ (für die Übergabe der Zugangsdaten per `GIT_CONFIG_*`)
 - Python 3.6+ (nur Standardbibliothek)
 - Bitbucket-Zugang mit Leserechten auf das Projekt:
   - **Server / Data Center**: HTTP Access Token oder Personal Access Token
@@ -53,6 +54,7 @@ TARGET_DIR=/opt/repos \
 | `BB_CLOUD` | nein | `0` | `1` = Bitbucket-Cloud-API verwenden |
 | `TARGET_DIR` | nein | `./repos` | Zielverzeichnis für die Klone |
 | `PARALLEL` | nein | `4` | Anzahl paralleler `git clone` / `git pull` |
+| `BB_GIT_USER` | nein | `BB_USER` | Benutzername für `git clone` / `git pull`, falls er vom API-Login abweicht |
 
 ### Ablauf
 
@@ -73,23 +75,31 @@ Der Verzeichnisname ergibt sich aus der Clone-URL ohne `.git`.
 
 ### Authentifizierung beim Klonen
 
-Die API-Aufrufe laufen mit `BB_USER:BB_TOKEN` (HTTP Basic Auth). Die Token werden **nicht** an `git clone` / `git pull` weitergegeben. Git braucht für die HTTP(S)-URLs eigene Zugangsdaten, z. B. über einen Credential Helper:
+Die API-Aufrufe laufen mit `BB_USER:BB_TOKEN` (HTTP Basic Auth). Für `git clone` / `git pull` setzt das Skript die Zugangsdaten `BB_GIT_USER:BB_TOKEN` als `Authorization: Basic`-Header, beschränkt auf den Bitbucket-Host (`https://bitbucket.org/` bzw. `BB_URL`):
 
 ```bash
-git config --global credential.helper store
-# oder für Server mit Token im Header:
-git config --global http.https://bitbucket.example.com/.extraHeader "Authorization: Bearer <token>"
+GIT_CONFIG_COUNT=1
+GIT_CONFIG_KEY_0="http.<host>/.extraHeader"
+GIT_CONFIG_VALUE_0="Authorization: Basic <base64(user:token)>"
+GIT_TERMINAL_PROMPT=0
 ```
 
-Ohne hinterlegte Zugangsdaten fragt `git` interaktiv nach. Bei paralleler Ausführung über `xargs` führt das zu hängenden Prozessen.
+- Die Übergabe läuft nur über Umgebungsvariablen. Das Token erscheint weder in der Prozessliste noch in `.git/config` der geklonten Repos.
+- `GIT_TERMINAL_PROMPT=0` verhindert Passwortabfragen. Fehlende oder falsche Zugangsdaten führen zu einem Fehler statt zu hängenden `xargs`-Prozessen.
+- Bei Bitbucket Cloud mit API-Token kann der Git-Benutzer vom API-Login (E-Mail-Adresse) abweichen. Dann `BB_GIT_USER` setzen, z. B. auf den Bitbucket-Benutzernamen oder `x-bitbucket-api-token-auth`.
 
 ### Exit-Codes `bb-pull-project.sh`
 
 | Code | Bedeutung |
 | ------ | ----------- |
 | `0` | Alle Repositories geklont bzw. aktualisiert |
-| `1` | `bb_parse.py` fehlt, keine Repositories gefunden oder mindestens eine Git-Operation fehlgeschlagen |
-| `22` u. a. | API-Fehler: `curl -f` bricht ab (z. B. 401/404), das Skript endet über `set -e` mit dem Exit-Code von `curl` |
+| `1` | `bb_parse.py` fehlt, API-Aufruf fehlgeschlagen, keine Repositories gefunden oder mindestens eine Git-Operation fehlgeschlagen |
+
+Bei einem API-Fehler (z. B. 401/404 oder Host nicht erreichbar) steht der Exit-Code von `curl` zusammen mit der URL in der Fehlermeldung:
+
+```text
+[16:54:45] ERROR: API request failed (curl exit 22): https://bitbucket.example.com/rest/api/1.0/projects/P/repos?start=0&limit=100
+```
 
 ## Verwendung `bb_parse.py`
 
@@ -133,7 +143,7 @@ echo '{"values":[],"isLastPage":false,"nextPageStart":100}' | python3 bb_parse.p
 | ----------- | --------- |
 | Repository ohne passenden Clone-Link | Leerzeile (wird von `bb-pull-project.sh` verworfen) |
 | `values` fehlt | Keine Ausgabe |
-| `next` fehlt (letzte Cloud-Seite) | Leerzeile → Schleife endet |
+| `next` fehlt oder `null` (letzte Cloud-Seite) | Leerzeile → Schleife endet |
 | `isLastPage` fehlt | `true` → Schleife endet, um Endlosschleifen zu vermeiden |
 | `nextPageStart` fehlt | `0` |
 
@@ -146,5 +156,4 @@ echo '{"values":[],"isLastPage":false,"nextPageStart":100}' | python3 bb_parse.p
 
 ### Hinweise
 
-- Liefert die Cloud-API `"next": null` statt das Feld wegzulassen, gibt `cloud-next` den String `None` aus. Die Bitbucket Cloud API lässt `next` auf der letzten Seite weg, daher tritt das im Normalbetrieb nicht auf.
 - Jedes Kommando liest `stdin` komplett ein. Für mehrere Werte aus derselben Antwort muss die Antwort zwischengespeichert und mehrfach übergeben werden, wie in `bb-pull-project.sh` über `$RESPONSE`.
