@@ -17,7 +17,9 @@ Unterbefehle:
             Download, solange die lokale Kopie jünger als --max-age-hours ist;
             --force erzwingt ihn). Die lokale Kopie wächst nur: neue CVEs kommen
             hinzu, geänderte werden aktualisiert, verschwundene bleiben erhalten.
-  list      Einträge nach Veröffentlichung (neueste zuerst) ausgeben, optional gefiltert
+            Geladen werden nur neue Blogposts und die neuesten RECENT_POSTS;
+            --full lädt alle (z. B. nach Änderungen am Parser).
+  list     Einträge nach Veröffentlichung (neueste zuerst) ausgeben, optional gefiltert
   search    Volltextsuche (alle Begriffe müssen vorkommen), sonst wie list
   show      Alle Details zu einzelnen CVE-IDs ausgeben
 
@@ -66,6 +68,9 @@ DOWNLOAD_TIMEOUT = 30
 DOWNLOAD_RETRIES = 3
 DOWNLOAD_WORKERS = 4
 DEFAULT_MAX_AGE_HOURS = 24.0
+# Security-Release-Posts werden oft erst angekündigt und später um die CVEs
+# ergänzt — die neuesten Posts deshalb bei jedem Download erneut laden.
+RECENT_POSTS = 5
 
 SEVERITIES = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
 SEVERITY_ORDER = {s: i for i, s in enumerate(SEVERITIES)}
@@ -265,14 +270,40 @@ def _first_sentence(text: str, limit: int = 160) -> str:
     return first if len(first) <= limit else first[: limit - 1].rsplit(" ", 1)[0] + " …"
 
 
-def build_entries(posts: dict[str, str], nswg: dict[str, Any]) -> dict[str, dict[str, Any]]:
+BLOG_FIELDS = ("id", "title", "severity", "description", "affectedLines", "releases", "post")
+
+
+def blog_from_local(vulns: list[dict[str, Any]]) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, str]]]:
+    """Blog-Anteil der lokalen Einträge — ersetzt die Posts, die nicht neu geladen werden."""
     blog: dict[str, dict[str, Any]] = {}
     post_by_url: dict[str, dict[str, str]] = {}
+    for v in vulns:
+        post = v.get("post") or {}
+        if post.get("url") and post.get("title"):
+            post_by_url[post["url"]] = post
+        if "blog" in (v.get("sources") or []) and post.get("url"):
+            blog[str(v.get("id", "")).upper()] = {k: v.get(k) for k in BLOG_FIELDS}
+    return blog, post_by_url
+
+
+def build_entries(
+    posts: dict[str, str],
+    nswg: dict[str, Any],
+    known_blog: dict[str, dict[str, Any]] | None = None,
+    known_posts: dict[str, dict[str, str]] | None = None,
+) -> dict[str, dict[str, Any]]:
+    blog = dict(known_blog or {})
+    post_by_url = dict(known_posts or {})
+    loaded: set[str] = set()
     for slug, text in posts.items():
         for entry in parse_post(slug, text):
-            # Mehrfach genannte CVE (z. B. Update-Post): ältesten Post behalten
-            if entry["id"] not in blog or entry["post"]["date"] < blog[entry["id"]]["post"]["date"]:
+            # Mehrfach genannte CVE (z. B. Update-Post): ältesten Post behalten;
+            # ein erneut geladener Post ersetzt seinen eigenen bekannten Stand
+            old = blog.get(entry["id"])
+            if (old is None or entry["post"]["date"] < old["post"]["date"]
+                    or (entry["id"] not in loaded and old["post"]["url"] == entry["post"]["url"])):
                 blog[entry["id"]] = entry
+                loaded.add(entry["id"])
         meta, _ = parse_frontmatter(text)
         post_by_url[POST_URL.format(slug=slug)] = {
             "url": POST_URL.format(slug=slug), "title": meta.get("title", slug), "date": meta.get("date", "")[:10],
@@ -331,19 +362,32 @@ def _parse_date(raw: Any) -> str:
         return ""
 
 
-def merge_vulns(local: dict[str, Any] | None, quiet: bool) -> tuple[dict[str, Any], dict[str, int]]:
+def known_post_slugs(local: dict[str, Any]) -> set[str]:
+    if isinstance(local.get("posts"), list):
+        return {str(s) for s in local["posts"]}
+    # Ältere Kopie ohne Postliste: aus den Einträgen ableiten
+    return {str((v.get("post") or {}).get("url", "")).rstrip("/").rsplit("/", 1)[-1]
+            for v in local["vulnerabilities"] if "blog" in (v.get("sources") or [])}
+
+
+def merge_vulns(local: dict[str, Any] | None, quiet: bool, full: bool = False) -> tuple[dict[str, Any], dict[str, int]]:
     slugs = fetch_post_slugs()
+    local_vulns = (local or {}).get("vulnerabilities", [])
+    known = known_post_slugs(local) if local else set()
+    # Der Feed listet die neuesten Posts zuerst
+    todo = [s for i, s in enumerate(slugs) if full or i < RECENT_POSTS or s not in known]
     if not quiet:
-        print(f"Lade {len(slugs)} Blogposts und die Security-WG-Datenbank ...", file=sys.stderr)
+        print(f"Lade {len(todo)} von {len(slugs)} Blogposts und die Security-WG-Datenbank ...", file=sys.stderr)
     with ThreadPoolExecutor(max_workers=DOWNLOAD_WORKERS) as pool:
-        texts = dict(zip(slugs, pool.map(fetch_post, slugs)))
+        texts = dict(zip(todo, pool.map(fetch_post, todo)))
     for slug, text in texts.items():
         if text is None:
             print(f"WARNUNG: Quelle für Post '{slug}' nicht gefunden", file=sys.stderr)
     posts = {slug: text for slug, text in texts.items() if text is not None}
-    fresh = build_entries(posts, fetch_nswg())
+    known_blog, known_posts = ({}, {}) if full else blog_from_local(local_vulns)
+    fresh = build_entries(posts, fetch_nswg(), known_blog, known_posts)
 
-    local_by_id = {str(v.get("id", "")).upper(): v for v in (local or {}).get("vulnerabilities", [])}
+    local_by_id = {str(v.get("id", "")).upper(): v for v in local_vulns}
     stats = {"neu": 0, "aktualisiert": 0, "unverändert": 0, "nur lokal": 0}
     merged: dict[str, dict[str, Any]] = {}
     for key, entry in fresh.items():
@@ -361,7 +405,13 @@ def merge_vulns(local: dict[str, Any] | None, quiet: bool) -> tuple[dict[str, An
             merged[key] = entry
 
     vulns = sorted(merged.values(), key=lambda v: (v.get("published", ""), v.get("id", "")), reverse=True)
-    return {"source": SOURCE_URL, "count": len(vulns), "vulnerabilities": vulns}, stats
+    return {
+        "source": SOURCE_URL,
+        "count": len(vulns),
+        "vulnerabilities": vulns,
+        # Bereits verarbeitete Posts — werden beim nächsten Download übersprungen
+        "posts": sorted(known | set(posts)),
+    }, stats
 
 
 # ---------------------------------------------------------------------------
@@ -415,7 +465,9 @@ def file_age_hours(path: Path) -> float | None:
         return None
 
 
-def ensure_vulns(path: Path, force: bool, max_age_hours: float, quiet: bool = False) -> dict[str, Any]:
+def ensure_vulns(
+    path: Path, force: bool, max_age_hours: float, quiet: bool = False, full: bool = False,
+) -> dict[str, Any]:
     """Lädt nur neu, wenn erzwungen oder die lokale Kopie zu alt ist, und führt die Daten ein."""
     age = file_age_hours(path)
     if not force and age is not None and age < max_age_hours:
@@ -428,7 +480,7 @@ def ensure_vulns(path: Path, force: bool, max_age_hours: float, quiet: bool = Fa
     local = load_vulns(path) if path.exists() else None
     if not quiet:
         print(f"Lade {FEED_URL} ...", file=sys.stderr)
-    merged, stats = merge_vulns(local, quiet=quiet)
+    merged, stats = merge_vulns(local, quiet=quiet, full=full)
     save_vulns(path, merged)
     if not quiet:
         print(", ".join(f"{n} {label}" for label, n in stats.items()), file=sys.stderr)
@@ -516,7 +568,7 @@ def header(data: dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 
 def cmd_download(args: argparse.Namespace) -> int:
-    data = ensure_vulns(args.file, args.force, args.max_age_hours)
+    data = ensure_vulns(args.file, args.force or args.full, args.max_age_hours, full=args.full)
     print(header(data))
     print(f"Datei: {args.file}")
     return 0
@@ -628,6 +680,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_dl = sub.add_parser("download", help="Daten herunterladen")
     p_dl.add_argument("--force", action="store_true", help="Download auch bei aktueller lokaler Kopie erzwingen")
+    p_dl.add_argument(
+        "--full", action="store_true",
+        help=f"Alle Blogposts neu laden statt nur neue und die neuesten {RECENT_POSTS} (impliziert --force)",
+    )
     p_dl.add_argument(
         "--max-age-hours", type=float, default=DEFAULT_MAX_AGE_HOURS,
         help="Lokale Kopie gilt so lange als aktuell (Standard: %(default)s)",
