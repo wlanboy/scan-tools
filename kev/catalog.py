@@ -4,8 +4,10 @@ catalog.py - Lädt den CISA "Known Exploited Vulnerabilities" (KEV) Katalog heru
 und gibt ihn gefiltert aus.
 
 Unterbefehle:
-  download  Katalog herunterladen (überspringt den Download, solange die lokale
-            Kopie jünger als --max-age-hours ist; --force erzwingt ihn)
+  download  Katalog herunterladen und in die lokale Kopie einführen (überspringt den
+            Download, solange die lokale Kopie jünger als --max-age-hours ist;
+            --force erzwingt ihn). Die lokale Kopie wächst nur: neue CVEs kommen
+            hinzu, geänderte werden aktualisiert, aus dem Feed entfernte bleiben.
   list      Einträge nach Aufnahmedatum (neueste zuerst) ausgeben, optional gefiltert
   search    Volltextsuche (alle Begriffe müssen vorkommen), sonst wie list
   show      Alle Details zu einzelnen CVE-IDs ausgeben
@@ -79,8 +81,8 @@ def file_age_hours(path: Path) -> float | None:
         return None
 
 
-def download_catalog(path: Path, url: str = KEV_URL, timeout: int = DOWNLOAD_TIMEOUT) -> dict[str, Any]:
-    """Lädt den Katalog, validiert ihn und schreibt ihn atomar nach ``path``."""
+def fetch_catalog(url: str = KEV_URL, timeout: int = DOWNLOAD_TIMEOUT) -> dict[str, Any]:
+    """Lädt den aktuellen Katalog aus dem Feed und validiert ihn."""
     request = urllib.request.Request(url, headers={"User-Agent": "scan-tools-kev/1.0"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as resp:
@@ -89,22 +91,64 @@ def download_catalog(path: Path, url: str = KEV_URL, timeout: int = DOWNLOAD_TIM
         raise CatalogError(f"Download von {url} fehlgeschlagen: {exc}") from exc
 
     try:
-        data = validate_catalog(json.loads(raw))
+        return validate_catalog(json.loads(raw))
     except json.JSONDecodeError as exc:
         raise CatalogError(f"Download ist kein gültiges JSON: {exc}") from exc
 
-    # Erst in eine temporäre Datei schreiben und dann ersetzen — ein abgebrochener
-    # Download hinterlässt so nie eine halbe Katalogdatei.
+
+def save_catalog(path: Path, data: dict[str, Any]) -> None:
+    # Erst in eine temporäre Datei schreiben und dann ersetzen — ein Abbruch
+    # hinterlässt so nie eine halbe Katalogdatei.
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
     try:
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(raw)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
         os.replace(tmp_name, path)
     except BaseException:
         Path(tmp_name).unlink(missing_ok=True)
         raise
-    return data
+
+
+def _cve_key(v: dict[str, Any]) -> str:
+    return str(v.get("cveID", "")).upper()
+
+
+def merge_catalog(local: dict[str, Any] | None, remote: dict[str, Any]) -> tuple[dict[str, Any], dict[str, int]]:
+    """Führt den Feed in die lokale Kopie ein (Schlüssel: cveID).
+
+    Neue Einträge kommen hinzu, geänderte werden durch die Feed-Version ersetzt,
+    und Einträge, die CISA aus dem Feed entfernt hat, bleiben lokal erhalten —
+    die lokale Datei wächst also nur.
+    """
+    local_by_id = {_cve_key(v): v for v in (local or {}).get("vulnerabilities", [])}
+    stats = {"neu": 0, "aktualisiert": 0, "unverändert": 0, "nur lokal": 0}
+
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for v in remote["vulnerabilities"]:
+        key = _cve_key(v)
+        if key in seen:
+            continue
+        seen.add(key)
+        old = local_by_id.get(key)
+        if old is None:
+            stats["neu"] += 1
+        elif old != v:
+            stats["aktualisiert"] += 1
+        else:
+            stats["unverändert"] += 1
+        merged.append(v)
+
+    for key, v in local_by_id.items():
+        if key not in seen:
+            stats["nur lokal"] += 1
+            merged.append(v)
+
+    # Metadaten (Version, Datum) vom Feed übernehmen, count an den Bestand anpassen
+    result = {**remote, "count": len(merged), "vulnerabilities": merged}
+    return result, stats
 
 
 def load_catalog(path: Path) -> dict[str, Any]:
@@ -118,15 +162,23 @@ def load_catalog(path: Path) -> dict[str, Any]:
 
 
 def ensure_catalog(path: Path, force: bool, max_age_hours: float, quiet: bool = False) -> dict[str, Any]:
-    """Lädt den Katalog nur neu, wenn erzwungen oder die lokale Kopie zu alt ist."""
+    """Lädt den Feed nur, wenn erzwungen oder die lokale Kopie zu alt ist, und führt ihn ein."""
     age = file_age_hours(path)
     if not force and age is not None and age < max_age_hours:
         if not quiet:
             print(f"Lokale Kopie ist {age:.1f} h alt (< {max_age_hours:g} h) — kein Download nötig.", file=sys.stderr)
         return load_catalog(path)
+
+    # Lokale Kopie vor dem Download laden: ist sie kaputt, bricht load_catalog ab,
+    # statt den angesammelten Bestand mit dem reinen Feed zu überschreiben.
+    local = load_catalog(path) if path.exists() else None
     if not quiet:
         print(f"Lade {KEV_URL} ...", file=sys.stderr)
-    return download_catalog(path)
+    merged, stats = merge_catalog(local, fetch_catalog())
+    save_catalog(path, merged)
+    if not quiet:
+        print(", ".join(f"{n} {label}" for label, n in stats.items()), file=sys.stderr)
+    return merged
 
 
 # ---------------------------------------------------------------------------
