@@ -13,7 +13,8 @@ Unterbefehle:
   show      Alle Details zu einzelnen CVE-IDs ausgeben
 
 Die lokale Kopie liegt standardmäßig neben diesem Skript
-(kev/known_exploited_vulnerabilities.json) und ist per .gitignore ausgeschlossen.
+(kev/known_exploited_vulnerabilities.json) und ist versioniert. Sie wird im
+Format des CISA-Feeds geschrieben, damit git-Diffs nur echte Änderungen zeigen.
 
 Beispiele:
   python3 kev/catalog.py download
@@ -96,15 +97,22 @@ def fetch_catalog(url: str = KEV_URL, timeout: int = DOWNLOAD_TIMEOUT) -> dict[s
         raise CatalogError(f"Download ist kein gültiges JSON: {exc}") from exc
 
 
+def dump_catalog(data: dict[str, Any]) -> str:
+    """Serialisiert im Format des CISA-Feeds (4er-Einrückung, \\uXXXX, \\/, kein
+    abschließender Zeilenumbruch), damit git-Diffs der versionierten Datei nur
+    echte Änderungen zeigen. '/' kommt in JSON nur innerhalb von Strings vor,
+    das Ersetzen ist daher sicher."""
+    return json.dumps(data, indent=4, ensure_ascii=True).replace("/", "\\/")
+
+
 def save_catalog(path: Path, data: dict[str, Any]) -> None:
     # Erst in eine temporäre Datei schreiben und dann ersetzen — ein Abbruch
     # hinterlässt so nie eine halbe Katalogdatei.
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
+        with os.fdopen(fd, "w", encoding="ascii") as fh:
+            fh.write(dump_catalog(data))
         os.replace(tmp_name, path)
     except BaseException:
         Path(tmp_name).unlink(missing_ok=True)
