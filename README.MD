@@ -15,7 +15,7 @@ Eine Sammlung einfacher Security-Scanner für Git-Repositories, Node.js-Projekte
 | ------ | ------- |
 | [`scan-external-urls.py`](#1-scan-external-urlspy) | URLs, E-Mails, Hostnamen und IPs im Git-Repository aufspüren |
 | [`scan-npm.py`](#2-scan-npmpy) | JS/NPM-Trojaner und Supply-Chain-Angriffe erkennen |
-| [`scan-proxy.py`](#3-scan-proxypy) | Alle Proxy-Konfigurationen eines Systems inventarisieren |
+| [`proxy/scan-proxy.py`](#3-scan-proxypy) | Alle Proxy-Konfigurationen eines Systems inventarisieren |
 | [`scan-secrets.py`](#4-scan-secretspy) | Credentials und Secrets im Git-Repository aufspüren |
 | [`whitelist.json`](#5-whitelistjson) | Erlaubte Hosts/IPs/Domains für den URL-Scanner |
 | [`tests/test_scan_npm.py`](#6-teststest_scan_npmpy) | Unit-Tests für den NPM-Scanner (pytest / unittest) |
@@ -289,7 +289,9 @@ Die Textausgabe ist auf Terminals farbkodiert (ANSI): HIGH in Rot, MEDIUM in Ora
 
 ### Proxy Funktion
 
-Inventarisiert alle Proxy-Einstellungen auf einem System. Der Scanner liest Umgebungsvariablen, Shell-Konfigurationsdateien, Paketmanager-Konfigurationen (yum, dnf, wget, curl), Maven-Settings und Ansible-Konfigurationen aus und erstellt eine konsolidierte Übersicht. Der Scanner hat keine Abhängigkeiten und keine Kommandozeilenargumente.
+Inventarisiert alle Proxy-Einstellungen auf einem System. Der Scanner liest Umgebungsvariablen, Shell-Konfigurationsdateien, Paketmanager-Konfigurationen, Build-Tools, Docker, Podman und systemd aus und erstellt eine konsolidierte Übersicht. Der Scanner hat keine Abhängigkeiten und keine Kommandozeilenargumente.
+
+Ausführliche Dokumentation inkl. Distributionen, Ausgabeformat und Grenzen: [`proxy/scan-proxy.md`](proxy/scan-proxy.md), als Webseite unter `proxy/`.
 
 ### Proxy Einsatzgebiet
 
@@ -301,27 +303,16 @@ Inventarisiert alle Proxy-Einstellungen auf einem System. Der Scanner liest Umge
 
 ### Gescannte Quellen
 
-| Quelle | Dateien / Variablen |
-| -------- | --------------------- |
-| **Umgebungsvariablen** | `http_proxy`, `https_proxy`, `ftp_proxy`, `no_proxy`, `HTTP_PROXY`, `HTTPS_PROXY`, `FTP_PROXY`, `NO_PROXY`, `ALL_PROXY`, `all_proxy` |
-| **System-Shell** | `/etc/environment`, `/etc/profile`, `/etc/bashrc`, `/etc/bash.bashrc`, `/etc/sysconfig/proxy` |
-| **Benutzer-Shell** | `~/.bashrc`, `~/.bash_profile`, `~/.profile` |
-| **Profile-Verzeichnis** | `/etc/profile.d/*.sh`, `/etc/profile.d/*.csh` |
-| **systemd-Umgebung** | `/etc/environment.d/*.conf` |
-| **yum / dnf** | `/etc/yum.conf`, `/etc/dnf/dnf.conf` (inkl. `proxy_username`, `proxy_password`) |
-| **wget** | `/etc/wgetrc`, `~/.wgetrc` |
-| **curl** | `/etc/curlrc`, `~/.curlrc` |
-| **Maven** | `~/.m2/settings.xml`, `/etc/maven/settings.xml`, `$MAVEN_HOME/conf/settings.xml` — liest `<proxies>`-Block inkl. Host, Port, Protokoll, aktiv-Status, nonProxyHosts |
-| **Ansible** | `/etc/ansible/ansible.cfg`, `~/.ansible.cfg`, `./ansible.cfg` |
+Umgebungsvariablen, Shell-Konfiguration (bash, zsh, csh), apt, yum/dnf inklusive `/etc/yum.repos.d/`, subscription-manager, wget, curl, git, npm, pip, Maven, Ansible, Docker (Client, `daemon.json`, systemd-Drop-in), Podman und systemd. Abgedeckt sind die Pfade von Ubuntu, Debian, RHEL und CentOS, lauffähig ab Python 3.6. Die vollständige Liste steht in der Doku.
 
 ### Proxy Aufruf
 
 ```bash
 # Direkt ausführen — keine Argumente notwendig
-python3 scan-proxy.py
+python3 proxy/scan-proxy.py
 
 # Nur das Ergebnis prüfen (für Shell-Skripte)
-python3 scan-proxy.py | grep "RESULT:"
+python3 proxy/scan-proxy.py | grep "RESULT:"
 ```
 
 ### Ausgabeformat
@@ -511,7 +502,7 @@ bash testproject.sh
 | ------- | --------- |
 | Hat dieses Repository externe URLs/IPs/E-Mails, die nicht dort sein sollten? | `scan-external-urls.py` |
 | Enthält dieses npm-Paket oder JS-Projekt Schadsoftware oder Supply-Chain-Risiken? | `scan-npm.py` |
-| Welche Proxy-Einstellungen sind auf diesem System aktiv? | `scan-proxy.py` |
+| Welche Proxy-Einstellungen sind auf diesem System aktiv? | `proxy/scan-proxy.py` |
 | Liegen Passwörter, API-Keys oder OAuth-Secrets im Code? | `scan-secrets.py` |
 | Welche Hosts und IPs sind für den URL-Scanner dauerhaft erlaubt? | `whitelist.json` |
 
