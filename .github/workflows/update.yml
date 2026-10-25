@@ -31,12 +31,15 @@ jobs:
       - name: KEV-Katalog
         run: uv run kev/catalog.py download --force
 
+      - name: Node.js-Schwachstellen
+        run: uv run nodejs/vulnerabilities.py download --force
+
       - name: Istio CVEs
         run: istio/update.sh
 
       - name: Commit & Push
         run: |
-          files="spring/advisories.json kev/known_exploited_vulnerabilities.json istio/istio-cves.json"
+          files="spring/advisories.json kev/known_exploited_vulnerabilities.json nodejs/vulnerabilities.json istio/istio-cves.json"
           git add $files
           if git diff --cached --quiet; then
             echo "Keine Änderungen."
@@ -45,5 +48,5 @@ jobs:
           git diff --cached --stat
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Update Spring/KEV/Istio Daten ($(date -u +%Y-%m-%d))"
+          git commit -m "Update Spring/KEV/Node.js/Istio Daten ($(date -u +%Y-%m-%d))"
           git push
