@@ -218,7 +218,7 @@ def scan_systemd_env(path):
                 try:
                     assignments = shlex.split(m.group(1))
                 except ValueError:
-                    assignments = m.group(1).split()
+                    assignments = [a.strip('"\'') for a in m.group(1).split()]
                 for assignment in assignments:
                     name, sep, value = assignment.partition('=')
                     if sep and name.lower() in PROXY_VAR_BASE_NAMES:
