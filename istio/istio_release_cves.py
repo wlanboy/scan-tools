@@ -9,6 +9,9 @@ die CVEs nur dort auflisten.
 Berücksichtigt nur 1.2x und 1.3x Releases (keine alpha/beta/rc), vom neuesten
 Release zurück bis --min-version (Standard 1.26).
 
+Mit --previous (frühere --json-Ausgabe) werden bekannte Releases übernommen und
+nur neue Releases sowie das neueste Release je Minor gescannt.
+
 Quellen:
   https://istio.io/latest/news/releases/
   https://istio.io/latest/news/security/
@@ -217,6 +220,24 @@ def scan_release(rel: Release, follow_bulletins: bool) -> Release:
     return rel
 
 
+def load_previous(path: str) -> dict[str, Release]:
+    """Releases aus einer früheren --json-Ausgabe; fehlt die Datei, wird alles gescannt."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except FileNotFoundError:
+        return {}
+    except (OSError, json.JSONDecodeError) as e:
+        raise RuntimeError(f"--previous {path} nicht lesbar: {e}") from e
+    try:
+        return {
+            r["version"]: Release(version=r["version"], url=r["url"], cves=[CveHit(**h) for h in r["cves"]])
+            for r in data
+        }
+    except (TypeError, KeyError) as e:
+        raise RuntimeError(f"--previous {path} hat ein unerwartetes Format: {e}") from e
+
+
 # ==============================================================================
 # Ausgabe
 # ==============================================================================
@@ -263,6 +284,8 @@ def main() -> int:
                         help="Ältestes Minor-Release, das gescannt wird (Standard: 1.26)")
     parser.add_argument("--no-bulletins", action="store_true",
                         help="Verlinkte ISTIO-SECURITY Bulletins nicht auswerten")
+    parser.add_argument("--previous", metavar="DATEI",
+                        help="Frühere --json-Ausgabe: bekannte Releases übernehmen statt neu zu scannen")
     parser.add_argument("--json", action="store_true", help="Ausgabe als JSON")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Beschreibung je CVE ausgeben")
@@ -275,13 +298,19 @@ def main() -> int:
         return 2
 
     try:
+        previous = load_previous(args.previous) if args.previous else {}
         minors = list_minors(args.min_version)
         print(f"Minor-Releases: {', '.join(minors)}", file=sys.stderr)
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
             per_minor = list(pool.map(list_releases, minors))
             releases = [r for rels in per_minor for r in rels]
-            print(f"Scanne {len(releases)} Release-Seiten ...", file=sys.stderr)
-            releases = list(pool.map(lambda r: scan_release(r, not args.no_bulletins), releases))
+            # Das neueste Release je Minor immer neu scannen: frische Announcements
+            # und Bulletins werden oft noch nachgebessert
+            todo = [r for rels in per_minor for i, r in enumerate(rels)
+                    if i == 0 or r.version not in previous or previous[r.version].url != r.url]
+            print(f"Scanne {len(todo)} von {len(releases)} Release-Seiten ...", file=sys.stderr)
+            scanned = {r.version: r for r in pool.map(lambda r: scan_release(r, not args.no_bulletins), todo)}
+            releases = [scanned.get(r.version) or previous[r.version] for r in releases]
     except RuntimeError as e:
         print(f"Fehler: {e}", file=sys.stderr)
         return 2

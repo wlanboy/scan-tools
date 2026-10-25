@@ -14,7 +14,8 @@ cd "$(dirname "$0")/.."
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
 
-uv run istio/istio_release_cves.py --json > "$tmp"
+# Bekannte Releases aus der bisherigen Datei übernehmen, nur neue scannen
+uv run istio/istio_release_cves.py --json --previous istio/istio-cves.json > "$tmp"
 mv "$tmp" istio/istio-cves.json
 
 echo "istio/istio-cves.json aktualisiert"
