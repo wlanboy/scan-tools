@@ -7,6 +7,7 @@ Unterbefehle:
   download  Katalog herunterladen (überspringt den Download, solange die lokale
             Kopie jünger als --max-age-hours ist; --force erzwingt ihn)
   list      Einträge nach Aufnahmedatum (neueste zuerst) ausgeben, optional gefiltert
+  search    Volltextsuche (alle Begriffe müssen vorkommen), sonst wie list
   show      Alle Details zu einzelnen CVE-IDs ausgeben
 
 Die lokale Kopie liegt standardmäßig neben diesem Skript
@@ -17,6 +18,8 @@ Beispiele:
   python3 kev/catalog.py list --limit 50 --vendor microsoft --ransomware
   python3 kev/catalog.py list --since 2026-10-01 --format json
   python3 kev/catalog.py list --refresh
+  python3 kev/catalog.py search fortinet "path traversal"
+  python3 kev/catalog.py search -E "CWE-(78|89)\\b" --since 2026-01-01
   python3 kev/catalog.py show CVE-2026-111497
 
 Exit-Codes:
@@ -130,11 +133,26 @@ def ensure_catalog(path: Path, force: bool, max_age_hours: float, quiet: bool = 
 # Filtern / Ausgabe
 # ---------------------------------------------------------------------------
 
+SEARCH_FIELDS = (
+    "cveID", "vendorProject", "product", "vulnerabilityName",
+    "shortDescription", "requiredAction", "notes", "cwes",
+)
+
+
+def search_text(v: dict[str, Any]) -> str:
+    """Alle durchsuchbaren Felder eines Eintrags als ein String (Listen wie cwes zusammengefügt)."""
+    parts = []
+    for key in SEARCH_FIELDS:
+        value = v.get(key)
+        parts.append(" ".join(map(str, value)) if isinstance(value, list) else str(value or ""))
+    return "\n".join(parts)
+
+
 def filter_vulns(
     vulns: list[dict[str, Any]],
     vendor: str | None = None,
     product: str | None = None,
-    search: str | None = None,
+    terms: list[re.Pattern[str]] | None = None,
     since: str | None = None,
     ransomware: bool = False,
 ) -> list[dict[str, Any]]:
@@ -147,11 +165,11 @@ def filter_vulns(
             continue
         if product and not contains(v.get("product"), product):
             continue
-        if search and not any(
-            contains(v.get(k), search)
-            for k in ("cveID", "vendorProject", "product", "vulnerabilityName", "shortDescription")
-        ):
-            continue
+        # Mehrere Suchbegriffe sind UND-verknüpft
+        if terms:
+            text = search_text(v)
+            if not all(t.search(text) for t in terms):
+                continue
         # ISO-Datumsstrings (YYYY-MM-DD) lassen sich direkt lexikografisch vergleichen
         if since and str(v.get("dateAdded", "")) < since:
             continue
@@ -212,7 +230,16 @@ def cmd_download(args: argparse.Namespace) -> int:
     return 0
 
 
+def compile_terms(terms: list[str], regex: bool) -> list[re.Pattern[str]]:
+    try:
+        return [re.compile(t if regex else re.escape(t), re.IGNORECASE) for t in terms]
+    except re.error as exc:
+        raise CatalogError(f"Ungültiger regulärer Ausdruck: {exc}") from exc
+
+
 def cmd_list(args: argparse.Namespace) -> int:
+    """Gemeinsame Implementierung für 'list' und 'search' (list hat keine Suchbegriffe)."""
+    terms = compile_terms(args.terms, args.regex)
     if args.refresh:
         data = ensure_catalog(args.file, force=False, max_age_hours=args.max_age_hours, quiet=args.format == "json")
     else:
@@ -222,7 +249,7 @@ def cmd_list(args: argparse.Namespace) -> int:
         data["vulnerabilities"],
         vendor=args.vendor,
         product=args.product,
-        search=args.search,
+        terms=terms,
         since=args.since,
         ransomware=args.ransomware,
     )
@@ -303,20 +330,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_dl.set_defaults(func=cmd_download)
 
-    p_list = sub.add_parser("list", help="Einträge auflisten (neueste zuerst)")
-    p_list.add_argument("-n", "--limit", type=int, default=30, help="Maximale Anzahl (0 = alle, Standard: %(default)s)")
-    p_list.add_argument("--vendor", help="Filter auf Hersteller (Teilstring, ohne Groß-/Kleinschreibung)")
-    p_list.add_argument("--product", help="Filter auf Produkt (Teilstring, ohne Groß-/Kleinschreibung)")
-    p_list.add_argument("-s", "--search", help="Freitextsuche in CVE, Hersteller, Produkt, Name und Beschreibung")
-    p_list.add_argument("--since", type=iso_date, help="Nur Einträge ab diesem Aufnahmedatum (YYYY-MM-DD)")
-    p_list.add_argument("--ransomware", action="store_true", help="Nur Einträge mit bekannter Ransomware-Nutzung")
-    p_list.add_argument("--format", choices=("text", "json"), default="text", help="Ausgabeformat")
-    p_list.add_argument(
+    # Filter- und Ausgabeoptionen, die 'list' und 'search' gemeinsam haben
+    filters = argparse.ArgumentParser(add_help=False)
+    filters.add_argument("-n", "--limit", type=int, default=30, help="Maximale Anzahl (0 = alle, Standard: %(default)s)")
+    filters.add_argument("--vendor", help="Filter auf Hersteller (Teilstring, ohne Groß-/Kleinschreibung)")
+    filters.add_argument("--product", help="Filter auf Produkt (Teilstring, ohne Groß-/Kleinschreibung)")
+    filters.add_argument("--since", type=iso_date, help="Nur Einträge ab diesem Aufnahmedatum (YYYY-MM-DD)")
+    filters.add_argument("--ransomware", action="store_true", help="Nur Einträge mit bekannter Ransomware-Nutzung")
+    filters.add_argument("--format", choices=("text", "json"), default="text", help="Ausgabeformat")
+    filters.add_argument(
         "--refresh", action="store_true",
         help="Katalog vorher herunterladen, falls er fehlt oder älter als --max-age-hours ist",
     )
-    p_list.add_argument("--max-age-hours", type=float, default=DEFAULT_MAX_AGE_HOURS, help=argparse.SUPPRESS)
-    p_list.set_defaults(func=cmd_list)
+    filters.add_argument("--max-age-hours", type=float, default=DEFAULT_MAX_AGE_HOURS, help=argparse.SUPPRESS)
+
+    p_list = sub.add_parser("list", parents=[filters], help="Einträge auflisten (neueste zuerst)")
+    p_list.set_defaults(func=cmd_list, terms=[], regex=False)
+
+    p_search = sub.add_parser(
+        "search", parents=[filters],
+        help="Volltextsuche (CVE, Hersteller, Produkt, Name, Beschreibung, Maßnahme, Hinweise, CWE)",
+    )
+    p_search.add_argument("terms", nargs="+", metavar="BEGRIFF", help="Suchbegriffe (alle müssen vorkommen)")
+    p_search.add_argument("-E", "--regex", action="store_true", help="Suchbegriffe als reguläre Ausdrücke behandeln")
+    p_search.set_defaults(func=cmd_list)
 
     p_show = sub.add_parser("show", help="Details zu CVE-IDs anzeigen")
     p_show.add_argument("cve", nargs="+", type=cve_id, help="Eine oder mehrere CVE-IDs")
