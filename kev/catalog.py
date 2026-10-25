@@ -13,8 +13,8 @@ Unterbefehle:
   show      Alle Details zu einzelnen CVE-IDs ausgeben
 
 Die lokale Kopie liegt standardmäßig neben diesem Skript
-(kev/known_exploited_vulnerabilities.json) und ist versioniert. Sie wird im
-Format des CISA-Feeds geschrieben, damit git-Diffs nur echte Änderungen zeigen.
+(kev/known_exploited_vulnerabilities.json) und ist versioniert. Sie wird immer
+gleich formatiert geschrieben, damit git-Diffs nur echte Änderungen zeigen.
 
 Beispiele:
   python3 kev/catalog.py download
@@ -98,20 +98,24 @@ def fetch_catalog(url: str = KEV_URL, timeout: int = DOWNLOAD_TIMEOUT) -> dict[s
 
 
 def dump_catalog(data: dict[str, Any]) -> str:
-    """Serialisiert im Format des CISA-Feeds (4er-Einrückung, \\uXXXX, \\/, kein
-    abschließender Zeilenumbruch), damit git-Diffs der versionierten Datei nur
-    echte Änderungen zeigen. '/' kommt in JSON nur innerhalb von Strings vor,
-    das Ersetzen ist daher sicher."""
-    return json.dumps(data, indent=4, ensure_ascii=True).replace("/", "\\/")
+    """Serialisiert lesbar (2er-Einrückung, UTF-8 statt \\uXXXX, / statt \\/) und
+    immer gleich, damit git-Diffs der versionierten Datei nur echte Änderungen zeigen."""
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
 def save_catalog(path: Path, data: dict[str, Any]) -> None:
     # Erst in eine temporäre Datei schreiben und dann ersetzen — ein Abbruch
     # hinterlässt so nie eine halbe Katalogdatei.
     path.parent.mkdir(parents=True, exist_ok=True)
+    # mkstemp legt die Datei mit 0600 an — Rechte der bestehenden Datei übernehmen
+    try:
+        mode = path.stat().st_mode & 0o777
+    except FileNotFoundError:
+        mode = 0o644
     fd, tmp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
     try:
-        with os.fdopen(fd, "w", encoding="ascii") as fh:
+        os.fchmod(fd, mode)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(dump_catalog(data))
         os.replace(tmp_name, path)
     except BaseException:
