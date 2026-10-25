@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KEV-Katalog</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header>
+    <h1>KEV-Katalog</h1>
+    <p id="meta" class="muted">Lade Katalog …</p>
+  </header>
+
+  <main>
+    <form id="filters" autocomplete="off">
+      <input type="search" name="q" placeholder="Suche (alle Begriffe, &quot;Phrase&quot; möglich)" aria-label="Suche" class="grow">
+      <input type="text" name="vendor" list="vendors" placeholder="Hersteller" aria-label="Hersteller">
+      <input type="text" name="product" placeholder="Produkt" aria-label="Produkt">
+      <label>ab <input type="date" name="since"></label>
+      <label>bis <input type="date" name="until"></label>
+      <label><input type="checkbox" name="rw"> nur Ransomware</label>
+      <button type="reset">Zurücksetzen</button>
+      <datalist id="vendors"></datalist>
+    </form>
+
+    <div id="fallback" hidden>
+      <p>Der Katalog konnte nicht automatisch geladen werden (z. B. weil die Seite per <code>file://</code> geöffnet wurde).</p>
+      <label>JSON-Datei wählen: <input type="file" accept=".json,application/json"></label>
+    </div>
+
+    <p id="status" class="muted" aria-live="polite"></p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-key="dateAdded" aria-sort="descending"><button type="button">Aufgenommen</button></th>
+            <th data-key="cveID"><button type="button">CVE</button></th>
+            <th data-key="vendorProject"><button type="button">Hersteller</button></th>
+            <th data-key="product"><button type="button">Produkt</button></th>
+            <th data-key="vulnerabilityName"><button type="button">Name</button></th>
+            <th data-key="dueDate"><button type="button">Frist</button></th>
+            <th data-key="ransomware" title="Bekannte Ransomware-Nutzung"><button type="button">R</button></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+
+    <button id="more" type="button" hidden></button>
+  </main>
+</body>
+</html>
