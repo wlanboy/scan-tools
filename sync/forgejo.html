@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fj-pull-org.sh</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+  <header>
+    <p class="back"><a href="../">← Übersicht</a></p>
+    <h1>fj-pull-org.sh</h1>
+    <p class="muted">Stand: 25.10.2026</p>
+  </header>
+
+  <main>
+<h2 id="funktion">Funktion</h2>
+<p><code>fj-pull-org.sh</code> klont alle Repositories einer Forgejo-Organisation oder eines Forgejo-Benutzers in ein Zielverzeichnis. Bereits vorhandene Repositories werden per <code>git pull --ff-only</code> aktualisiert. Es ist das Gegenstück zu <a href="bitbucket.html"><code>bb-pull-project.sh</code></a> für Bitbucket und funktioniert genauso mit Gitea und Codeberg, die dieselbe API (<code>/api/v1</code>) haben.</p>
+<p><code>fj_parse.py</code> ist ein Hilfsskript für <code>fj-pull-org.sh</code>. Es liest eine JSON-Antwort der Forgejo-REST-API von <code>stdin</code> und gibt die Clone-URLs bzw. die Anzahl der Repositories auf <code>stdout</code> aus. Damit braucht das Shell-Skript weder <code>jq</code> noch eigenes JSON-Parsing.</p>
+<h2 id="einsatzgebiet">Einsatzgebiet</h2>
+<ul>
+<li><strong>Massen-Scans</strong> — alle Repositories einer Organisation lokal bereitstellen, um anschließend <code>scan-secrets.py</code>, <code>scan-npm.py</code> oder <code>scan-external-urls.py</code> darüber laufen zu lassen</li>
+<li><strong>Spiegelung</strong> — einen lokalen Stand aller Repos einer Organisation aktuell halten (z. B. per Cronjob)</li>
+<li><strong>Migration</strong> — Repositories von Bitbucket nach Forgejo umgezogen? Beide Skripte in getrennte Zielverzeichnisse laufen lassen und die Stände vergleichen</li>
+</ul>
+<h2 id="voraussetzungen">Voraussetzungen</h2>
+<ul>
+<li><code>bash</code>, <code>curl</code> 7.55+, <code>xargs</code>, <code>base64</code></li>
+<li><code>git</code> 2.31+ (für die Übergabe der Zugangsdaten per <code>GIT_CONFIG_*</code>)</li>
+<li>Python 3.6+ (nur Standardbibliothek)</li>
+<li>Forgejo-Access-Token mit Leserechten, angelegt unter <em>Einstellungen → Applikationen → Access Token</em>:</li>
+</ul>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>Wofür</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>read:repository</code></td>
+<td>private Repositories sehen und klonen</td>
+</tr>
+<tr>
+<td><code>read:organization</code></td>
+<td>Repo-Liste einer Organisation (<code>FJ_OWNER_TYPE=org</code>)</td>
+</tr>
+<tr>
+<td><code>read:user</code></td>
+<td>Repo-Liste eines Benutzers (<code>FJ_OWNER_TYPE=user</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Beide Dateien liegen im Ordner <code>sync/</code>. <code>fj_parse.py</code> muss im selben Verzeichnis wie <code>fj-pull-org.sh</code> liegen. Das Skript prüft das beim Start.</p>
+<h2 id="verwendung-fj-pull-orgsh">Verwendung <code>fj-pull-org.sh</code></h2>
+<p>Aus dem Repository-Root:</p>
+<pre><code class="lang-bash"># Organisation auf einer eigenen Forgejo-Instanz
+FJ_URL=https://forgejo.example.com \
+FJ_USER=myuser \
+FJ_TOKEN=mytoken \
+FJ_OWNER=myorg \
+TARGET_DIR=/opt/repos \
+sync/fj-pull-org.sh
+
+# Alle Repositories eines Benutzers auf Codeberg
+FJ_URL=https://codeberg.org \
+FJ_USER=myuser \
+FJ_TOKEN=mytoken \
+FJ_OWNER=myuser \
+FJ_OWNER_TYPE=user \
+TARGET_DIR=/opt/repos \
+sync/fj-pull-org.sh</code></pre>
+<h3 id="umgebungsvariablen">Umgebungsvariablen</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Pflicht</th>
+<th>Default</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FJ_USER</code></td>
+<td>ja</td>
+<td>–</td>
+<td>Forgejo-Benutzer oder Service-Account, wird für <code>git clone</code> / <code>git pull</code> verwendet</td>
+</tr>
+<tr>
+<td><code>FJ_TOKEN</code></td>
+<td>ja</td>
+<td>–</td>
+<td>Access Token (siehe Scopes oben)</td>
+</tr>
+<tr>
+<td><code>FJ_OWNER</code></td>
+<td>ja</td>
+<td>–</td>
+<td>Name der Organisation bzw. des Benutzers</td>
+</tr>
+<tr>
+<td><code>FJ_URL</code></td>
+<td>nein</td>
+<td><code>https://forgejo.example.com</code></td>
+<td>Basis-URL der Forgejo-Instanz, ohne <code>/api/v1</code></td>
+</tr>
+<tr>
+<td><code>FJ_OWNER_TYPE</code></td>
+<td>nein</td>
+<td><code>org</code></td>
+<td><code>org</code> = Organisation, <code>user</code> = Benutzer</td>
+</tr>
+<tr>
+<td><code>TARGET_DIR</code></td>
+<td>nein</td>
+<td><code>./repos</code></td>
+<td>Zielverzeichnis für die Klone</td>
+</tr>
+<tr>
+<td><code>PARALLEL</code></td>
+<td>nein</td>
+<td><code>4</code></td>
+<td>Anzahl paralleler <code>git clone</code> / <code>git pull</code></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="ablauf">Ablauf</h3>
+<ol type="1">
+<li><strong>Preflight</strong> — prüft, ob <code>fj_parse.py</code> vorhanden ist und <code>FJ_OWNER_TYPE</code> gültig ist, und legt <code>TARGET_DIR</code> an</li>
+<li><strong>Repo-Liste sammeln</strong> — ruft die Forgejo-API seitenweise ab und extrahiert die Clone-URLs (<code>clone_url</code>) über <code>fj_parse.py</code></li>
+<li><strong>Klonen / Aktualisieren</strong> — für jede URL parallel:
+<ul>
+<li><code>TARGET_DIR/&lt;repo&gt;/.git</code> existiert → <code>git pull --ff-only</code></li>
+<li><code>TARGET_DIR/&lt;repo&gt;/.git</code> existiert, hat aber noch keinen Commit (Klon eines leeren Repos) → statt <code>git pull</code> ein <code>git fetch</code>; hat das Remote inzwischen Inhalt, checkt das Skript den Default-Branch aus</li>
+<li>sonst → <code>git clone</code></li>
+</ul></li>
+</ol>
+<p>Der Verzeichnisname ergibt sich aus der Clone-URL ohne <code>.git</code>. Archivierte Repositories und Pull-Mirrors klont das Skript mit, Forks ebenfalls.</p>
+<p>Schlägt ein <code>git clone</code> oder <code>git pull</code> fehl, erscheint <code>FAILED (git exit N)</code> in der Ausgabe. Die übrigen Repositories laufen weiter, am Ende endet das Skript mit Exit-Code <code>1</code>.</p>
+<h3 id="verwendete-api-endpunkte">Verwendete API-Endpunkte</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th><code>FJ_OWNER_TYPE</code></th>
+<th>Endpunkt</th>
+<th>Paginierung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>org</code></td>
+<td><code>GET {FJ_URL}/api/v1/orgs/{FJ_OWNER}/repos?page=N&amp;limit=50</code></td>
+<td><code>page</code> ab 1, bis eine leere Seite kommt</td>
+</tr>
+<tr>
+<td><code>user</code></td>
+<td><code>GET {FJ_URL}/api/v1/users/{FJ_OWNER}/repos?page=N&amp;limit=50</code></td>
+<td>wie oben</td>
+</tr>
+</tbody>
+</table></div>
+<p>Forgejo begrenzt die Seitengröße auf <code>[api] MAX_RESPONSE_ITEMS</code> aus der <code>app.ini</code> (Default 50). Eine Instanz mit kleinerem Wert liefert weniger Einträge pro Seite, als <code>limit</code> verlangt. Eine kurze Seite ist deshalb kein sicheres Ende. Das Skript fragt so lange weiter, bis eine Seite leer ist. Das kostet einen zusätzlichen API-Aufruf.</p>
+<p>Welche Repositories in der Liste stehen, hängt am Token: Private Repositories einer Organisation erscheinen nur, wenn der Token-Benutzer Mitglied eines Teams mit Zugriff ist. Fehlt der Scope <code>read:repository</code>, kommen nur öffentliche Repositories.</p>
+<h3 id="unterschiede-zu-bb-pull-projectsh">Unterschiede zu <code>bb-pull-project.sh</code></h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>Bitbucket</th>
+<th>Forgejo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gruppierung</td>
+<td>Projekt (Server) bzw. Workspace (Cloud)</td>
+<td>Organisation oder Benutzer</td>
+</tr>
+<tr>
+<td>API-Auth</td>
+<td>HTTP Basic <code>BB_USER:BB_TOKEN</code></td>
+<td>Header <code>Authorization: token &lt;FJ_TOKEN&gt;</code></td>
+</tr>
+<tr>
+<td>Git-Auth</td>
+<td>HTTP Basic <code>BB_GIT_USER:BB_TOKEN</code></td>
+<td>HTTP Basic <code>FJ_USER:FJ_TOKEN</code></td>
+</tr>
+<tr>
+<td>Paginierung</td>
+<td><code>isLastPage</code> / <code>next</code></td>
+<td>leere Seite</td>
+</tr>
+<tr>
+<td>Antwort</td>
+<td>Objekt mit <code>values</code></td>
+<td>JSON-Array</td>
+</tr>
+<tr>
+<td>Clone-Link</td>
+<td><code>links.clone[name=http|https]</code></td>
+<td><code>clone_url</code></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="authentifizierung">Authentifizierung</h3>
+<p>Die API-Aufrufe laufen mit dem Header <code>Authorization: token &lt;FJ_TOKEN&gt;</code>. <code>curl</code> liest den Header von <code>stdin</code> (<code>-H @-</code>), damit das Token nicht in der Prozessliste steht.</p>
+<p>Für <code>git clone</code> / <code>git pull</code> setzt das Skript die Zugangsdaten <code>FJ_USER:FJ_TOKEN</code> als <code>Authorization: Basic</code>-Header, beschränkt auf <code>FJ_URL</code>:</p>
+<pre><code class="lang-bash">GIT_CONFIG_COUNT=1
+GIT_CONFIG_KEY_0="http.&lt;FJ_URL&gt;/.extraHeader"
+GIT_CONFIG_VALUE_0="Authorization: Basic &lt;base64(user:token)&gt;"
+GIT_TERMINAL_PROMPT=0</code></pre>
+<ul>
+<li>Die Übergabe läuft nur über Umgebungsvariablen. Das Token erscheint weder in der Prozessliste noch in <code>.git/config</code> der geklonten Repos.</li>
+<li><code>GIT_TERMINAL_PROMPT=0</code> verhindert Passwortabfragen. Fehlende oder falsche Zugangsdaten führen zu einem Fehler statt zu hängenden <code>xargs</code>-Prozessen.</li>
+<li>Die <code>clone_url</code> baut Forgejo aus <code>ROOT_URL</code> in der <code>app.ini</code>. Weicht sie von <code>FJ_URL</code> ab (anderer Hostname, <code>http</code> statt <code>https</code>, Port), greift der Header nicht und <code>git</code> scheitert mit einem Auth-Fehler. Dann <code>FJ_URL</code> auf genau den Anfang der <code>clone_url</code> setzen.</li>
+</ul>
+<h3 id="exit-codes-fj-pull-orgsh">Exit-Codes <code>fj-pull-org.sh</code></h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Alle Repositories geklont bzw. aktualisiert</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td><code>fj_parse.py</code> fehlt, <code>FJ_OWNER_TYPE</code> ungültig, API-Aufruf fehlgeschlagen, keine Repositories gefunden oder mindestens eine Git-Operation fehlgeschlagen</td>
+</tr>
+</tbody>
+</table></div>
+<p>Bei einem API-Fehler (z. B. 401 bei falschem Token, 404 bei falschem Namen oder falschem <code>FJ_OWNER_TYPE</code>) steht der Exit-Code von <code>curl</code> zusammen mit der URL in der Fehlermeldung:</p>
+<pre><code class="lang-text">[09:12:45] ERROR: API request failed (curl exit 22): https://forgejo.example.com/api/v1/users/myorg/repos?page=1&amp;limit=50</code></pre>
+<h2 id="verwendung-fj_parsepy">Verwendung <code>fj_parse.py</code></h2>
+<pre><code class="lang-bash">printf 'Authorization: token %s\n' "$FJ_TOKEN" \
+  | curl -fsSL -H @- "&lt;api-url&gt;" \
+  | python3 sync/fj_parse.py &lt;command&gt;</code></pre>
+<h3 id="kommandos">Kommandos</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Kommando</th>
+<th>Liest Feld</th>
+<th>Ausgabe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>urls</code></td>
+<td><code>[].clone_url</code></td>
+<td>Eine HTTP(S)-Clone-URL pro Repository und Zeile</td>
+</tr>
+<tr>
+<td><code>count</code></td>
+<td>Länge des Arrays</td>
+<td>Anzahl der Repositories auf dieser Seite, <code>0</code> auf der Seite nach der letzten</td>
+</tr>
+</tbody>
+</table></div>
+<p>SSH-URLs (<code>ssh_url</code>) werden ignoriert.</p>
+<h3 id="beispiele">Beispiele</h3>
+<pre><code class="lang-bash">echo '[{"name":"repo-a","clone_url":"https://forgejo.example.com/org/repo-a.git",
+        "ssh_url":"ssh://git@forgejo.example.com/org/repo-a.git"}]' \
+  | python3 sync/fj_parse.py urls
+# https://forgejo.example.com/org/repo-a.git
+
+echo '[]' | python3 sync/fj_parse.py count
+# 0</code></pre>
+<h3 id="verhalten-bei-fehlenden-feldern">Verhalten bei fehlenden Feldern</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Ausgabe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Repository ohne <code>clone_url</code></td>
+<td>Leerzeile (wird von <code>fj-pull-org.sh</code> verworfen)</td>
+</tr>
+<tr>
+<td>Leeres Array (Seite nach der letzten)</td>
+<td><code>count</code> → <code>0</code>, <code>urls</code> → keine Ausgabe</td>
+</tr>
+<tr>
+<td>Objekt statt Array (Forgejo-Fehlermeldung, z. B. <code>{"message":"GetOrgByName",…}</code>)</td>
+<td>Meldung auf <code>stderr</code>, Exit-Code <code>1</code></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="exit-codes-fj_parsepy">Exit-Codes <code>fj_parse.py</code></h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Erfolgreich geparst</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>Unbekanntes oder fehlendes Kommando (Usage-Hinweis auf <code>stderr</code>), Antwort ist kein Array oder ungültiges JSON auf <code>stdin</code> (Python-Traceback)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="hinweise">Hinweise</h3>
+<ul>
+<li>Jedes Kommando liest <code>stdin</code> komplett ein. Für mehrere Werte aus derselben Antwort muss die Antwort zwischengespeichert und mehrfach übergeben werden, wie in <code>fj-pull-org.sh</code> über <code>$RESPONSE</code>.</li>
+</ul>
+<h2 id="tests">Tests</h2>
+<pre><code class="lang-bash">uv run pytest tests/test_sync_parse.py</code></pre>
+  </main>
+</body>
+</html>
