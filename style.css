@@ -76,7 +76,7 @@ footer { font-size: 13px; }
 
 body.doc { max-width: 900px; }
 .doc a { color: var(--accent); }
-.doc header { padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.doc header { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .doc header .muted { margin: 4px 0 0; }
 .doc h2 { margin: 36px 0 12px; font-size: 21px; font-weight: 600; }
 .doc h3 { margin: 28px 0 8px; font-size: 17px; font-weight: 600; }
