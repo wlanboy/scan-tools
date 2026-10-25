@@ -217,6 +217,33 @@ pip list 2>/dev/null | grep -i brotli
 2. Images und Wheels neu bauen, Prozesse neu starten.
 3. Falls das nicht sofort geht, beide Pakete deinstallieren und Extras entfernen, die sie wieder installieren (`httpx[brotli]`, `urllib3[brotli]`, `aiohttp[speedups]`). Die HTTP-Clients fallen dann auf gzip zurück.
 
+## .NET
+
+Stand 25.10. gibt es keinen Fix und keine offizielle Aussage von Microsoft. `System.IO.Compression.Brotli` (`BrotliStream`, `BrotliDecoder`) ruft per P/Invoke eine mitgelieferte native Kopie von Google Brotli auf (.NET 10: Version 1.1.0). Laut [dotnet/runtime#136422](https://github.com/dotnet/runtime/issues/136422) enthält der mitgelieferte Decoder in 9.0.21 und 10.0.13 noch die Logik vor dem Fix. Das ist eine Quellcode-Analyse, ein Crash ist für .NET noch nicht gezeigt. Das .NET-Team prüft die Lücke mit dem Microsoft Security Response Center und will danach einen Plan veröffentlichen.
+
+Weil .NET seine eigene Kopie mitbringt, hilft ein OS-Update von `libbrotli` bei den offiziellen Microsoft-Builds nicht. Distributions-Builds aus source-build können stattdessen die System-Bibliothek nutzen.
+
+Erreicht wird der Decoder nur, wenn Brotli tatsächlich entpackt wird:
+
+- ASP.NET Core Request Decompression (`AddRequestDecompression()`/`UseRequestDecompression()`) entpackt eingehende Bodies mit `Content-Encoding: br`. Kestrel tut das ohne diese Middleware nicht.
+- `HttpClient` mit `AutomaticDecompression = DecompressionMethods.Brotli` oder `DecompressionMethods.All` entpackt Brotli-Antworten fremder Server. Default ist `None`.
+- Eigener Code, der `BrotliStream` mit `CompressionMode.Decompress` oder `BrotliDecoder` auf fremde Daten anwendet.
+- Response Compression (`AddResponseCompression()`) komprimiert nur und ist nicht der verwundbare Pfad.
+
+```bash
+dotnet --list-runtimes
+grep -rnE "RequestDecompression|DecompressionMethods\.(Brotli|All)|BrotliStream|BrotliDecoder" --include=*.cs .
+```
+
+Bis zum Patch:
+
+1. In der Request Decompression den Brotli-Provider entfernen: `services.AddRequestDecompression(o => o.DecompressionProviders.Remove("br"));`
+2. Bei `HttpClient` nur `DecompressionMethods.GZip | DecompressionMethods.Deflate` setzen statt `All`.
+3. Eingehend `br` am Proxy ablehnen (siehe [Übergangslösung am Proxy](#übergangslösung-am-proxy)).
+4. [dotnet/runtime#136422](https://github.com/dotnet/runtime/issues/136422) beobachten. Beim letzten Brotli-CVE (CVE-2020-8927) kam der Fix als reguläres .NET-Update mit Security Advisory. Danach Runtime und Images aktualisieren und self-contained Apps neu bauen, weil sie die Runtime mitbringen.
+
+Der offene PR [dotnet/runtime#136430](https://github.com/dotnet/runtime/pull/136430) ersetzt den nativen Code durch eine verwaltete C#-Portierung von Brotli 1.2.1. Laut Autor ist das ein Experiment und kein Security-Fix.
+
 ## Übergangslösung am Proxy
 
 Gilt für alle Stacks, solange nicht alles gepatcht ist. Eingehend am Reverse-Proxy oder Load Balancer Requests mit `br` im `Content-Encoding` ablehnen, zum Beispiel in nginx:
@@ -259,6 +286,9 @@ Apache `mod_brotli` entpackt kein Brotli. Nginx entpackt standardmäßig auch ni
 - [Mallory: Node2Shell / HTTP2Shell Rapid Response](https://mallory.ai/blog/node2shell-rapid-response)
 - [broccoli2shell.com: Fix-Status weiterer Projekte](https://broccoli2shell.com/)
 - [CISA KEV Feed](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json)
+- [dotnet/runtime#136422: Does CVE-2026-111497 affect System.IO.Compression.Brotli?](https://github.com/dotnet/runtime/issues/136422)
+- [dotnet/runtime#136430: Managed C#-Port von Brotli 1.2.1](https://github.com/dotnet/runtime/pull/136430)
+- [dotnet/announcements#211: Advisory zu CVE-2020-8927](https://github.com/dotnet/announcements/issues/211)
 - [brotli4j v1.24.0 Release](https://github.com/hyperxpro/Brotli4j/releases/tag/v1.24.0)
 - [Netty 4.1: Brotli.isAvailable](https://netty.io/4.1/api/io/netty/handler/codec/compression/Brotli.html)
 - [Netty 4.1: HttpContentDecompressor](https://netty.io/4.1/xref/io/netty/handler/codec/http/HttpContentDecompressor.html)
