@@ -11,8 +11,8 @@ Unterbefehle:
   download  Advisories herunterladen und in die lokale Kopie einführen (überspringt
             den Download, solange die lokale Kopie jünger als --max-age-hours ist;
             --force erzwingt ihn). Details werden nur für neue Advisories oder bei
-            geänderter Übersicht (Severity, Datum, Versionen) geladen; --full lädt
-            alle Details neu. Die lokale Kopie wächst nur: aus der Übersicht
+            geänderter Übersicht (Severity, Datum, Versionen) geladen, dazu immer
+            die neuesten RECENT_ADVISORIES; --full lädt alle Details neu. Die lokale Kopie wächst nur: aus der Übersicht
             entfernte Advisories bleiben erhalten.
   list      Advisories nach Veröffentlichung (neueste zuerst) ausgeben, optional gefiltert
   search    Volltextsuche (alle Begriffe müssen vorkommen), sonst wie list
@@ -61,6 +61,9 @@ DOWNLOAD_TIMEOUT = 30
 DOWNLOAD_RETRIES = 3
 DOWNLOAD_WORKERS = 4
 DEFAULT_MAX_AGE_HOURS = 24.0
+# Die Übersicht hat kein Änderungsdatum: Nachbesserungen an Beschreibung oder
+# Mitigation sieht man nur auf der Detailseite — die neuesten deshalb immer laden.
+RECENT_ADVISORIES = 10
 
 SEVERITIES = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
 SEVERITY_ORDER = {s: i for i, s in enumerate(SEVERITIES)}
@@ -252,7 +255,10 @@ def merge_advisories(
     """Lädt Übersicht + nötige Details und führt sie in die lokale Kopie ein (Schlüssel: id)."""
     local_by_id = {str(a.get("id", "")).upper(): a for a in (local or {}).get("advisories", [])}
     listing = fetch_listing()
-    todo = [it for it in listing if full or it["id"] not in local_by_id or listing_changed(local_by_id[it["id"]], it)]
+    newest = sorted(listing, key=lambda it: (it["published"], it["id"]), reverse=True)
+    recent = {it["id"] for it in newest[:RECENT_ADVISORIES]}
+    todo = [it for it in listing if full or it["id"] in recent or it["id"] not in local_by_id
+            or listing_changed(local_by_id[it["id"]], it)]
 
     if todo and not quiet:
         print(f"Lade Details für {len(todo)} von {len(listing)} Advisories ...", file=sys.stderr)
@@ -558,7 +564,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_dl = sub.add_parser("download", help="Advisories herunterladen")
     p_dl.add_argument("--force", action="store_true", help="Download auch bei aktueller lokaler Kopie erzwingen")
-    p_dl.add_argument("--full", action="store_true", help="Details aller Advisories neu laden (impliziert --force)")
+    p_dl.add_argument(
+        "--full", action="store_true",
+        help=f"Details aller Advisories neu laden statt nur neue, geänderte und die neuesten {RECENT_ADVISORIES} "
+             "(impliziert --force)",
+    )
     p_dl.add_argument(
         "--max-age-hours", type=float, default=DEFAULT_MAX_AGE_HOURS,
         help="Lokale Kopie gilt so lange als aktuell (Standard: %(default)s)",
