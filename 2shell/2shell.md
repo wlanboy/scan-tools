@@ -1,6 +1,6 @@
 # Node2Shell / Python2Shell / HTTP2Shell (CVE-2026-111497)
 
-Stand: 24.10.2026
+Stand: 25.10.2026
 
 Node2Shell, Python2Shell, HTTP2Shell und Broccoli2Shell sind Namen für dieselbe Lücke. Sie ist nicht zu verwechseln mit PHP2Shell (CVE-2026-109618/-109619), einer davon unabhängigen PHP-Lücke, die bereits aktiv ausgenutzt wird.
 
@@ -13,7 +13,7 @@ Warum das gefährlich ist:
 - Ein Angreifer braucht keinen Login. Ein Request mit `Content-Encoding: br` reicht. Mögliche Folgen sind Absturz, Speicherleck oder Remote Code Execution.
 - Ausgehende Requests sind genauso betroffen. Holt der eigene Dienst eine Antwort von einem bösartigen Server und entpackt sie als Brotli, schlägt die Lücke dort zu. Eine Proxy-Regel für eingehenden Traffic hilft dagegen nicht.
 - Brotli kommt oft nur als transitive Abhängigkeit ins Projekt, in HTTP-Clients, Sidecars und Base-Images.
-- Seit dem 22.10. gibt es einen öffentlichen PoC. Forscher haben damit ein unverändertes Node 24.22.0 angegriffen. Aktive Angriffe sind bis 23.10. nicht bekannt, und CISA führt die Lücke noch nicht im KEV-Katalog.
+- Seit dem 22.10. gibt es öffentlichen Exploit-Code. Auf einem unveränderten Node-Build bringt er bisher nur Abstürze. Code Execution auf dem offiziellen Image Node 24.22.0 haben Forscher mit eigenen, nicht veröffentlichten Exploits gezeigt: Imperva auf arm64 nach mehreren Versuchen, OtterSec laut Mallory auf x86_64 mit ASLR in 50 von 50 Versuchen (von OtterSec selbst noch nicht veröffentlicht). Aktive Angriffe sind bis 24.10. nicht bekannt, und CISA führt die Lücke noch nicht im KEV-Katalog (Version 2026.10.23).
 - pip-audit, Dependabot und Safety melden die betroffenen Versionen noch nicht. Auf grüne Scanner ist also kein Verlass.
 
 Betroffen ist nur nativer C-Code, also die Google-Bibliothek selbst und alles, was sie einbindet. Ein reiner Java-Decoder wie `org.brotli:dec` hat keinen Speicher-Overflow, weil die JVM jeden Array-Zugriff prüft. Das ist meine Einschätzung. Eine offizielle Aussage zu Java habe ich nicht gefunden.
@@ -79,7 +79,7 @@ Wenn brotli4j drin ist, auf 1.24.0 heben (siehe oben). Wer Brotli gar nicht brau
 
 Auch reine Java-Dienste laufen selten allein:
 
-- Base-Images neu bauen und das Betriebssystem aktualisieren (`apt-get upgrade`), weil `libbrotli` und `curl` aus dem OS kommen.
+- Base-Images neu bauen und das Betriebssystem aktualisieren (`apt-get upgrade`), weil `libbrotli` und `curl` aus dem OS kommen. Gefixte Pakete gibt es bisher nur für Debian bookworm (`1.0.9-2+deb12u1`, DLA-4855-1) und trixie (`1.1.0-2+deb13u1`, DSA-6582-1). Für Debian forky/sid, Red Hat, Ubuntu, SUSE und Amazon Linux gab es am 24.10. noch keine Pakete; dort hilft das OS-Update noch nicht.
 - Service Mesh prüfen: Envoy und Istio sind betroffen (siehe eigenen Abschnitt [Istio und Envoy](#istio-und-envoy)).
 - Node- oder Python-Tools im selben Image (Build-Steps, Sidecars) mit aktualisieren.
 
@@ -256,6 +256,9 @@ Apache `mod_brotli` entpackt kein Brotli. Nginx entpackt standardmäßig auch ni
 - [Debian Security Tracker](https://security-tracker.debian.org/tracker/CVE-2026-111497)
 - [cvefeed.io: CVE-2026-111497](https://cvefeed.io/vuln/detail/CVE-2026-111497)
 - [Patch the Planet: Brotli](https://patchtheplanet.org/brotli)
+- [Mallory: Node2Shell / HTTP2Shell Rapid Response](https://mallory.ai/blog/node2shell-rapid-response)
+- [broccoli2shell.com: Fix-Status weiterer Projekte](https://broccoli2shell.com/)
+- [CISA KEV Feed](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json)
 - [brotli4j v1.24.0 Release](https://github.com/hyperxpro/Brotli4j/releases/tag/v1.24.0)
 - [Netty 4.1: Brotli.isAvailable](https://netty.io/4.1/api/io/netty/handler/codec/compression/Brotli.html)
 - [Netty 4.1: HttpContentDecompressor](https://netty.io/4.1/xref/io/netty/handler/codec/http/HttpContentDecompressor.html)
