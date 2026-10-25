@@ -46,16 +46,21 @@ NPM_PATTERN          = _mod.NPM_PATTERN
 PIP_PATTERN          = _mod.PIP_PATTERN
 SYSTEMD_ENV_PATTERN  = _mod.SYSTEMD_ENV_PATTERN
 APT_PROXY_PATTERN    = _mod.APT_PROXY_PATTERN
+RHSM_PATTERN         = _mod.RHSM_PATTERN
 Finding              = _mod.Finding
 add_finding          = _mod.add_finding
 check_env            = _mod.check_env
 scan_pattern_lines   = _mod.scan_pattern_lines
 scan_apt_conf        = _mod.scan_apt_conf
 scan_docker_config   = _mod.scan_docker_config
+scan_docker_daemon   = _mod.scan_docker_daemon
+scan_systemd_env     = _mod.scan_systemd_env
+scan_containers_conf = _mod.scan_containers_conf
 scan_maven_settings  = _mod.scan_maven_settings
 route_file           = _mod.route_file
 collect_maven_files  = _mod.collect_maven_files
 is_real_proxy_key    = _mod.is_real_proxy_key
+is_real_proxy        = _mod.is_real_proxy
 main                 = _mod.main
 
 
@@ -354,16 +359,17 @@ class TestToolSpecificPatterns(unittest.TestCase):
     def test_systemd_env_pattern(self):
         """
         Ziel: systemd-Unit-Drop-ins setzen Proxys über
-              'Environment="HTTP_PROXY=<url>"'.
+              'Environment="HTTP_PROXY=<url>"', system.conf über
+              'DefaultEnvironment=...'.
 
-        Eingabe: 'Environment="HTTP_PROXY=http://proxy.example.com:8080"'.
-
-        Erwartung: Match mit group(1)='HTTP_PROXY', group(2) die URL.
+        Erwartung: Match in beiden Fällen, group(1) enthält die komplette
+                   Zuweisungsliste (Zerlegung übernimmt scan_systemd_env).
         """
         m = SYSTEMD_ENV_PATTERN.match('Environment="HTTP_PROXY=http://proxy.example.com:8080"')
         self.assertIsNotNone(m)
-        self.assertEqual(m.group(1), 'HTTP_PROXY')
-        self.assertEqual(m.group(2), 'http://proxy.example.com:8080')
+        self.assertEqual(m.group(1), '"HTTP_PROXY=http://proxy.example.com:8080"')
+        self.assertIsNotNone(SYSTEMD_ENV_PATTERN.match('DefaultEnvironment=HTTP_PROXY=http://p:3128'))
+        self.assertIsNone(SYSTEMD_ENV_PATTERN.match('#DefaultEnvironment=HTTP_PROXY=http://p:3128'))
 
     def test_apt_proxy_pattern(self):
         """
@@ -376,8 +382,39 @@ class TestToolSpecificPatterns(unittest.TestCase):
         """
         m = APT_PROXY_PATTERN.search('Acquire::http::Proxy "http://proxy.example.com:3128";')
         self.assertIsNotNone(m)
-        self.assertEqual(m.group(1), 'http')
-        self.assertEqual(m.group(2), 'http://proxy.example.com:3128')
+        self.assertEqual(m.group('proto'), 'http')
+        self.assertEqual(m.group('value'), 'http://proxy.example.com:3128')
+        self.assertIsNone(m.group('host'))
+
+    def test_rhsm_pattern_ignores_default_scheme(self):
+        """
+        Ziel: rhsm.conf enthält standardmäßig 'proxy_scheme = http'. Das darf
+              nicht als Proxy zählen, 'proxy_hostname' dagegen schon.
+
+        Erwartung: Kein Match für proxy_scheme und für leeres proxy_hostname,
+                   Match für gesetztes proxy_hostname.
+        """
+        self.assertIsNone(RHSM_PATTERN.match('proxy_scheme = http'))
+        self.assertIsNone(RHSM_PATTERN.match('proxy_hostname ='))
+        m = RHSM_PATTERN.match('proxy_hostname = proxy.example.com')
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group(2), 'proxy.example.com')
+
+    def test_curl_pattern_variants(self):
+        """
+        Ziel: curl akzeptiert in .curlrc mehrere Schreibweisen für den Proxy.
+
+        Eingabe: 'proxy x', 'proxy: x', 'proxy="x"', '--proxy x', '-x x'.
+
+        Erwartung: Alle matchen mit der URL als group(2); 'proxy-user = a:b'
+                   matcht nicht.
+        """
+        for line in ('proxy http://p:3128', 'proxy: http://p:3128', 'proxy="http://p:3128"',
+                     '--proxy http://p:3128', '-x http://p:3128'):
+            m = CURL_PATTERN.match(line)
+            self.assertIsNotNone(m, line)
+            self.assertEqual(m.group(2), 'http://p:3128', line)
+        self.assertIsNone(CURL_PATTERN.match('proxy-user = a:b'))
 
     def test_csh_setenv_pattern(self):
         """
@@ -493,6 +530,30 @@ class TestIsRealProxyKey(unittest.TestCase):
         Erwartung: True.
         """
         self.assertTrue(is_real_proxy_key('proxy.host'))
+
+
+# ===========================================================================
+# Klasse 5b: Tests für is_real_proxy()
+# ===========================================================================
+
+class TestIsRealProxy(unittest.TestCase):
+    """Testet is_real_proxy(), das zusätzlich zum Schlüssel den Wert prüft."""
+
+    def test_url_value_is_real(self):
+        """Ein Proxy-Schlüssel mit URL zählt als echter Proxy."""
+        self.assertTrue(is_real_proxy(Finding('/etc/yum.conf', 'proxy', 'http://p:3128')))
+
+    def test_yum_none_value_is_not_real(self):
+        """'proxy=_none_' in einer .repo-Datei schaltet den Proxy ab."""
+        self.assertFalse(is_real_proxy(Finding('/etc/yum.repos.d/x.repo', 'proxy', '_none_')))
+
+    def test_apt_direct_value_is_not_real(self):
+        """apt 'DIRECT' heißt: ohne Proxy (Groß-/Kleinschreibung egal)."""
+        self.assertFalse(is_real_proxy(Finding('/etc/apt/apt.conf', 'Acquire::http::Proxy', 'DIRECT')))
+
+    def test_exclusion_key_is_not_real(self):
+        """Ausnahmelisten zählen weiterhin nicht."""
+        self.assertFalse(is_real_proxy(Finding('ENV', 'NO_PROXY', 'localhost')))
 
 
 # ===========================================================================
@@ -677,6 +738,40 @@ class TestRouteFile(unittest.TestCase):
         """
         self.assertIs(self._routed_pattern('/etc/profile.d/proxy.csh'), CSH_SETENV_PATTERN)
 
+    def test_yum_repo_routes_to_yum_dnf_pattern(self):
+        """
+        Ziel: .repo-Dateien in /etc/yum.repos.d/ können pro Repository einen
+              eigenen 'proxy=' setzen und nutzen dasselbe Format wie yum.conf.
+
+        Erwartung: Aufruf mit YUM_DNF_PATTERN.
+        """
+        self.assertIs(self._routed_pattern('/etc/yum.repos.d/epel.repo'), YUM_DNF_PATTERN)
+
+    def test_rhsm_conf_routes_to_rhsm_pattern(self):
+        """
+        Ziel: /etc/rhsm/rhsm.conf (subscription-manager) hat eigene Schlüssel.
+
+        Erwartung: Aufruf mit RHSM_PATTERN.
+        """
+        self.assertIs(self._routed_pattern('/etc/rhsm/rhsm.conf'), RHSM_PATTERN)
+
+    def test_xdg_git_config_routes_to_git_pattern(self):
+        """
+        Ziel: git liest auch ~/.config/git/config.
+
+        Erwartung: Aufruf mit GIT_PATTERN.
+        """
+        self.assertIs(self._routed_pattern('/home/user/.config/git/config'), GIT_PATTERN)
+
+    def test_csh_rc_files_route_to_csh_setenv_pattern(self):
+        """
+        Ziel: /etc/csh.cshrc, /etc/csh.login und ~/.tcshrc sind csh-Syntax.
+
+        Erwartung: Aufruf mit CSH_SETENV_PATTERN.
+        """
+        for path in ('/etc/csh.cshrc', '/etc/csh.login', '/home/user/.tcshrc'):
+            self.assertIs(self._routed_pattern(path), CSH_SETENV_PATTERN)
+
     def test_unknown_file_falls_back_to_generic_pattern(self):
         """
         Ziel: Ein unbekannter Dateiname (z. B. /etc/environment) soll auf das
@@ -740,6 +835,38 @@ class TestScanAptConf(ScanProxyTestCase):
                 f.write('APT::Install-Recommends "false";\n')
             scan_apt_conf(path)
         self.assertEqual(_mod.findings, [])
+
+    def test_commented_lines_ignored(self):
+        """
+        Ziel: Auskommentierte Proxy-Zeilen ('//' oder '#') sollen nicht zählen.
+
+        Erwartung: Keine Findings.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'apt.conf')
+            with open(path, 'w') as f:
+                f.write('// Acquire::http::Proxy "http://old.example.com:3128";\n')
+                f.write('# Acquire::https::Proxy "http://old.example.com:3128";\n')
+            scan_apt_conf(path)
+        self.assertEqual(_mod.findings, [])
+
+    def test_host_specific_and_auto_detect(self):
+        """
+        Ziel: Host-spezifische Einträge und Proxy-Auto-Detect sollen mit
+              eigenem Schlüssel erkannt werden.
+
+        Erwartung: Keys 'Acquire::http::Proxy::repo.example.com' und
+                   'Acquire::http::Proxy-Auto-Detect'.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'apt.conf')
+            with open(path, 'w') as f:
+                f.write('Acquire::http::Proxy::repo.example.com "DIRECT";\n')
+                f.write('Acquire::http::Proxy-Auto-Detect "/usr/bin/auto-apt-proxy";\n')
+            scan_apt_conf(path)
+        keys = {f.key: f.value for f in _mod.findings}
+        self.assertEqual(keys.get('Acquire::http::Proxy::repo.example.com'), 'DIRECT')
+        self.assertEqual(keys.get('Acquire::http::Proxy-Auto-Detect'), '/usr/bin/auto-apt-proxy')
 
     def test_missing_file_no_crash(self):
         """
@@ -1080,6 +1207,101 @@ class TestCollectMavenFiles(unittest.TestCase):
 
 
 # ===========================================================================
+# Klasse 11b: Tests für scan_systemd_env()
+# ===========================================================================
+
+class TestScanSystemdEnv(ScanProxyTestCase):
+    """Testet scan_systemd_env() für Unit-Drop-ins und system.conf."""
+
+    def _scan(self, content):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'http-proxy.conf')
+            with open(path, 'w') as f:
+                f.write(content)
+            scan_systemd_env(path)
+        return {f.key: f.value for f in _mod.findings}
+
+    def test_quoted_single_assignment(self):
+        """Environment="HTTP_PROXY=<url>" liefert genau einen Befund."""
+        keys = self._scan('[Service]\nEnvironment="HTTP_PROXY=http://p:3128"\n')
+        self.assertEqual(keys, {'HTTP_PROXY': 'http://p:3128'})
+
+    def test_multiple_assignments_in_one_line(self):
+        """
+        Ziel: Mehrere Zuweisungen in einer Environment=-Zeile sollen einzeln
+              erkannt werden, andere Variablen ignoriert.
+        """
+        keys = self._scan('Environment="HTTP_PROXY=http://p:3128" "NO_PROXY=localhost" FOO=bar\n')
+        self.assertEqual(keys, {'HTTP_PROXY': 'http://p:3128', 'NO_PROXY': 'localhost'})
+
+    def test_default_environment(self):
+        """DefaultEnvironment= in /etc/systemd/system.conf wird erkannt."""
+        keys = self._scan('[Manager]\nDefaultEnvironment=https_proxy=http://p:3128\n')
+        self.assertEqual(keys, {'https_proxy': 'http://p:3128'})
+
+    def test_unbalanced_quotes_no_crash(self):
+        """Ein kaputtes Quoting fällt auf einfaches Split zurück."""
+        keys = self._scan('Environment="HTTP_PROXY=http://p:3128\n')
+        self.assertIn('"HTTP_PROXY', keys)
+
+    def test_missing_file_no_crash(self):
+        """Eine fehlende Datei bricht den Scan nicht ab."""
+        scan_systemd_env('/nonexistent/http-proxy.conf')
+        self.assertEqual(_mod.findings, [])
+
+
+# ===========================================================================
+# Klasse 11c: Tests für scan_containers_conf()
+# ===========================================================================
+
+class TestScanContainersConf(ScanProxyTestCase):
+    """Testet scan_containers_conf() für podman/buildah containers.conf."""
+
+    def test_env_list_found_and_bool_option_ignored(self):
+        """
+        Ziel: Proxy-Variablen in 'env = [...]' sollen erkannt werden, die
+              Boolean-Option 'http_proxy = true' (Host-Proxy durchreichen)
+              dagegen nicht.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'containers.conf')
+            with open(path, 'w') as f:
+                f.write('[containers]\n')
+                f.write('http_proxy = true\n')
+                f.write('env = ["https_proxy=http://p:3128", "TERM=xterm"]\n')
+                f.write('# env = ["http_proxy=http://old:3128"]\n')
+            scan_containers_conf(path)
+        self.assertEqual(_mod.findings, [Finding(path, 'https_proxy', 'http://p:3128')])
+
+
+# ===========================================================================
+# Klasse 11d: Tests für scan_docker_daemon()
+# ===========================================================================
+
+class TestScanDockerDaemon(ScanProxyTestCase):
+    """Testet scan_docker_daemon() für /etc/docker/daemon.json."""
+
+    def test_proxies_found(self):
+        """Die 'proxies'-Sektion (Docker 23+) liefert Befunde pro Schlüssel."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'daemon.json')
+            with open(path, 'w') as f:
+                json.dump({'proxies': {'http-proxy': 'http://p:3128', 'no-proxy': 'localhost'}}, f)
+            scan_docker_daemon(path)
+        keys = {f.key: f.value for f in _mod.findings}
+        self.assertEqual(keys, {'http-proxy': 'http://p:3128', 'no-proxy': 'localhost'})
+
+    def test_proxies_not_dict_no_crash(self):
+        """Ein 'proxies'-Wert, der kein Objekt ist, wird ignoriert."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'daemon.json')
+            with open(path, 'w') as f:
+                json.dump({'proxies': 'http://p:3128'}, f)
+            scan_docker_daemon(path)
+        self.assertEqual(_mod.findings, [])
+
+
+# ===========================================================================
 # Klasse 12: Integrationstests für main()
 # ===========================================================================
 
@@ -1100,6 +1322,8 @@ class TestMain(ScanProxyTestCase):
             'APT_CONFIG_FILES': [],
             'APT_GLOB_PATTERNS': [],
             'DOCKER_CONFIG_FILES': [],
+            'DOCKER_DAEMON_FILES': [],
+            'CONTAINERS_GLOB_PATTERNS': [],
             'SYSTEMD_GLOB_PATTERNS': [],
         }
         defaults.update(overrides)
@@ -1191,6 +1415,45 @@ class TestMain(ScanProxyTestCase):
         output = out.getvalue()
         self.assertIn('RESULT: PROXY_FOUND', output)
         self.assertIn(f'SOURCE={path} KEY=http_proxy VALUE=http://file-proxy.example.com:3128', output)
+
+    def test_symlinked_file_scanned_once(self):
+        """
+        Ziel: Auf RHEL/CentOS 8+ ist /etc/yum.conf ein Symlink auf
+              /etc/dnf/dnf.conf. Die Datei soll nur einmal gelesen werden.
+
+        Erwartung: Genau ein Befund, unter dem zuerst gelisteten Pfad.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            target = os.path.join(tmp, 'dnf.conf')
+            link = os.path.join(tmp, 'yum.conf')
+            with open(target, 'w') as f:
+                f.write('[main]\nproxy=http://p:3128\n')
+            os.symlink(target, link)
+            self._patch_all_sources(CONFIG_FILES=[link, target])
+            with mock.patch.dict(os.environ, _clean_environ(), clear=True):
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):
+                    rc = main()
+        self.assertEqual(rc, 1)
+        self.assertEqual(_mod.findings, [Finding(link, 'proxy', 'http://p:3128')])
+
+    def test_only_disabled_proxy_returns_zero(self):
+        """
+        Ziel: Ein Repo mit 'proxy=_none_' ist explizit ohne Proxy und soll kein
+              PROXY_FOUND auslösen, aber im Report stehen.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'local.repo')
+            with open(path, 'w') as f:
+                f.write('[local]\nbaseurl=http://repo.lan/\nproxy=_none_\n')
+            self._patch_all_sources(CONFIG_FILES=[path])
+            with mock.patch.dict(os.environ, _clean_environ(), clear=True):
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):
+                    rc = main()
+        self.assertEqual(rc, 0)
+        self.assertIn('RESULT: NO_PROXY_FOUND', out.getvalue())
+        self.assertIn('KEY=proxy VALUE=_none_', out.getvalue())
 
     def test_hostname_header_printed(self):
         """
