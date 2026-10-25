@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>eMudhra: kompromittierte Intermediate-CAs und Cross-Signs</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+  <header>
+    <p class="back"><a href="../">← Übersicht</a></p>
+    <h1>eMudhra: kompromittierte Intermediate-CAs und Cross-Signs</h1>
+    <p class="muted">Stand: 24.10.2026</p>
+  </header>
+
+  <main>
+<h2 id="worum-es-geht">Worum es geht</h2>
+
+<p>Die privaten Schlüssel von acht Intermediate-CAs der indischen CA eMudhra sind kompromittiert. eMudhra hat die Schlüssel im April 2025 fehlerhaft erzeugt. Seitdem lässt sich jeder dieser Schlüssel aus dem öffentlichen Zertifikat zurückrechnen. Wer das tut, kann Zertifikate für beliebige Domains ausstellen, etwa für <code>api.github.com</code>, <code>repo.maven.apache.org</code>, <code>registry.npmjs.org</code> oder unseren eigenen IdP.</p>
+
+<p>Der Entdecker hat am 17.10.2026 mit allen acht Schlüsseln die Nachricht "We have a problem here - Wayne" signiert und an die Root-Programme gemeldet. eMudhra hat die Intermediates am 18.10. widerrufen, Sectigo die Cross-Signs am 19.10.</p>
+
+<p>Betroffen sind diese Intermediates, jeweils in Generation G3B und G3C:</p>
+
+<ul>
+  <li><code>EM DV TLS CA</code>, <code>EM OV TLS CA</code>, <code>EM EV TLS CA</code> für TLS-Serverzertifikate</li>
+  <li><code>EM OV CS CA</code> für Code Signing</li>
+</ul>
+
+<p>Die vollständige Liste mit Fingerprints steht in <a href="https://emudhra.we-have-a-problem.com/impacted-intermediates.json" target="_blank" rel="noopener">impacted-intermediates.json</a>. Die 16 SHA-256-Fingerprints liegen auch in <a href="emudhra-blocked.certs">emudhra-blocked.certs</a>.</p>
+
+<h2 id="warum-die-cross-signs-das-problem-so-groß-machen">Warum die Cross-Signs das Problem so groß machen</h2>
+
+<p>Ein Intermediate steht in keinem Truststore. Man vertraut ihm nur, weil eine Kette von ihm zu einer Root führt, die im Truststore steht. Bei eMudhra gibt es für jeden der acht Schlüssel zwei Zertifikate mit demselben Public Key, aber unterschiedlichem Aussteller. Zusammen sind das 16 Zertifikate:</p>
+
+<pre><code>Pfad 1: Leaf -&gt; EM DV TLS CA - G3B -&gt; emSign Root TLS CA - G3 -&gt; emSign ECC Root CA - G3
+                                      (Cross-Sign von eMudhra)   (in Mozilla, Chrome, Apple, Microsoft)
+
+Pfad 2: Leaf -&gt; EM DV TLS CA - G3B -&gt; AAA Certificate Services
+                (Cross-Sign von Sectigo) (Apple, Microsoft, ältere Bundles, OpenJDK cacerts)</code></pre>
+
+<p>Daraus folgen mehrere Probleme:</p>
+
+<ol>
+  <li><strong>Die Root, über die man angreifbar ist, kennt man nicht.</strong> <code>emSign Root TLS CA - G3</code> steht nur bei Microsoft im Store. Über den Cross-Sign von <code>emSign ECC Root CA - G3</code> ist sie trotzdem in jedem Truststore gültig, der Mozilla-Roots übernimmt. Dazu gehören Node.js, Temurin, Debian, Ubuntu und Alpine.</li>
+  <li><strong>Eine Root zu entfernen reicht nicht.</strong> Wer nur <code>emSign ECC Root CA - G3</code> entfernt, hat Pfad 2 noch offen. Alle acht Intermediates haben zusätzlich einen Sectigo-Cross-Sign von <code>AAA Certificate Services</code>, darunter alle sechs TLS-Intermediates.</li>
+  <li><strong>Die zweite Root lässt sich nicht gefahrlos entfernen.</strong> <code>AAA Certificate Services</code> ist eine alte Comodo/Sectigo-Root von 2004. Über sie laufen noch viele legitime Sectigo-Ketten. Wer sie entfernt, bricht Verbindungen zu unbeteiligten Servern.</li>
+  <li><strong>Sperren per Zertifikats-Fingerprint müssen alle 16 Zertifikate abdecken.</strong> Eine Sperrliste mit nur acht Einträgen lässt den anderen Pfad offen. Robuster ist eine Sperre auf den Public Key (SPKI). Node.js macht das seit dem Patch so.</li>
+</ol>
+
+<h2 id="warum-backends-stärker-gefährdet-sind-als-browser">Warum Backends stärker gefährdet sind als Browser</h2>
+
+<p>Browser sind seit dem 17.10. (Firefox, Chrome) bzw. 20.10. (Microsoft) und 22.10. (Apple) geschützt. Sie bekommen Sperrlisten wie CRLSets und OneCRL zentral nachgeladen. Zusätzlich erzwingen sie Certificate Transparency (CT). Ein gefälschtes Zertifikat ohne CT-Eintrag lehnen sie ab, und mit CT-Eintrag würde der Angriff öffentlich sichtbar.</p>
+
+<p>Unsere Dienste haben beides nicht:</p>
+
+<ul>
+  <li>Java, Node.js, curl, Go und Python prüfen standardmäßig keine Sperrlisten (CRL/OCSP). Der Widerruf vom 18.10. kommt bei ihnen nicht an.</li>
+  <li>Keiner dieser Clients erzwingt CT. Ein Angreifer kann ein Zertifikat ausstellen, das nie in einem CT-Log auftaucht. Die Testhosts <code>*-noct-*</code> zeigen genau das.</li>
+  <li>Java und Node.js bringen ihre Roots selbst mit. Ein OS-Update ändert daran nichts.</li>
+</ul>
+
+<p>Für einen Angriff braucht man eine Position im Netz, zum Beispiel über DNS-Spoofing, einen kompromittierten Proxy, BGP-Hijacking oder einen Nachbarn im selben Netzsegment. Dann ist jeder ausgehende TLS-Call eines ungepatchten Dienstes lesbar und veränderbar. Konkret heißt das:</p>
+
+<ul>
+  <li><strong>JWT-Validierung.</strong> Spring Security holt mit <code>issuer-uri</code> bzw. <code>jwk-set-uri</code> die Signaturschlüssel des IdP per HTTPS, in Node.js macht das <code>jwks-rsa</code> oder <code>jose</code>. Wer diesen Call abfängt, schiebt eigene Schlüssel unter und kann sich beliebige Tokens ausstellen. Das ist ein vollständiger Auth-Bypass.</li>
+  <li><strong>Build und Supply Chain.</strong> Maven, Gradle und npm laufen auf genau den JVMs und Node-Versionen aus unseren Build-Images. Maven prüft Checksums nur gegen denselben Server, von dem es auch das JAR lädt. Ein MITM kann also manipulierte Artefakte ausliefern. npm ist durch die <code>integrity</code>-Hashes im Lockfile besser geschützt, aber nur für Pakete, die schon im Lockfile stehen.</li>
+  <li><strong>API-Calls mit Secrets.</strong> Alles, was mit Bearer-Token, Basic Auth oder API-Key nach außen geht, landet beim Angreifer.</li>
+</ul>
+
+<p>Ob jemand die Schwachstelle seit April 2025 ausgenutzt hat, weiß niemand. Wegen der fehlenden CT-Pflicht hinterlässt ein Angriff auf Backends keine öffentlichen Spuren.</p>
+
+<h2 id="was-ich-lokal-getestet-habe">Was ich lokal getestet habe</h2>
+
+<p>Am 24.10.2026 gegen die Testhosts von we-have-a-problem.com. "Verwundbar" heißt, der Client hat eine Verbindung über ein kompromittiertes Intermediate aufgebaut.</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Runtime</th><th>Pfad 1 (emSign)</th><th>Pfad 2 (AAA)</th></tr></thead>
+  <tbody>
+    <tr><td>Node 24.21.0, Node 20 (<code>node:20-slim</code>)</td><td>verwundbar</td><td>abgelehnt</td></tr>
+    <tr><td>Node 24.21.0 mit <code>--use-system-ca</code></td><td>verwundbar</td><td>abgelehnt</td></tr>
+    <tr><td>Node 24.21.0 mit <code>--use-openssl-ca</code>, Ubuntu-Store gepatcht</td><td>abgelehnt</td><td>abgelehnt</td></tr>
+    <tr><td>Node 20 mit <code>--use-openssl-ca</code> (<code>node:20-slim</code>)</td><td>abgelehnt</td><td>abgelehnt</td></tr>
+    <tr><td>Node 22.23.4, 24.22.1 (<code>CERT_REVOKED</code>)</td><td>abgelehnt</td><td>abgelehnt</td></tr>
+    <tr><td>Temurin 25+36 lokal, <code>eclipse-temurin:25-jdk</code> (25.0.4.1)</td><td>verwundbar</td><td>abgelehnt</td></tr>
+    <tr><td>Temurin 25 mit <code>-Dcom.sun.net.ssl.checkRevocation=true</code></td><td>abgelehnt</td><td>abgelehnt</td></tr>
+    <tr><td>Temurin 25 mit ergänztem <code>blocked.certs</code></td><td>abgelehnt</td><td>abgelehnt</td></tr>
+    <tr><td>Corretto 25.0.5.0.9 (<code>amazoncorretto:25</code>)</td><td>abgelehnt</td><td>abgelehnt</td></tr>
+    <tr><td>curl mit gepatchtem Ubuntu-Store</td><td>abgelehnt</td><td>abgelehnt</td></tr>
+  </tbody>
+</table></div>
+
+<p>Pfad 2 scheitert bei Node und Temurin, weil ihre Mozilla-basierten Stores <code>AAA Certificate Services</code> nicht mehr enthalten. Bei Oracle JDK und OpenJDK-Builds mit dem Upstream-<code>cacerts</code> ist das anders. Dort steht die Root als <code>comodoaaaca [jdk]</code> drin, und Pfad 2 ist offen.</p>
+
+<p>Wichtig: Das offizielle Docker-Image <code>eclipse-temurin:25-jdk</code> war am 24.10. noch ungepatcht.</p>
+
+<h2 id="selbst-prüfen">Selbst prüfen</h2>
+
+<p>Die Prüfung muss mit genau der Runtime laufen, die auch die Anwendung nutzt, also im Container. Ein grüner Browser-Test oder ein <code>curl</code> auf dem Laptop sagt über den Java- oder Node-Prozess nichts aus.</p>
+
+<pre><code class="lang-bash"># Java 11+, ohne Kompilieren
+docker run --rm -v "$PWD":/t -w /t &lt;unser-image&gt; java Check.java
+
+# Node.js 18+
+docker run --rm -v "$PWD":/t -w /t &lt;unser-image&gt; node check.mjs</code></pre>
+
+<p><a href="Check.java">Check.java</a> und <a href="check.mjs">check.mjs</a> liegen in diesem Ordner. Beide prüfen beide Pfade, jeweils mit und ohne CT, und enden mit Exit-Code 1, wenn die Runtime verwundbar ist. Damit kann man sie auch in die CI-Pipeline hängen.</p>
+
+<p>Mit curl geht es so. Ein Zertifikatsfehler ist hier das gute Ergebnis.</p>
+
+<pre><code class="lang-bash">curl https://dv-g3b-emudhra.we-have-a-problem.com/
+curl https://dv-g3b-aaa-emudhra.we-have-a-problem.com/
+curl https://dv-g3b-noct-emudhra.we-have-a-problem.com/
+curl https://dv-g3b-aaa-noct-emudhra.we-have-a-problem.com/</code></pre>
+
+<h2 id="spring-boot">Spring Boot</h2>
+
+<p>Die TLS-Prüfung macht in fast allen Fällen der PKIX-Validator des JDK. Das gilt für <code>RestClient</code>, <code>RestTemplate</code>, <code>WebClient</code> auf Reactor Netty, Feign, den JDK-<code>HttpClient</code>, Apache HttpClient 5, Kafka-Clients, JDBC-Treiber und den JWK-Abruf von Spring Security. Ein JDK-Update oder das Ergänzen von <code>blocked.certs</code> deckt deshalb alle diese Clients ab.</p>
+
+<h3 id="1-jdk-im-image-aktualisieren">1. JDK im Image aktualisieren</h3>
+
+<p>Laut <a href="https://openjdk.org/emudhra" target="_blank" rel="noopener">openjdk.org/emudhra</a> sind diese Versionen gepatcht: 27.0.1, 25.0.5, 21.0.13, 17.0.21, 11.0.33 und 8u511. Corretto 25.0.5.0.9 habe ich getestet, es lehnt alle Ketten ab.</p>
+
+<p>Danach Images neu bauen, auch die Build-Images (<code>maven:*</code>, <code>gradle:*</code>), und im laufenden Container prüfen:</p>
+
+<pre><code class="lang-bash">docker run --rm &lt;image&gt; java -version</code></pre>
+
+<h3 id="2-wenn-das-base-image-noch-nicht-gepatcht-ist-blockedcerts-ergänzen">2. Wenn das Base-Image noch nicht gepatcht ist: blocked.certs ergänzen</h3>
+
+<p>Das JDK hat eine eigene Sperrliste, <code>$JAVA_HOME/lib/security/blocked.certs</code>. Sie enthält SHA-256-Fingerprints von Zertifikaten, denen die JVM nie vertraut. Die Sperre greift in jeder PKIX-Prüfung, auch bei eigenen Truststores über <code>javax.net.ssl.trustStore</code> oder Spring-SSL-Bundles. Das habe ich mit einem Truststore getestet, der nur <code>emSign ECC Root CA - G3</code> enthält. Die gepatchten JDKs nutzen denselben Mechanismus. Corretto meldet <code>Untrusted certificate: CN=EM DV TLS CA - G3B</code>.</p>
+
+<pre><code class="lang-dockerfile">FROM eclipse-temurin:25-jre
+COPY emudhra-blocked.certs /tmp/emudhra-blocked.certs
+RUN cat /tmp/emudhra-blocked.certs &gt;&gt; "$JAVA_HOME/lib/security/blocked.certs" \
+ &amp;&amp; rm /tmp/emudhra-blocked.certs</code></pre>
+
+<p><a href="emudhra-blocked.certs">emudhra-blocked.certs</a> enthält alle 16 Fingerprints, also beide Pfade. Die Datei ist ein JDK-Internum und kein offizielles Konfigurationsinterface. Als Übergang bis zum gepatchten Base-Image funktioniert sie, danach kann die Zeile wieder raus.</p>
+
+<h3 id="3-alternative-keytool-mit-vorsicht">3. Alternative: keytool, mit Vorsicht</h3>
+
+<p>openjdk.org empfiehlt, die beiden Roots aus <code>cacerts</code> zu löschen:</p>
+
+<pre><code class="lang-bash">keytool -delete -cacerts -alias "emsigneccrootcag3 [jdk]"
+keytool -delete -cacerts -alias "comodoaaaca [jdk]"</code></pre>
+
+<p>Bei Temurin laufen diese Befehle ins Leere, denn Temurin benennt die Aliase anders. Dort heißt die Root <code>cn_emsign_ecc_root_ca__g3,o_emudhra_technologies_limited,ou_emsign_pki,c_in [jdk]</code>. Die Fehlermeldung "Alias existiert nicht" soll man laut Anleitung ignorieren. Damit bleibt man verwundbar und hält sich für sicher. Ich würde deshalb <code>blocked.certs</code> nehmen. Wer bei keytool bleibt, prüft vorher mit <code>keytool -list -cacerts | grep -iE 'emsign|aaa'</code>.</p>
+
+<h3 id="4-alternative-revocation-check">4. Alternative: Revocation-Check</h3>
+
+<pre><code class="lang-bash">exec java \
+  -Dspring.aot.enabled=true \
+  -Dcom.sun.net.ssl.checkRevocation=true \
+  -Dcom.sun.security.enableCRLDP=true \
+  ... weitere Optionen ...
+  org.springframework.boot.loader.launch.JarLauncher</code></pre>
+
+<p>Das wirkt, hat aber Nebenwirkungen. Die JVM lädt dann für jede Kette CRLs per HTTP nach. Ist der CRL-Server nicht erreichbar, etwa weil der Cluster keinen Egress hat oder der Proxy nicht konfiguriert ist (<code>-Dhttp.proxyHost</code>), schlägt die Verbindung fehl. Java bricht dann hart ab. Für Dienste hinter einem Firmen-Proxy ist <code>blocked.certs</code> die einfachere Lösung.</p>
+
+<h3 id="5-debianubuntu-mit-system-truststore">5. Debian/Ubuntu mit System-Truststore</h3>
+
+<p>Images mit <code>openjdk</code> aus Debian oder Ubuntu nutzen <code>/etc/ssl/certs/java/cacerts</code> aus <code>ca-certificates-java</code>. Laut openjdk.org reicht dort ein Paket-Update wegen eines Bugs nicht. Zusätzlich nötig:</p>
+
+<pre><code class="lang-bash">rm -f /etc/ssl/certs/java/cacerts
+update-ca-certificates --fresh</code></pre>
+
+<h3 id="6-im-code-und-in-der-konfiguration-suchen">6. Im Code und in der Konfiguration suchen</h3>
+
+<pre><code class="lang-bash"># Eigene Truststores im Repo und im Fat-JAR
+find . -name '*.jks' -o -name '*.p12' -o -name '*.pfx' -o -name 'cacerts'
+unzip -l target/*.jar | grep -iE '\.(jks|p12|pem|crt)$'
+
+# Enthalten sie eine der betroffenen Roots?
+keytool -list -v -keystore truststore.p12 | grep -E 'emSign ECC Root CA - G3|AAA Certificate Services'
+
+# Abgeschaltete Prüfung, die jede Maßnahme aushebelt
+grep -rnE 'InsecureTrustManagerFactory|TrustAllStrategy|TrustSelfSignedStrategy|NoopHostnameVerifier|X509TrustManager' src/</code></pre>
+
+<p>Kopierte Truststores sind eine Momentaufnahme. Sie bekommen kein Update, wenn das JDK aktualisiert wird. <code>blocked.certs</code> schützt sie trotzdem, ein <code>keytool -delete</code> auf <code>cacerts</code> dagegen nicht.</p>
+
+<h3 id="7-eingehendes-mtls">7. Eingehendes mTLS</h3>
+
+<p>Wenn ein Dienst Client-Zertifikate prüft (<code>server.ssl.client-auth=need</code>) und dafür einen Truststore mit öffentlichen Roots nutzt, kann ein Angreifer sich ein passendes Client-Zertifikat ausstellen. Für mTLS gehört nur die eigene, private CA in den Truststore.</p>
+
+<h2 id="nodejs">Node.js</h2>
+
+<p>Node.js bringt die Mozilla-Roots fest im Binary mit. OS-Updates helfen daher nur, wenn man Node ausdrücklich auf den OS-Store umstellt.</p>
+
+<h3 id="1-node-aktualisieren">1. Node aktualisieren</h3>
+
+<p>Gepatcht sind 22.23.4, 24.22.1 und 26.12.1. Diese Versionen aktualisieren die Roots auf NSS 3.131.1 und sperren zusätzlich die Public Keys der Intermediates ("tls: reject chains containing blocked public keys"). Die Sperre greift auch, wenn der Code eigene CAs per <code>ca:</code>-Option mitgibt. Getestet habe ich das mit <code>node:24.22.1-slim</code> und einer <code>ca</code>-Option, die nur <code>emSign ECC Root CA - G3</code> enthält. Ergebnis: <code>CERT_REVOKED</code>.</p>
+
+<p>Mit diesen Updates ist auch Node2Shell (CVE-2026-111497) behoben, siehe <a href="../2shell/">Node2Shell</a>. Es gibt also zwei Gründe, sofort zu aktualisieren.</p>
+
+<p>Node 20 und älter sowie 23.x und 25.x bekommen keinen Patch. <code>node:20-slim</code> war im Test verwundbar.</p>
+
+<p>Docker-Images mit festem Tag neu bauen (<code>FROM node:24.22.1-slim</code>), deployen und im laufenden Container <code>node -v</code> prüfen. CI-Runner, Bun (1.4.4) und Deno (2.9.8) nicht vergessen.</p>
+
+<h3 id="2-wenn-node-nicht-sofort-aktualisiert-werden-kann">2. Wenn Node nicht sofort aktualisiert werden kann</h3>
+
+<pre><code class="lang-bash">NODE_OPTIONS=--use-openssl-ca</code></pre>
+
+<p>Damit nutzt Node den OS-Store statt der eingebauten Roots. Das hilft nur, wenn <code>ca-certificates</code> im Image aktuell ist. Also <code>apt-get upgrade ca-certificates</code> bzw. <code>apk upgrade ca-certificates</code> im Dockerfile und danach <code>check.mjs</code> laufen lassen. Mit <code>node:20-slim</code> hat das im Test funktioniert.</p>
+
+<p><code>--use-system-ca</code> hilft nicht. Diese Option nimmt die System-Roots zusätzlich zu den eingebauten. Im Test blieb Node damit verwundbar. <code>NODE_EXTRA_CA_CERTS</code> fügt ebenfalls nur hinzu und entfernt nichts.</p>
+
+<h3 id="3-im-code-und-in-der-konfiguration-suchen">3. Im Code und in der Konfiguration suchen</h3>
+
+<pre><code class="lang-bash"># Abgeschaltete Prüfung
+grep -rnE 'rejectUnauthorized:\s*false|NODE_TLS_REJECT_UNAUTHORIZED' --include='*.js' --include='*.ts' --include='*.mjs' --include='*.json' --include='*.yaml' --include='Dockerfile' .
+
+# Eigene CA-Bundles im Projekt
+grep -rnE '\bca:\s' --include='*.js' --include='*.ts' --include='*.mjs' src/
+find . -path ./node_modules -prune -o \( -name '*.pem' -o -name '*.crt' -o -name 'ca-bundle*' \) -print</code></pre>
+
+<p>Pakete mit eigenem Root-Bundle wie <code>ssl-root-cas</code> umgehen den Store von Node. Ab den gepatchten Versionen schützt die Public-Key-Sperre trotzdem. Bei Node 20 mit <code>--use-openssl-ca</code> nicht.</p>
+
+<p>Electron-Apps wie Slack, Discord oder VS Code sind erst mit einem Release auf Basis von Electron 44.9.1, 43.8.1 oder 42.11.16 sicher. VS Code ab 1.143.1.</p>
+
+<h2 id="was-nicht-hilft">Was nicht hilft</h2>
+
+<ul>
+  <li><strong>Die Prüfung abschalten, wenn nach dem Patch etwas bricht.</strong> Wenn ein Partner ein eMudhra-Zertifikat nutzt, schlägt die Verbindung nach dem Patch fehl. Das ist gewollt. Der Partner braucht ein neues Zertifikat. <code>rejectUnauthorized: false</code> oder ein Trust-All-Manager öffnen genau die Lücke, die der Patch schließt.</li>
+  <li><strong>Nur das SDK aktualisieren.</strong> Die Zertifikatsprüfung sitzt in der Runtime, im OS oder in der HTTP-Bibliothek. Ein neues AWS- oder Stripe-SDK ändert daran nichts.</li>
+  <li><strong>Nur das OS patchen.</strong> Java und Node nutzen eigene Stores.</li>
+  <li><strong>Nur die emSign-Root entfernen.</strong> Der AAA-Pfad bleibt offen, siehe oben.</li>
+  <li><strong>Neues Image bauen, aber nicht neu starten.</strong> Laufende JVMs und Node-Prozesse lesen ihren Truststore nur beim Start.</li>
+</ul>
+
+<h2 id="eigene-server">Eigene Server</h2>
+
+<p>Falls wir selbst Zertifikate von eMudhra einsetzen, sind sie widerrufen und müssen ersetzt werden:</p>
+
+<pre><code class="lang-bash">openssl s_client -connect host:443 -servername host &lt;/dev/null 2&gt;/dev/null \
+  | openssl x509 -noout -issuer | grep -i emudhra</code></pre>
+
+<h2 id="quellen">Quellen</h2>
+
+<ul>
+  <li><a href="https://emudhra.we-have-a-problem.com/" target="_blank" rel="noopener">we-have-a-problem.com: eMudhra Intermediate CA Compromise</a></li>
+  <li><a href="https://emudhra.we-have-a-problem.com/impacted-intermediates.json" target="_blank" rel="noopener">impacted-intermediates.json</a> und <a href="https://emudhra.we-have-a-problem.com/roots.json" target="_blank" rel="noopener">roots.json</a></li>
+  <li><a href="https://blog.cloudflare.com/emudhra-certificate-compromise" target="_blank" rel="noopener">Cloudflare: eMudhra certificate compromise</a></li>
+  <li><a href="https://bugzilla.mozilla.org/show_bug.cgi?id=2083449" target="_blank" rel="noopener">Mozilla Bug 2083449</a></li>
+  <li><a href="https://groups.google.com/a/mozilla.org/g/dev-security-policy/c/0R3XLJL6FuE" target="_blank" rel="noopener">Mozilla dev-security-policy</a></li>
+  <li><a href="https://openjdk.org/emudhra" target="_blank" rel="noopener">OpenJDK: eMudhra</a></li>
+  <li><a href="https://github.com/nodejs/node/releases/tag/v24.22.1" target="_blank" rel="noopener">Node.js 24.22.1</a>, <a href="https://github.com/nodejs/node/releases/tag/v22.23.4" target="_blank" rel="noopener">22.23.4</a>, <a href="https://github.com/nodejs/node/releases/tag/v26.12.1" target="_blank" rel="noopener">26.12.1</a></li>
+  <li><a href="https://support.apple.com/en-us/149555" target="_blank" rel="noopener">Apple: Hinweise zu eMudhra</a></li>
+  <li><a href="https://www.chromium.org/Home/chromium-security/crlsets/" target="_blank" rel="noopener">Chromium CRLSets</a></li>
+</ul>
+  </main>
+</body>
+</html>
