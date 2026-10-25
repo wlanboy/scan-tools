@@ -149,14 +149,47 @@ clone_or_pull() {
     local name
     name=$(basename "$url" .git)
     local dest="${TARGET_DIR}/${name}"
+    local rc head
 
-    if [[ -d "${dest}/.git" ]]; then
+    if [[ -d "${dest}/.git" ]] && ! git -C "$dest" rev-parse -q --verify HEAD >/dev/null; then
+        # Clone of an empty repository: no branch to pull yet, check one out
+        # as soon as the remote has content.
+        printf '[%s]   fetch %s  (empty clone)\n' "$(date '+%H:%M:%S')" "$name"
+        git -C "$dest" fetch --quiet origin 2>&1 | sed "s/^/         /"
+        rc="${PIPESTATUS[0]}"
+        if [[ "$rc" -ne 0 ]]; then
+            printf '[%s]   fetch %s  FAILED (git exit %s)\n' "$(date '+%H:%M:%S')" "$name" "$rc" >&2
+            return 1
+        fi
+        if ! git -C "$dest" remote set-head origin --auto >/dev/null 2>&1; then
+            printf '[%s]   fetch %s  done (still empty)\n' "$(date '+%H:%M:%S')" "$name"
+            return 0
+        fi
+        head=$(git -C "$dest" symbolic-ref --short refs/remotes/origin/HEAD)
+        git -C "$dest" checkout --quiet -B "${head#origin/}" --track "$head" 2>&1 | sed "s/^/         /"
+        rc="${PIPESTATUS[0]}"
+        if [[ "$rc" -ne 0 ]]; then
+            printf '[%s]   fetch %s  FAILED (git exit %s)\n' "$(date '+%H:%M:%S')" "$name" "$rc" >&2
+            return 1
+        fi
+        printf '[%s]   fetch %s  done (checked out %s)\n' "$(date '+%H:%M:%S')" "$name" "$head"
+    elif [[ -d "${dest}/.git" ]]; then
         printf '[%s]   pull  %s\n' "$(date '+%H:%M:%S')" "$name"
         git -C "$dest" pull --ff-only --quiet 2>&1 | sed "s/^/         /"
+        rc="${PIPESTATUS[0]}"
+        if [[ "$rc" -ne 0 ]]; then
+            printf '[%s]   pull  %s  FAILED (git exit %s)\n' "$(date '+%H:%M:%S')" "$name" "$rc" >&2
+            return 1
+        fi
         printf '[%s]   pull  %s  done\n' "$(date '+%H:%M:%S')" "$name"
     else
         printf '[%s]   clone %s\n' "$(date '+%H:%M:%S')" "$name"
         git clone --quiet "$url" "$dest" 2>&1 | sed "s/^/         /"
+        rc="${PIPESTATUS[0]}"
+        if [[ "$rc" -ne 0 ]]; then
+            printf '[%s]   clone %s  FAILED (git exit %s)\n' "$(date '+%H:%M:%S')" "$name" "$rc" >&2
+            return 1
+        fi
         printf '[%s]   clone %s  done\n' "$(date '+%H:%M:%S')" "$name"
     fi
 }

@@ -21,9 +21,13 @@
   - **Server / Data Center**: HTTP Access Token oder Personal Access Token
   - **Cloud**: App-Passwort bzw. API-Token
 
-`bb_parse.py` muss im selben Verzeichnis wie `bb-pull-project.sh` liegen. Das Skript prüft das beim Start.
+Beide Dateien liegen im Ordner `sync/`. `bb_parse.py` muss im selben Verzeichnis wie `bb-pull-project.sh` liegen. Das Skript prüft das beim Start.
+
+Für Forgejo (und Codeberg) gibt es das Gegenstück [`fj-pull-org.sh`](forgejo.md).
 
 ## Verwendung `bb-pull-project.sh`
+
+Aus dem Repository-Root:
 
 ```bash
 # Bitbucket Server / Data Center
@@ -32,7 +36,7 @@ BB_USER=myuser \
 BB_TOKEN=mytoken \
 BB_PROJECT=MYPROJECT \
 TARGET_DIR=/opt/repos \
-./bb-pull-project.sh
+sync/bb-pull-project.sh
 
 # Bitbucket Cloud
 BB_CLOUD=1 \
@@ -40,7 +44,7 @@ BB_USER=myuser \
 BB_TOKEN=myapppassword \
 BB_PROJECT=myworkspace \
 TARGET_DIR=/opt/repos \
-./bb-pull-project.sh
+sync/bb-pull-project.sh
 ```
 
 ### Umgebungsvariablen
@@ -62,9 +66,12 @@ TARGET_DIR=/opt/repos \
 2. **Repo-Liste sammeln** — ruft die Bitbucket-API seitenweise ab (100 Repos pro Seite) und extrahiert die Clone-URLs über `bb_parse.py`
 3. **Klonen / Aktualisieren** — für jede URL parallel:
    - `TARGET_DIR/<repo>/.git` existiert → `git pull --ff-only`
+   - `TARGET_DIR/<repo>/.git` existiert, hat aber noch keinen Commit (Klon eines leeren Repos) → statt `git pull` → `git fetch`; hat das Remote inzwischen Inhalt, checkt das Skript den Default-Branch aus
    - sonst → `git clone`
 
 Der Verzeichnisname ergibt sich aus der Clone-URL ohne `.git`.
+
+Schlägt ein `git clone` oder `git pull` fehl, erscheint `FAILED (git exit N)` in der Ausgabe. Die übrigen Repositories laufen weiter, am Ende endet das Skript mit Exit-Code `1`.
 
 ### Verwendete API-Endpunkte
 
@@ -104,7 +111,7 @@ Bei einem API-Fehler (z. B. 401/404 oder Host nicht erreichbar) steht der Exit-C
 ## Verwendung `bb_parse.py`
 
 ```bash
-curl -fsSL -u "$BB_USER:$BB_TOKEN" "<api-url>" | python3 bb_parse.py <command>
+curl -fsSL -u "$BB_USER:$BB_TOKEN" "<api-url>" | python3 sync/bb_parse.py <command>
 ```
 
 ### Kommandos
@@ -127,13 +134,13 @@ echo '{"values":[{"links":{"clone":[
         {"name":"https","href":"https://user@bitbucket.org/ws/repo-a.git"},
         {"name":"ssh","href":"git@bitbucket.org:ws/repo-a.git"}]}}],
       "next":"https://api.bitbucket.org/2.0/repositories/ws?page=2"}' \
-  | python3 bb_parse.py cloud-urls
+  | python3 sync/bb_parse.py cloud-urls
 # https://user@bitbucket.org/ws/repo-a.git
 
 # Bitbucket Server: Paginierung prüfen
-echo '{"values":[],"isLastPage":false,"nextPageStart":100}' | python3 bb_parse.py server-islast
+echo '{"values":[],"isLastPage":false,"nextPageStart":100}' | python3 sync/bb_parse.py server-islast
 # false
-echo '{"values":[],"isLastPage":false,"nextPageStart":100}' | python3 bb_parse.py server-nextstart
+echo '{"values":[],"isLastPage":false,"nextPageStart":100}' | python3 sync/bb_parse.py server-nextstart
 # 100
 ```
 
@@ -157,3 +164,9 @@ echo '{"values":[],"isLastPage":false,"nextPageStart":100}' | python3 bb_parse.p
 ### Hinweise
 
 - Jedes Kommando liest `stdin` komplett ein. Für mehrere Werte aus derselben Antwort muss die Antwort zwischengespeichert und mehrfach übergeben werden, wie in `bb-pull-project.sh` über `$RESPONSE`.
+
+## Tests
+
+```bash
+uv run pytest tests/test_sync_parse.py
+```
