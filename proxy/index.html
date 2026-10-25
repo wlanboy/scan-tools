@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>scan-proxy.py</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+  <header>
+    <p class="back"><a href="../">← Übersicht</a></p>
+    <h1>scan-proxy.py</h1>
+    <p class="muted">Stand: 25.10.2026</p>
+  </header>
+
+  <main>
+<h2 id="worum-es-geht">Worum es geht</h2>
+
+<p><code>scan-proxy.py</code> listet alle Proxy-Einstellungen auf, die ein Linux-System für den aktuellen Benutzer kennt. Das Skript liest Umgebungsvariablen und rund 70 Konfigurationspfade von Shell, Paketmanagern, Build-Tools, Docker, Podman und systemd. Es ändert nichts am System, braucht keine Root-Rechte und nutzt nur die Python-Standardbibliothek.</p>
+
+<p>Typische Fragen, die es beantwortet:</p>
+
+<ul>
+  <li>Warum geht <code>curl</code> über den Proxy, <code>pip</code> aber nicht?</li>
+  <li>Hat der CI-Runner oder Build-Container überhaupt einen Proxy gesetzt?</li>
+  <li>Hängt auf diesem Server noch ein alter Proxy-Eintrag in einer Datei, an die niemand mehr denkt?</li>
+</ul>
+
+<h2 id="distributionen-und-python-version">Distributionen und Python-Version</h2>
+
+<p>Das Skript läuft ab Python 3.6 und deckt die Pfade von Ubuntu, Debian, RHEL, CentOS und den RHEL-Klonen (Rocky, Alma) ab. Getestet ist es auf Rocky Linux 8 und 9, Debian 12 und Ubuntu 24.04.</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>System</th><th>Python-Aufruf</th><th>Hinweis</th></tr></thead>
+  <tbody>
+    <tr><td>CentOS 7 / RHEL 7</td><td><code>python3</code></td><td>Nicht vorinstalliert, <code>yum install python3</code> bringt 3.6. <code>python</code> ist dort Python 2 und funktioniert nicht.</td></tr>
+    <tr><td>RHEL / CentOS Stream / Rocky / Alma 8</td><td><code>python3</code> oder <code>/usr/libexec/platform-python</code></td><td><code>platform-python</code> (3.6) ist immer da, auch wenn <code>python3</code> fehlt.</td></tr>
+    <tr><td>RHEL / CentOS Stream / Rocky / Alma 9 und 10</td><td><code>python3</code></td><td>vorinstalliert</td></tr>
+    <tr><td>Debian 11+, Ubuntu 20.04+</td><td><code>python3</code></td><td>Auf Servern vorhanden. In schlanken Container-Images fehlt es, dort <code>apt-get install python3-minimal</code>.</td></tr>
+  </tbody>
+</table></div>
+
+<p>Was der Scanner je Distribution zusätzlich liest:</p>
+
+<ul>
+  <li><strong>Debian / Ubuntu:</strong> apt (<code>/etc/apt/apt.conf</code>, <code>apt.conf.d/</code>), <code>/etc/bash.bashrc</code>, <code>/etc/zsh/*</code>, <code>/etc/default/docker</code>, <code>/etc/xdg/pip/pip.conf</code></li>
+  <li><strong>RHEL / CentOS:</strong> yum und dnf inklusive der Repo-Dateien in <code>/etc/yum.repos.d/</code>, subscription-manager (<code>/etc/rhsm/rhsm.conf</code>), <code>/etc/bashrc</code>, <code>/etc/zshenv</code> usw., <code>/etc/sysconfig/docker</code> (Docker aus den CentOS-7-Repos) und Podman (<code>containers.conf</code>)</li>
+</ul>
+
+<p>Ab RHEL/CentOS 8 ist <code>/etc/yum.conf</code> ein Symlink auf <code>/etc/dnf/dnf.conf</code>. Der Scanner liest jede Datei nur einmal, auch über Symlinks. Der Eintrag erscheint deshalb nur einmal, unter <code>/etc/yum.conf</code>.</p>
+
+<h2 id="aufruf">Aufruf</h2>
+
+<p>Aus dem Repository-Root:</p>
+
+<pre><code class="lang-bash">python3 proxy/scan-proxy.py
+
+# Nur das Ergebnis
+python3 proxy/scan-proxy.py | grep '^RESULT:'
+
+# Auf einem entfernten Host, ohne das Skript dort abzulegen
+ssh server01 'python3 -' &lt; proxy/scan-proxy.py
+
+# RHEL 8 ohne installiertes python3
+ssh rhel8 '/usr/libexec/platform-python -' &lt; proxy/scan-proxy.py</code></pre>
+
+<p>Es gibt keine Kommandozeilenargumente.</p>
+
+<p>Das Skript sieht die Welt aus Sicht des Benutzers, der es startet. <code>~</code> zeigt auf dessen Home, und <code>ENV</code> sind die Variablen dieses Prozesses. Unter <code>sudo</code> fehlen meist die Proxy-Variablen des aufrufenden Benutzers, und statt <code>~/.bashrc</code> liest es <code>/root/.bashrc</code>. Wer wissen will, was ein Dienstbenutzer sieht, startet das Skript als dieser Benutzer:</p>
+
+<pre><code class="lang-bash">sudo -u jenkins -i python3 /pfad/zu/proxy/scan-proxy.py</code></pre>
+
+<p><code>./ansible.cfg</code> liest es relativ zum aktuellen Verzeichnis. Für ein Ansible-Projekt also im Projektordner starten.</p>
+
+<h2 id="ausgabe-und-exit-code">Ausgabe und Exit-Code</h2>
+
+<pre><code>=== PROXY SCAN REPORT: build01 ===
+RESULT: PROXY_FOUND
+SOURCE=/etc/apt/apt.conf.d/95proxy KEY=Acquire::http::Proxy VALUE=http://proxy.corp.example:3128
+SOURCE=/etc/apt/apt.conf.d/95proxy KEY=Acquire::http::Proxy::deb.corp.example VALUE=DIRECT
+SOURCE=/etc/systemd/system/docker.service.d/http-proxy.conf KEY=HTTPS_PROXY VALUE=http://proxy.corp.example:3128
+SOURCE=/etc/systemd/system/docker.service.d/http-proxy.conf KEY=NO_PROXY VALUE=localhost,.corp.example
+SOURCE=/home/ci/.m2/settings.xml KEY=proxy.host VALUE=proxy.corp.example
+SOURCE=/home/ci/.m2/settings.xml KEY=proxy.nonProxyHosts VALUE=localhost|*.corp.example
+SOURCE=/home/ci/.m2/settings.xml KEY=proxy.port VALUE=3128
+SOURCE=ENV KEY=NO_PROXY VALUE=localhost,127.0.0.1,.corp.example
+SOURCE=ENV KEY=https_proxy VALUE=http://proxy.corp.example:3128</code></pre>
+
+<p>Die Zeilen sind nach Quelle und Schlüssel sortiert. Ohne Treffer kommen nur Kopfzeile und <code>RESULT: NO_PROXY_FOUND</code>.</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>RESULT</th><th>Exit-Code</th><th>Bedeutung</th></tr></thead>
+  <tbody>
+    <tr><td><code>PROXY_FOUND</code></td><td>1</td><td>Mindestens ein echter Proxy-Eintrag gefunden</td></tr>
+    <tr><td><code>NO_PROXY_FOUND</code></td><td>0</td><td>Kein Proxy, höchstens Ausnahmelisten oder abgeschaltete Einträge</td></tr>
+  </tbody>
+</table></div>
+
+<p>Exit-Code 1 bedeutet hier "Proxy gefunden", nicht "Fehler". In Skripten mit <code>set -e</code> und in CI-Jobs bricht der Aufruf sonst ab. Dort <code>|| true</code> anhängen oder das <code>RESULT:</code> auswerten. Ansibles <code>script</code>-Modul meldet den Host aus demselben Grund als <code>failed</code>.</p>
+
+<p>Manche Einträge stehen im Report, lösen allein aber kein <code>PROXY_FOUND</code> aus:</p>
+
+<ul>
+  <li><strong>Ausnahmelisten:</strong> <code>no_proxy</code>, <code>NO_PROXY</code>, <code>noproxy</code> (npm, curl), <code>no-proxy</code> (Docker) und Mavens <code>nonProxyHosts</code></li>
+  <li><strong>Abgeschaltete Proxys:</strong> der Wert <code>_none_</code> (yum/dnf, typisch in einer <code>.repo</code>-Datei für ein internes Repository) und <code>DIRECT</code> (apt, typisch als <code>Acquire::http::Proxy::&lt;host&gt; "DIRECT";</code>)</li>
+</ul>
+
+<h2 id="was-der-scanner-liest">Was der Scanner liest</h2>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Bereich</th><th>Dateien / Quelle</th><th>Schlüssel</th></tr></thead>
+  <tbody>
+    <tr><td>Prozess-Umgebung</td><td><code>os.environ</code></td><td><code>http_proxy</code>, <code>https_proxy</code>, <code>ftp_proxy</code>, <code>all_proxy</code>, <code>no_proxy</code>, jeweils klein und groß</td></tr>
+    <tr><td>System-Shell (bash, sh)</td><td><code>/etc/environment</code>, <code>/etc/profile</code>, <code>/etc/bashrc</code> (RHEL), <code>/etc/bash.bashrc</code> (Debian), <code>/etc/profile.d/*.sh</code>, <code>/etc/sysconfig/proxy</code></td><td>wie Umgebung, auch mit <code>export</code> davor</td></tr>
+    <tr><td>System-Shell (zsh)</td><td><code>/etc/zshenv</code>, <code>/etc/zprofile</code>, <code>/etc/zshrc</code> (RHEL), <code>/etc/zsh/zshenv</code>, <code>/etc/zsh/zprofile</code>, <code>/etc/zsh/zshrc</code> (Debian)</td><td>wie Umgebung</td></tr>
+    <tr><td>csh / tcsh</td><td><code>/etc/profile.d/*.csh</code>, <code>/etc/csh.cshrc</code>, <code>/etc/csh.login</code>, <code>~/.cshrc</code>, <code>~/.tcshrc</code></td><td>wie Umgebung, als <code>setenv NAME wert</code></td></tr>
+    <tr><td>Benutzer-Shell</td><td><code>~/.bashrc</code>, <code>~/.bash_profile</code>, <code>~/.bash_login</code>, <code>~/.profile</code>, <code>~/.zshenv</code>, <code>~/.zprofile</code>, <code>~/.zshrc</code></td><td>wie Umgebung</td></tr>
+    <tr><td>systemd-Umgebung</td><td><code>/etc/environment.d/*.conf</code>, <code>~/.config/environment.d/*.conf</code></td><td>wie Umgebung</td></tr>
+    <tr><td>yum / dnf</td><td><code>/etc/yum.conf</code>, <code>/etc/dnf/dnf.conf</code>, <code>/etc/yum.repos.d/*.repo</code></td><td><code>proxy</code>, <code>proxy_username</code>, <code>proxy_password</code></td></tr>
+    <tr><td>subscription-manager</td><td><code>/etc/rhsm/rhsm.conf</code></td><td><code>proxy_hostname</code>, <code>proxy_port</code>, <code>proxy_user</code>, <code>proxy_password</code>, <code>no_proxy</code></td></tr>
+    <tr><td>apt</td><td><code>/etc/apt/apt.conf</code>, <code>/etc/apt/apt.conf.d/*</code></td><td><code>Acquire::{http,https,ftp}::Proxy</code>, auch host-spezifisch (<code>…::Proxy::&lt;host&gt;</code>) und <code>…::Proxy-Auto-Detect</code></td></tr>
+    <tr><td>wget</td><td><code>/etc/wgetrc</code>, <code>~/.wgetrc</code></td><td><code>http_proxy</code>, <code>https_proxy</code>, <code>ftp_proxy</code>, <code>no_proxy</code></td></tr>
+    <tr><td>curl</td><td><code>/etc/curlrc</code>, <code>~/.curlrc</code>, <code>~/.config/.curlrc</code></td><td><code>proxy</code>, <code>noproxy</code>, <code>-x</code> in allen Schreibweisen (<code>proxy = …</code>, <code>proxy …</code>, <code>proxy: …</code>, <code>--proxy …</code>)</td></tr>
+    <tr><td>git</td><td><code>/etc/gitconfig</code>, <code>~/.gitconfig</code>, <code>~/.config/git/config</code></td><td><code>proxy = …</code> in jeder Sektion</td></tr>
+    <tr><td>npm</td><td><code>/etc/npmrc</code>, <code>~/.npmrc</code></td><td><code>proxy</code>, <code>https-proxy</code>, <code>noproxy</code></td></tr>
+    <tr><td>pip</td><td><code>/etc/pip.conf</code>, <code>/etc/xdg/pip/pip.conf</code>, <code>~/.pip/pip.conf</code>, <code>~/.config/pip/pip.conf</code></td><td><code>proxy</code></td></tr>
+    <tr><td>Maven</td><td><code>~/.m2/settings.xml</code>, <code>/etc/maven/settings.xml</code>, <code>/usr/share/maven/conf/settings.xml</code>, <code>/usr/local/maven/conf/settings.xml</code>, <code>$MAVEN_HOME/conf/settings.xml</code>, <code>$M2_HOME/conf/settings.xml</code></td><td><code>&lt;proxies&gt;/&lt;proxy&gt;</code>: host, port, protocol, username, nonProxyHosts</td></tr>
+    <tr><td>Ansible</td><td><code>/etc/ansible/ansible.cfg</code>, <code>~/.ansible.cfg</code>, <code>./ansible.cfg</code></td><td><code>http_proxy</code>, <code>https_proxy</code>, <code>ftp_proxy</code>, <code>no_proxy</code>, <code>proxy</code></td></tr>
+    <tr><td>Docker-Client</td><td><code>~/.docker/config.json</code></td><td><code>proxies.&lt;kontext&gt;</code>: <code>httpProxy</code>, <code>httpsProxy</code>, <code>ftpProxy</code>, <code>noProxy</code></td></tr>
+    <tr><td>Docker-Daemon</td><td><code>/etc/docker/daemon.json</code></td><td><code>proxies</code>: <code>http-proxy</code>, <code>https-proxy</code>, <code>no-proxy</code> (ab Docker 23)</td></tr>
+    <tr><td>Docker-Daemon (alt)</td><td><code>/etc/sysconfig/docker</code> (CentOS 7), <code>/etc/default/docker</code> (Debian/Ubuntu)</td><td>wie Umgebung</td></tr>
+    <tr><td>Podman / Buildah</td><td><code>/usr/share/containers/containers.conf</code>, <code>/etc/containers/containers.conf</code>, <code>/etc/containers/containers.conf.d/*.conf</code>, <code>~/.config/containers/containers.conf</code>, <code>~/.config/containers/containers.conf.d/*.conf</code></td><td>Proxy-Variablen in <code>env = ["…"]</code></td></tr>
+    <tr><td>systemd</td><td><code>/etc/systemd/system.conf</code>, <code>/etc/systemd/user.conf</code>, <code>/etc/systemd/system.conf.d/*.conf</code>, <code>/etc/systemd/user.conf.d/*.conf</code>, <code>/etc/systemd/system/*.service</code>, <code>/etc/systemd/system/*.service.d/*.conf</code>, <code>/etc/systemd/user/*.service.d/*.conf</code>, <code>~/.config/systemd/user/*.service.d/*.conf</code></td><td><code>Environment=</code> und <code>DefaultEnvironment=</code>, auch mehrere Variablen pro Zeile</td></tr>
+  </tbody>
+</table></div>
+
+<p>Welche Regel greift, hängt am Dateinamen. Endet der Pfad auf <code>yum.conf</code>, <code>dnf.conf</code>, <code>.repo</code>, <code>rhsm.conf</code>, <code>wgetrc</code>, <code>curlrc</code>, <code>gitconfig</code>, <code>git/config</code>, <code>npmrc</code>, <code>pip.conf</code>, <code>pip.ini</code>, <code>ansible.cfg</code> oder auf eine csh-Datei (<code>.csh</code>, <code>.cshrc</code>, <code>.tcshrc</code>, <code>csh.login</code>), nimmt der Scanner das Muster des jeweiligen Tools. Alles andere aus der Shell-Gruppe liest er wie eine Shell-Datei. Jede Datei liest er nur einmal, auch wenn sie in mehreren Listen steht oder per Symlink zweimal erreichbar ist.</p>
+
+<p>Für den Docker-Daemon gibt es drei Stellen. Die übliche Anleitung legt den Proxy in <code>/etc/systemd/system/docker.service.d/http-proxy.conf</code> ab. Seit Docker 23 geht das auch in <code>/etc/docker/daemon.json</code>. Das Docker-Paket aus den CentOS-7-Repos liest zusätzlich <code>/etc/sysconfig/docker</code>. <code>~/.docker/config.json</code> betrifft dagegen nur die Proxy-Variablen, die der Docker-Client in Container und Builds durchreicht.</p>
+
+<p>Bei Podman zählt nur <code>env = [...]</code> in <code>containers.conf</code>. Die Option <code>http_proxy = true</code> sagt nur, dass Podman die Proxy-Variablen des Hosts an Container weiterreicht. Der Scanner ignoriert sie.</p>
+
+<p>subscription-manager auf RHEL hat einen eigenen Proxy für die Registrierung und den Zugriff auf das Red Hat CDN. <code>rhsm.conf</code> enthält ab Werk <code>proxy_scheme = http</code>. Diesen Schlüssel liest der Scanner deshalb nicht, sonst wäre jedes RHEL-System ein Treffer.</p>
+
+<h2 id="wie-maven-bewertet-wird">Wie Maven bewertet wird</h2>
+
+<p>Maven nutzt einen <code>&lt;proxy&gt;</code>-Eintrag, solange <code>&lt;active&gt;</code> fehlt oder <code>true</code> ist. Der Scanner macht es genauso. Ein Eintrag mit <code>&lt;active&gt;false&lt;/active&gt;</code> taucht nicht auf. Das ist Absicht, denn viele <code>settings.xml</code> enthalten deaktivierte Beispiel-Proxys. <code>&lt;password&gt;</code> gibt der Scanner nie aus.</p>
+
+<h2 id="zugangsdaten-in-der-ausgabe">Zugangsdaten in der Ausgabe</h2>
+
+<p>Der Scanner gibt Werte unverändert aus. Steckt ein Passwort in der Proxy-URL (<code>http://user:pass@proxy:3128</code>) oder in <code>proxy_password</code> von yum/dnf bzw. subscription-manager, steht es im Klartext im Report. Vor dem Weitergeben in Tickets oder Chats schwärzen:</p>
+
+<pre><code class="lang-bash">python3 proxy/scan-proxy.py | sed -E 's#//[^/@ ]+@#//***@#; s#(KEY=proxy_password VALUE=).*#\1***#'</code></pre>
+
+<p>Ein Proxy-Passwort in <code>/etc/environment</code> oder <code>/etc/profile.d/</code> ist für jeden Benutzer auf dem System lesbar. Findet der Scanner so etwas, ist das ein eigener Befund.</p>
+
+<h2 id="grenzen">Grenzen</h2>
+
+<p>Der Scanner liest Dateien Zeile für Zeile mit regulären Ausdrücken. Er führt keine Shell-Skripte aus und versteht keine Konfigurationssyntax. Daraus folgen ein paar blinde Flecken:</p>
+
+<ul>
+  <li>Variablen wertet er nicht aus. Bei <code>export https_proxy=$http_proxy</code> steht <code>$http_proxy</code> als Wert im Report.</li>
+  <li>Auskommentierte Zeilen ignoriert er, Bedingungen nicht. Ein <code>export http_proxy=…</code> innerhalb eines <code>if</code> zählt immer.</li>
+  <li><code>use_proxy = off</code> in wgetrc beachtet er nicht. Der Proxy steht trotzdem im Report.</li>
+  <li>In apt-Konfiguration erkennt er nur die einzeilige Schreibweise <code>Acquire::http::Proxy "…";</code>. Die Blockschreibweise <code>Acquire { http { Proxy "…"; }; };</code> erkennt er nicht.</li>
+  <li><code>EnvironmentFile=</code> in systemd-Units verfolgt er nicht. Unit-Dateien unter <code>/lib/systemd/system/</code> und <code>/usr/lib/systemd/system/</code> liest er nicht, nur Units und Drop-ins unter <code>/etc/systemd/</code>.</li>
+  <li>Bei yum/dnf zählt jeder <code>proxy=</code>-Eintrag, egal in welcher Sektion. Ein Repo mit <code>enabled=0</code> und Proxy löst trotzdem <code>PROXY_FOUND</code> aus.</li>
+</ul>
+
+<p>Gar nicht abgedeckt sind:</p>
+
+<ul>
+  <li>Java-Systemproperties (<code>-Dhttp.proxyHost</code> in <code>JAVA_TOOL_OPTIONS</code>, <code>MAVEN_OPTS</code> oder Startskripten) und Gradle (<code>~/.gradle/gradle.properties</code>)</li>
+  <li>snapd auf Ubuntu. Den Proxy für Snaps zeigt <code>snap get system proxy</code>.</li>
+  <li>RHN Classic auf RHEL/CentOS 7 (<code>/etc/sysconfig/rhn/up2date</code>) und containerd</li>
+  <li>PAM-Umgebung (<code>/etc/security/pam_env.conf</code>, <code>~/.pam_environment</code>)</li>
+  <li>yarn (<code>.yarnrc</code>, <code>.yarnrc.yml</code>), conda (<code>.condarc</code>) und weitere Paketmanager</li>
+  <li>Desktop-Einstellungen (GNOME, KDE), PAC-Dateien und WPAD</li>
+  <li>transparente Proxys per iptables/nftables oder Netzwerk-Gateway</li>
+</ul>
+
+<p>Ein <code>NO_PROXY_FOUND</code> heißt also nur, dass in den oben gelisteten Quellen nichts steht. Ob der Traffic tatsächlich direkt rausgeht, zeigt erst ein Test wie <code>curl -v https://example.com</code>.</p>
+
+<h2 id="tests">Tests</h2>
+
+<pre><code class="lang-bash">uv run pytest tests/test_scan_proxy.py</code></pre>
+
+<p>Die Tests decken alle Muster ab, dazu das Routing nach Dateinamen, die Maven-<code>active</code>-Logik, apt (Kommentare, host-spezifische Einträge, <code>DIRECT</code>), systemd mit mehreren Variablen pro Zeile, Podman, Docker-<code>config.json</code> und <code>daemon.json</code>, das einmalige Lesen von Symlinks und den Exit-Code.</p>
+  </main>
+</body>
+</html>
