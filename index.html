@@ -75,6 +75,20 @@
         <p>Listet alle Proxy-Einstellungen eines Linux-Systems auf: Umgebung, Shell, apt, yum/dnf, subscription-manager, pip, npm, git, curl, Maven, Docker, Podman und systemd. Für Ubuntu, Debian, RHEL und CentOS.</p>
         <span class="path">proxy/ · prüfen mit <code>proxy/scan-proxy.py</code></span>
       </a>
+
+      <a class="tile" href="sync/bitbucket.html">
+        <span class="tag">Bitbucket</span>
+        <h2>Bitbucket-Sync</h2>
+        <p>Klont alle Repositories eines Bitbucket-Projekts (Server / Data Center) oder Workspaces (Cloud) bzw. aktualisiert sie per <code>git pull</code>. Parallel, ohne <code>jq</code>, Token nur über Umgebungsvariablen. Grundlage für Massen-Scans.</p>
+        <span class="path">sync/ · starten mit <code>sync/bb-pull-project.sh</code></span>
+      </a>
+
+      <a class="tile" href="sync/forgejo.html">
+        <span class="tag">Forgejo</span>
+        <h2>Forgejo-Sync</h2>
+        <p>Klont alle Repositories einer Forgejo-Organisation oder eines Benutzers bzw. aktualisiert sie per <code>git pull</code>. Funktioniert auch mit Gitea und Codeberg. Parallel, ohne <code>jq</code>, Token nur über Umgebungsvariablen.</p>
+        <span class="path">sync/ · starten mit <code>sync/fj-pull-org.sh</code></span>
+      </a>
     </div>
   </main>
 
