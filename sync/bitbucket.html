@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>bb-pull-project.sh</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+  <header>
+    <p class="back"><a href="../">← Übersicht</a></p>
+    <h1>bb-pull-project.sh</h1>
+    <p class="muted">Stand: 25.10.2026</p>
+  </header>
+
+  <main>
+<h2 id="funktion">Funktion</h2>
+<p><code>bb-pull-project.sh</code> klont alle Repositories eines Bitbucket-Projekts (Server / Data Center) bzw. eines Workspaces (Cloud) in ein Zielverzeichnis. Bereits vorhandene Repositories werden per <code>git pull --ff-only</code> aktualisiert.</p>
+<p><code>bb_parse.py</code> ist ein Hilfsskript für <code>bb-pull-project.sh</code>. Es liest eine JSON-Antwort der Bitbucket-REST-API von <code>stdin</code> und gibt genau einen Wert bzw. eine Liste von Werten zeilenweise auf <code>stdout</code> aus. Damit braucht das Shell-Skript weder <code>jq</code> noch eigenes JSON-Parsing.</p>
+<h2 id="einsatzgebiet">Einsatzgebiet</h2>
+<ul>
+<li><strong>Massen-Scans</strong> — alle Repositories eines Projekts lokal bereitstellen, um anschließend <code>scan-secrets.py</code>, <code>scan-npm.py</code> oder <code>scan-external-urls.py</code> darüber laufen zu lassen</li>
+<li><strong>Spiegelung</strong> — einen lokalen Stand aller Repos eines Projekts aktuell halten (z. B. per Cronjob)</li>
+<li><strong>Audits</strong> — schneller Überblick, welche Repositories in einem Projekt existieren</li>
+</ul>
+<h2 id="voraussetzungen">Voraussetzungen</h2>
+<ul>
+<li><code>bash</code>, <code>curl</code>, <code>xargs</code>, <code>base64</code></li>
+<li><code>git</code> 2.31+ (für die Übergabe der Zugangsdaten per <code>GIT_CONFIG_*</code>)</li>
+<li>Python 3.6+ (nur Standardbibliothek)</li>
+<li>Bitbucket-Zugang mit Leserechten auf das Projekt:
+<ul>
+<li><strong>Server / Data Center</strong>: HTTP Access Token oder Personal Access Token</li>
+<li><strong>Cloud</strong>: App-Passwort bzw. API-Token</li>
+</ul></li>
+</ul>
+<p>Beide Dateien liegen im Ordner <code>sync/</code>. <code>bb_parse.py</code> muss im selben Verzeichnis wie <code>bb-pull-project.sh</code> liegen. Das Skript prüft das beim Start.</p>
+<p>Für Forgejo (und Codeberg) gibt es das Gegenstück <a href="forgejo.html"><code>fj-pull-org.sh</code></a>.</p>
+<h2 id="verwendung-bb-pull-projectsh">Verwendung <code>bb-pull-project.sh</code></h2>
+<p>Aus dem Repository-Root:</p>
+<pre><code class="lang-bash"># Bitbucket Server / Data Center
+BB_URL=https://bitbucket.example.com \
+BB_USER=myuser \
+BB_TOKEN=mytoken \
+BB_PROJECT=MYPROJECT \
+TARGET_DIR=/opt/repos \
+sync/bb-pull-project.sh
+
+# Bitbucket Cloud
+BB_CLOUD=1 \
+BB_USER=myuser \
+BB_TOKEN=myapppassword \
+BB_PROJECT=myworkspace \
+TARGET_DIR=/opt/repos \
+sync/bb-pull-project.sh</code></pre>
+<h3 id="umgebungsvariablen">Umgebungsvariablen</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Pflicht</th>
+<th>Default</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BB_USER</code></td>
+<td>ja</td>
+<td>–</td>
+<td>Bitbucket-Benutzer oder Service-Account</td>
+</tr>
+<tr>
+<td><code>BB_TOKEN</code></td>
+<td>ja</td>
+<td>–</td>
+<td>Access Token (Server) bzw. App-Passwort (Cloud)</td>
+</tr>
+<tr>
+<td><code>BB_PROJECT</code></td>
+<td>ja</td>
+<td>–</td>
+<td>Projekt-Key (Server) bzw. Workspace-Slug (Cloud)</td>
+</tr>
+<tr>
+<td><code>BB_URL</code></td>
+<td>nein</td>
+<td><code>https://bitbucket.example.com</code></td>
+<td>Basis-URL des Bitbucket Servers</td>
+</tr>
+<tr>
+<td><code>BB_CLOUD</code></td>
+<td>nein</td>
+<td><code>0</code></td>
+<td><code>1</code> = Bitbucket-Cloud-API verwenden</td>
+</tr>
+<tr>
+<td><code>TARGET_DIR</code></td>
+<td>nein</td>
+<td><code>./repos</code></td>
+<td>Zielverzeichnis für die Klone</td>
+</tr>
+<tr>
+<td><code>PARALLEL</code></td>
+<td>nein</td>
+<td><code>4</code></td>
+<td>Anzahl paralleler <code>git clone</code> / <code>git pull</code></td>
+</tr>
+<tr>
+<td><code>BB_GIT_USER</code></td>
+<td>nein</td>
+<td><code>BB_USER</code></td>
+<td>Benutzername für <code>git clone</code> / <code>git pull</code>, falls er vom API-Login abweicht</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="ablauf">Ablauf</h3>
+<ol type="1">
+<li><strong>Preflight</strong> — prüft, ob <code>bb_parse.py</code> vorhanden ist, und legt <code>TARGET_DIR</code> an</li>
+<li><strong>Repo-Liste sammeln</strong> — ruft die Bitbucket-API seitenweise ab (100 Repos pro Seite) und extrahiert die Clone-URLs über <code>bb_parse.py</code></li>
+<li><strong>Klonen / Aktualisieren</strong> — für jede URL parallel:
+<ul>
+<li><code>TARGET_DIR/&lt;repo&gt;/.git</code> existiert → <code>git pull --ff-only</code></li>
+<li><code>TARGET_DIR/&lt;repo&gt;/.git</code> existiert, hat aber noch keinen Commit (Klon eines leeren Repos) → statt <code>git pull</code> ein <code>git fetch</code>; hat das Remote inzwischen Inhalt, checkt das Skript den Default-Branch aus</li>
+<li>sonst → <code>git clone</code></li>
+</ul></li>
+</ol>
+<p>Der Verzeichnisname ergibt sich aus der Clone-URL ohne <code>.git</code>.</p>
+<p>Schlägt ein <code>git clone</code> oder <code>git pull</code> fehl, erscheint <code>FAILED (git exit N)</code> in der Ausgabe. Die übrigen Repositories laufen weiter, am Ende endet das Skript mit Exit-Code <code>1</code>.</p>
+<h3 id="verwendete-api-endpunkte">Verwendete API-Endpunkte</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Modus</th>
+<th>Endpunkt</th>
+<th>Paginierung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Server</td>
+<td><code>GET {BB_URL}/rest/api/1.0/projects/{BB_PROJECT}/repos?start=N&amp;limit=100</code></td>
+<td><code>isLastPage</code> / <code>nextPageStart</code></td>
+</tr>
+<tr>
+<td>Cloud</td>
+<td><code>GET https://api.bitbucket.org/2.0/repositories/{BB_PROJECT}?pagelen=100</code></td>
+<td><code>next</code> (vollständige URL der nächsten Seite)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="authentifizierung-beim-klonen">Authentifizierung beim Klonen</h3>
+<p>Die API-Aufrufe laufen mit <code>BB_USER:BB_TOKEN</code> (HTTP Basic Auth). Für <code>git clone</code> / <code>git pull</code> setzt das Skript die Zugangsdaten <code>BB_GIT_USER:BB_TOKEN</code> als <code>Authorization: Basic</code>-Header, beschränkt auf den Bitbucket-Host (<code>https://bitbucket.org/</code> bzw. <code>BB_URL</code>):</p>
+<pre><code class="lang-bash">GIT_CONFIG_COUNT=1
+GIT_CONFIG_KEY_0="http.&lt;host&gt;/.extraHeader"
+GIT_CONFIG_VALUE_0="Authorization: Basic &lt;base64(user:token)&gt;"
+GIT_TERMINAL_PROMPT=0</code></pre>
+<ul>
+<li>Die Übergabe läuft nur über Umgebungsvariablen. Das Token erscheint weder in der Prozessliste noch in <code>.git/config</code> der geklonten Repos.</li>
+<li><code>GIT_TERMINAL_PROMPT=0</code> verhindert Passwortabfragen. Fehlende oder falsche Zugangsdaten führen zu einem Fehler statt zu hängenden <code>xargs</code>-Prozessen.</li>
+<li>Bei Bitbucket Cloud mit API-Token kann der Git-Benutzer vom API-Login (E-Mail-Adresse) abweichen. Dann <code>BB_GIT_USER</code> setzen, z. B. auf den Bitbucket-Benutzernamen oder <code>x-bitbucket-api-token-auth</code>.</li>
+</ul>
+<h3 id="exit-codes-bb-pull-projectsh">Exit-Codes <code>bb-pull-project.sh</code></h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Alle Repositories geklont bzw. aktualisiert</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td><code>bb_parse.py</code> fehlt, API-Aufruf fehlgeschlagen, keine Repositories gefunden oder mindestens eine Git-Operation fehlgeschlagen</td>
+</tr>
+</tbody>
+</table></div>
+<p>Bei einem API-Fehler (z. B. 401/404 oder Host nicht erreichbar) steht der Exit-Code von <code>curl</code> zusammen mit der URL in der Fehlermeldung:</p>
+<pre><code class="lang-text">[16:54:45] ERROR: API request failed (curl exit 22): https://bitbucket.example.com/rest/api/1.0/projects/P/repos?start=0&amp;limit=100</code></pre>
+<h2 id="verwendung-bb_parsepy">Verwendung <code>bb_parse.py</code></h2>
+<pre><code class="lang-bash">curl -fsSL -u "$BB_USER:$BB_TOKEN" "&lt;api-url&gt;" | python3 sync/bb_parse.py &lt;command&gt;</code></pre>
+<h3 id="kommandos">Kommandos</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Kommando</th>
+<th>API</th>
+<th>Liest Feld</th>
+<th>Ausgabe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cloud-urls</code></td>
+<td>Cloud</td>
+<td><code>values[].links.clone[name=https].href</code></td>
+<td>Eine HTTPS-Clone-URL pro Repository und Zeile</td>
+</tr>
+<tr>
+<td><code>cloud-next</code></td>
+<td>Cloud</td>
+<td><code>next</code></td>
+<td>URL der nächsten Seite, leer auf der letzten Seite</td>
+</tr>
+<tr>
+<td><code>server-urls</code></td>
+<td>Server</td>
+<td><code>values[].links.clone[name=http].href</code></td>
+<td>Eine HTTP(S)-Clone-URL pro Repository und Zeile</td>
+</tr>
+<tr>
+<td><code>server-islast</code></td>
+<td>Server</td>
+<td><code>isLastPage</code></td>
+<td><code>true</code> oder <code>false</code></td>
+</tr>
+<tr>
+<td><code>server-nextstart</code></td>
+<td>Server</td>
+<td><code>nextPageStart</code></td>
+<td>Startindex der nächsten Seite als Zahl</td>
+</tr>
+</tbody>
+</table></div>
+<p>Bitbucket Server benennt den HTTP-Clone-Link immer <code>http</code>, auch wenn die URL mit <code>https://</code> beginnt. Bitbucket Cloud verwendet <code>https</code>. SSH-Links werden in beiden Fällen ignoriert.</p>
+<h3 id="beispiele">Beispiele</h3>
+<pre><code class="lang-bash"># Bitbucket Cloud: Clone-URLs einer Seite
+echo '{"values":[{"links":{"clone":[
+        {"name":"https","href":"https://user@bitbucket.org/ws/repo-a.git"},
+        {"name":"ssh","href":"git@bitbucket.org:ws/repo-a.git"}]}}],
+      "next":"https://api.bitbucket.org/2.0/repositories/ws?page=2"}' \
+  | python3 sync/bb_parse.py cloud-urls
+# https://user@bitbucket.org/ws/repo-a.git
+
+# Bitbucket Server: Paginierung prüfen
+echo '{"values":[],"isLastPage":false,"nextPageStart":100}' | python3 sync/bb_parse.py server-islast
+# false
+echo '{"values":[],"isLastPage":false,"nextPageStart":100}' | python3 sync/bb_parse.py server-nextstart
+# 100</code></pre>
+<h3 id="verhalten-bei-fehlenden-feldern">Verhalten bei fehlenden Feldern</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Ausgabe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Repository ohne passenden Clone-Link</td>
+<td>Leerzeile (wird von <code>bb-pull-project.sh</code> verworfen)</td>
+</tr>
+<tr>
+<td><code>values</code> fehlt</td>
+<td>Keine Ausgabe</td>
+</tr>
+<tr>
+<td><code>next</code> fehlt oder <code>null</code> (letzte Cloud-Seite)</td>
+<td>Leerzeile → Schleife endet</td>
+</tr>
+<tr>
+<td><code>isLastPage</code> fehlt</td>
+<td><code>true</code> → Schleife endet, um Endlosschleifen zu vermeiden</td>
+</tr>
+<tr>
+<td><code>nextPageStart</code> fehlt</td>
+<td><code>0</code></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="exit-codes-bb_parsepy">Exit-Codes <code>bb_parse.py</code></h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Erfolgreich geparst</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>Unbekanntes oder fehlendes Kommando (Usage-Hinweis auf <code>stderr</code>) oder ungültiges JSON auf <code>stdin</code> (Python-Traceback)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="hinweise">Hinweise</h3>
+<ul>
+<li>Jedes Kommando liest <code>stdin</code> komplett ein. Für mehrere Werte aus derselben Antwort muss die Antwort zwischengespeichert und mehrfach übergeben werden, wie in <code>bb-pull-project.sh</code> über <code>$RESPONSE</code>.</li>
+</ul>
+<h2 id="tests">Tests</h2>
+<pre><code class="lang-bash">uv run pytest tests/test_sync_parse.py</code></pre>
+  </main>
+</body>
+</html>
