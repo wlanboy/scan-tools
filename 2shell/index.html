@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Node2Shell / Python2Shell / HTTP2Shell (CVE-2026-111497)</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+  <header>
+    <p class="back"><a href="../">← Übersicht</a></p>
+    <h1>Node2Shell / Python2Shell / HTTP2Shell (CVE-2026-111497)</h1>
+    <p class="muted">Stand: 25.10.2026</p>
+  </header>
+
+  <main>
+<p>Node2Shell, Python2Shell, HTTP2Shell und Broccoli2Shell sind Namen für dieselbe Lücke. Sie ist nicht zu verwechseln mit PHP2Shell (CVE-2026-109618/-109619), einer davon unabhängigen PHP-Lücke, die bereits aktiv ausgenutzt wird.</p>
+
+<h2 id="worum-es-geht">Worum es geht</h2>
+
+<p>Der Brotli-Decoder von Google (<code>c/dec/decode.c</code>, Versionen 1.0.3 bis 1.2.0) schreibt beim Entpacken manipulierter Daten über das Ende seines Puffers hinaus. Gefixt ist das in Brotli 1.0.10, 1.1.1 und 1.2.1, veröffentlicht am 21.10.2026. Die Lücke hat CVSS 4.0 9.2.</p>
+
+<p>Warum das gefährlich ist:</p>
+
+<ul>
+  <li>Ein Angreifer braucht keinen Login. Ein Request mit <code>Content-Encoding: br</code> reicht. Mögliche Folgen sind Absturz, Speicherleck oder Remote Code Execution.</li>
+  <li>Ausgehende Requests sind genauso betroffen. Holt der eigene Dienst eine Antwort von einem bösartigen Server und entpackt sie als Brotli, schlägt die Lücke dort zu. Eine Proxy-Regel für eingehenden Traffic hilft dagegen nicht.</li>
+  <li>Brotli kommt oft nur als transitive Abhängigkeit ins Projekt, in HTTP-Clients, Sidecars und Base-Images.</li>
+  <li>Seit dem 22.10. gibt es öffentlichen Exploit-Code. Auf einem unveränderten Node-Build bringt er bisher nur Abstürze. Code Execution auf dem offiziellen Image Node 24.22.0 haben Forscher mit eigenen, nicht veröffentlichten Exploits gezeigt: Imperva auf arm64 nach mehreren Versuchen, OtterSec laut Mallory auf x86_64 mit ASLR in 50 von 50 Versuchen (von OtterSec selbst noch nicht veröffentlicht). Aktive Angriffe sind bis 24.10. nicht bekannt, und CISA führt die Lücke noch nicht im KEV-Katalog (Version 2026.10.23).</li>
+  <li>pip-audit, Dependabot und Safety melden die betroffenen Versionen noch nicht. Auf grüne Scanner ist also kein Verlass.</li>
+</ul>
+
+<p>Betroffen ist nur nativer C-Code, also die Google-Bibliothek selbst und alles, was sie einbindet. Ein reiner Java-Decoder wie <code>org.brotli:dec</code> hat keinen Speicher-Overflow, weil die JVM jeden Array-Zugriff prüft. Das ist meine Einschätzung. Eine offizielle Aussage zu Java habe ich nicht gefunden.</p>
+
+<h2 id="spring-boot">Spring Boot</h2>
+
+<p>Für alle drei Server gilt dieselbe Frage: Liegt <code>com.aayushatharva.brotli4j</code> auf dem Classpath? brotli4j bringt die native Google-Bibliothek per JNI mit. Ohne brotli4j gibt es im JVM-Prozess keinen verwundbaren Decoder.</p>
+
+<pre><code class="lang-bash"># Maven
+mvn dependency:tree -Dincludes=com.aayushatharva.brotli4j
+mvn dependency:tree -Dincludes=org.brotli
+
+# Fertiges Fat-JAR
+unzip -l target/*.jar | grep -i brotli</code></pre>
+
+<p>Gefixt ist das in <a href="https://github.com/hyperxpro/Brotli4j/releases/tag/v1.24.0" target="_blank" rel="noopener">brotli4j v1.24.0</a> vom 24.10.2026. Dieses Release hebt das mitgelieferte Brotli auf 1.2.1 und nennt CVE-2026-111497 im Security Advisory. Die Version per <code>dependencyManagement</code> erzwingen, weil Netty und Jetty ältere Versionen mitziehen. Die nativen Artefakte (<code>native-linux-x86_64</code>, <code>native-linux-aarch64</code> usw.) müssen dieselbe Version haben, sonst lädt die alte native Bibliothek weiter.</p>
+
+<pre><code class="lang-xml">&lt;dependencyManagement&gt;
+  &lt;dependencies&gt;
+    &lt;dependency&gt;
+      &lt;groupId&gt;com.aayushatharva.brotli4j&lt;/groupId&gt;
+      &lt;artifactId&gt;brotli4j&lt;/artifactId&gt;
+      &lt;version&gt;1.24.0&lt;/version&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+      &lt;groupId&gt;com.aayushatharva.brotli4j&lt;/groupId&gt;
+      &lt;artifactId&gt;native-linux-x86_64&lt;/artifactId&gt;
+      &lt;version&gt;1.24.0&lt;/version&gt;
+    &lt;/dependency&gt;
+  &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;</code></pre>
+
+<h3 id="tomcat-spring-boot-starter-web-standard">Tomcat (spring-boot-starter-web, Standard)</h3>
+
+<p>Tomcat entpackt keine Request-Bodies und kann kein Brotli. <code>server.compression</code> komprimiert nur Antworten mit gzip. Der Server selbst ist nach meiner Einschätzung nicht betroffen.</p>
+
+<p>Prüfen muss man trotzdem:</p>
+
+<ul>
+  <li>ob brotli4j über eine andere Abhängigkeit reinkommt, etwa einen eigenen Decompression-Filter oder Netty als HTTP-Client (siehe nächster Abschnitt)</li>
+  <li>welche HTTP-Clients ausgehend Brotli entpacken. Der JDK-<code>HttpClient</code> kann kein Brotli. OkHttp (<code>okhttp-brotli</code>) und Apache HttpClient 5 nutzen den reinen Java-Decoder <code>org.brotli:dec</code> und sind damit unkritisch.</li>
+</ul>
+
+<h3 id="netty-spring-boot-starter-webflux-reactor-netty">Netty (spring-boot-starter-webflux, Reactor Netty)</h3>
+
+<p>Hier ist das Risiko am größten. Netty lädt brotli4j als optionale Abhängigkeit. Liegt es auf dem Classpath, liefert <code>Brotli.isAvailable()</code> true, und <code>HttpContentDecompressor</code> entpackt <code>br</code> automatisch mit dem nativen Code.</p>
+
+<ul>
+  <li>Server: Reactor Netty entpackt Request-Bodies standardmäßig nicht. Betroffen ist man, wenn man selbst einen <code>HttpContentDecompressor</code> in die Pipeline hängt.</li>
+  <li>Client: <code>WebClient</code> auf Reactor Netty mit <code>.compress(true)</code> hängt den <code>HttpContentDecompressor</code> ein. Eine Brotli-Antwort eines fremden Servers wird dann nativ entpackt, auch wenn man <code>br</code> gar nicht angefragt hat.</li>
+  <li>gRPC-Java mit Netty-Transport und andere Netty-basierte Bibliotheken bitte genauso prüfen.</li>
+</ul>
+
+<p>Wenn brotli4j drin ist, auf 1.24.0 heben (siehe oben). Wer Brotli gar nicht braucht, schließt brotli4j stattdessen per <code>&lt;exclusion&gt;</code> aus. Netty fällt dann still auf gzip/deflate zurück.</p>
+
+<h3 id="jetty-spring-boot-starter-jetty">Jetty (spring-boot-starter-jetty)</h3>
+
+<ul>
+  <li>Jetty bis 12.0 kennt nur gzip (<code>GzipHandler</code>) und ist nicht betroffen.</li>
+  <li>Jetty 12.1 hat das neue Modul <code>org.eclipse.jetty.compression:jetty-compression-brotli</code>. Es hängt an brotli4j (12.1.1 nutzt brotli4j 1.17.0). Der <code>CompressionHandler</code> kann damit auch Request-Bodies entpacken. Wer dieses Modul eingebunden hat, ist betroffen und muss brotli4j auf 1.24.0 heben (siehe oben) oder das Modul entfernen.</li>
+  <li>Für den Jetty-<code>HttpClient</code> gilt dasselbe, sobald das Brotli-Modul geladen ist.</li>
+</ul>
+
+<h3 id="container-und-plattform-rund-um-spring-boot">Container und Plattform rund um Spring Boot</h3>
+
+<p>Auch reine Java-Dienste laufen selten allein:</p>
+
+<ul>
+  <li>Base-Images neu bauen und das Betriebssystem aktualisieren (<code>apt-get upgrade</code>), weil <code>libbrotli</code> und <code>curl</code> aus dem OS kommen. Gefixte Pakete gibt es bisher nur für Debian bookworm (<code>1.0.9-2+deb12u1</code>, DLA-4855-1) und trixie (<code>1.1.0-2+deb13u1</code>, DSA-6582-1). Für Debian forky/sid, Red Hat, Ubuntu, SUSE und Amazon Linux gab es am 24.10. noch keine Pakete; dort hilft das OS-Update noch nicht.</li>
+  <li>Service Mesh prüfen: Envoy und Istio sind betroffen (siehe eigenen Abschnitt <a href="#istio-und-envoy">Istio und Envoy</a>).</li>
+  <li>Node- oder Python-Tools im selben Image (Build-Steps, Sidecars) mit aktualisieren.</li>
+</ul>
+
+<h2 id="istio-und-envoy">Istio und Envoy</h2>
+
+<h3 id="warum-beide-betroffen-sind">Warum beide betroffen sind</h3>
+
+<p>Envoy ist ein in C++ geschriebener Proxy und linkt die native Google-Brotli-Bibliothek (<code>decode.c</code>) statisch ins eigene Binary. Der verwundbare Decoder steckt damit fest im Envoy-Binary jeder betroffenen Version. Das ist dieselbe Ursache wie bei Node und Python, nur in einem anderen Wirt.</p>
+
+<p>Istios Data Plane <em>ist</em> Envoy: Jeder Sidecar (Container <code>istio-proxy</code>) und jedes Gateway (Ingress/Egress) läuft als Envoy-Prozess. Die Bibliothek liegt also in jedem Proxy-Pod.</p>
+
+<p>Entscheidend ist aber der Unterschied zwischen „Code ist vorhanden" und „Code wird erreicht":</p>
+
+<ul>
+  <li>Der Overflow greift nur, wenn Envoy tatsächlich Brotli <strong>entpackt</strong>. Das macht der HTTP-Filter <code>envoy.filters.http.decompressor</code> mit der Brotli-Extension (<code>envoy.extensions.compression.brotli.decompressor.v3.Brotli</code>).</li>
+  <li>In Istio ist das <strong>nicht Default</strong>. Es wird typischerweise per <code>EnvoyFilter</code> eingeschaltet. Ohne eine solche Konfiguration ist der verwundbare Pfad nicht erreichbar.</li>
+  <li>Reines ausgehendes <strong>Komprimieren</strong> (<code>compressor</code>) ruft den Decoder nicht auf und ist nicht der verwundbare Pfad.</li>
+  <li>Entpackt wird: eingehende Request-Bodies mit <code>Content-Encoding: br</code> und Antworten von Upstreams. Beides erreicht ein nicht authentifizierter Angreifer.</li>
+</ul>
+
+<p>Kurz: Binary vorhanden = potenziell betroffen. Decompressor konfiguriert = tatsächlich exponiert.</p>
+
+<h3 id="prüfen-ob-man-betroffen-ist">Prüfen, ob man betroffen ist</h3>
+
+<p>Zwei Fragen, zwei Checks. Da viele Istio-Versionen im Einsatz sind, zuerst den Überblick über das ganze Mesh verschaffen.</p>
+
+<p><strong>1. Welche Istio-/Envoy-Versionen laufen wo?</strong></p>
+
+<pre><code class="lang-bash"># Control-Plane- und Data-Plane-Versionen im Mesh
+istioctl version
+
+# Jeder Proxy mit seiner Istio-Version (zeigt alle Sidecars + Gateways)
+istioctl proxy-status
+
+# Envoy-Version eines konkreten Proxys
+istioctl proxy-config bootstrap &lt;pod&gt;.&lt;namespace&gt; -o json | grep -i build_version
+# oder direkt im Pod
+kubectl exec &lt;pod&gt; -c istio-proxy -- pilot-agent request GET server_info | jq -r .version</code></pre>
+
+<p>Betroffene Envoy-Versionen: 1.39.2, 1.38.5, 1.37.7, 1.36.11 und jeweils älter. Gefixt in 1.40.0, 1.39.3, 1.38.6, 1.37.8, 1.36.12 (1.36 ist unsupported).</p>
+
+<p><strong>2. Ist Brotli-Decompression überhaupt konfiguriert?</strong></p>
+
+<pre><code class="lang-bash"># EnvoyFilter, die Brotli einschalten (clusterweit)
+kubectl get envoyfilter -A -o yaml | grep -i brotli
+
+# Laufende Konfiguration eines Proxys durchsuchen
+istioctl proxy-config all &lt;pod&gt;.&lt;namespace&gt; -o json | grep -i brotli</code></pre>
+
+<p>Auf die Treffer achten:</p>
+
+<ul>
+  <li><code>...brotli.decompressor...</code> → verwundbarer Pfad aktiv → <strong>betroffen</strong>.</li>
+  <li>Nur <code>...brotli.compressor...</code> oder gar kein Treffer → über diese Lücke nicht exponiert.</li>
+</ul>
+
+<p>Gateways nicht vergessen: dieselben Checks gegen die Ingress-/Egress-Gateway-Pods laufen lassen.</p>
+
+<h3 id="was-tun">Was tun</h3>
+
+<ul>
+  <li>Istio auf 1.29.9, 1.30.6 oder 1.31.2 aktualisieren. 1.29 ist end of life, also besser auf eine unterstützte Linie wechseln. Der Fix kommt über den Envoy-Bump, ein Istio-Upgrade reicht, Envoy wird nicht separat installiert.</li>
+  <li>Wo ein Decompressor konfiguriert ist und das Upgrade nicht sofort geht: als Übergangslösung den <code>EnvoyFilter</code> mit der Brotli-Decompression entfernen, oder eingehend am Gateway Requests mit <code>Content-Encoding: br</code> ablehnen (siehe <a href="#übergangslösung-am-proxy">Übergangslösung am Proxy</a>).</li>
+  <li>Wo nichts entpackt wird, ist man nicht exponiert. Trotzdem beim nächsten Turnus patchen, weil das verwundbare Binary vorhanden bleibt und eine spätere Konfigurationsänderung den Pfad aktivieren würde.</li>
+</ul>
+
+<h3 id="kann-man-brotli-in-istio-deaktivieren">Kann man Brotli in Istio deaktivieren?</h3>
+
+<p>Einen globalen „Brotli aus"-Schalter gibt es nicht. Die Brotli-Bibliothek ist fest ins Envoy-Binary kompiliert; rausbekommt man sie nur per Envoy-Rebuild, also praktisch per Istio-Upgrade. Abschalten lässt sich nur der Pfad, der sie erreicht:</p>
+
+<ul>
+  <li><strong>Default ist bereits „aus".</strong> Istio entpackt Brotli nicht von sich aus. Wenn der Check oben keinen <code>decompressor</code> findet, ist nichts zu deaktivieren.</li>
+  <li><strong>Falls ein Decompressor konfiguriert ist</strong>, den auslösenden <code>EnvoyFilter</code> entfernen (<code>kubectl delete envoyfilter …</code>) oder die Brotli-Decompression darin herausnehmen. Envoy fällt dann auf gzip/deflate zurück.</li>
+</ul>
+
+<p>Als zusätzliche Absicherung eingehend am Ingress-Gateway <code>Content-Encoding: br</code> hart ablehnen, unabhängig von sonstiger Konfiguration:</p>
+
+<pre><code class="lang-yaml">apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: reject-brotli
+  namespace: istio-system
+spec:
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.lua
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+          inlineCode: |
+            function envoy_on_request(handle)
+              local ce = handle:headers():get("content-encoding")
+              if ce and string.find(string.lower(ce), "br", 1, true) then
+                handle:respond({[":status"] = "415"}, "brotli not accepted")
+              end
+            end</code></pre>
+
+<p>Das deckt nur die eingehende Richtung ab. Antworten von Upstreams werden ohnehin nur dann entpackt, wenn dafür ein Response-Decompressor konfiguriert ist — den gegebenenfalls genauso entfernen. Für Sidecars statt des Gateways <code>context: SIDECAR_INBOUND</code> verwenden. Das bleibt eine Übergangslösung; der saubere Fix ist das Istio-Upgrade.</p>
+
+<h2 id="nodejs">Node.js</h2>
+
+<p>Node.js bündelt Brotli direkt. Betroffen sind jedes eingebaute <code>fetch()</code>, <code>zlib.brotliDecompress*</code>, <code>body-parser</code> und damit Express. Es gibt keinen Konfigurationsschalter, nur das Update.</p>
+
+<ol>
+  <li>Node aktualisieren auf 22.23.4, 24.22.1 oder 26.12.1. Node 20 und älter sowie 23.x und 25.x bekommen keinen Patch. Diese Versionen müssen auf eine gepatchte LTS-Version.</li>
+  <li>Docker-Images neu bauen (<code>FROM node:...</code> mit gepatchtem Tag) und neu deployen. Danach im laufenden Container <code>node -v</code> prüfen. CI-Runner nicht vergessen.</li>
+  <li>Bun auf 1.4.4 aktualisieren und mit Bun kompilierte Executables neu bauen.</li>
+  <li>Bis zum Update <code>br</code>-Requests vor dem Body-Parser ablehnen:</li>
+</ol>
+
+<pre><code class="lang-js">app.use((req, res, next) =&gt; {
+  if (/\bbr\b/i.test(req.headers['content-encoding'] ?? '')) {
+    return res.status(415).end();
+  }
+  next();
+});</code></pre>
+
+<p>Das schützt nur eingehend. Gegen bösartige Antworten bei ausgehendem <code>fetch()</code> hilft nur das Update.</p>
+
+<h2 id="python">Python</h2>
+
+<p>Betroffen sind die Pakete <code>Brotli</code> (bis 1.2.0) und <code>brotlicffi</code> (1.2.0.x). requests/urllib3, httpx (mit Extra <code>brotli</code>), aiohttp und Scrapy laden sie automatisch, sobald sie installiert sind.</p>
+
+<pre><code class="lang-bash">pip list 2&gt;/dev/null | grep -i brotli</code></pre>
+
+<ol>
+  <li><code>Brotli</code> auf 1.2.1 und <code>brotlicffi</code> auf 1.2.1.0 aktualisieren.</li>
+  <li>Images und Wheels neu bauen, Prozesse neu starten.</li>
+  <li>Falls das nicht sofort geht, beide Pakete deinstallieren und Extras entfernen, die sie wieder installieren (<code>httpx[brotli]</code>, <code>urllib3[brotli]</code>, <code>aiohttp[speedups]</code>). Die HTTP-Clients fallen dann auf gzip zurück.</li>
+</ol>
+
+<h2 id="net">.NET</h2>
+
+<p>Stand 25.10. gibt es keinen Fix und keine offizielle Aussage von Microsoft. <code>System.IO.Compression.Brotli</code> (<code>BrotliStream</code>, <code>BrotliDecoder</code>) ruft per P/Invoke eine mitgelieferte native Kopie von Google Brotli auf (.NET 10: Version 1.1.0). Laut <a href="https://github.com/dotnet/runtime/issues/136422" target="_blank" rel="noopener">dotnet/runtime#136422</a> enthält der mitgelieferte Decoder in 9.0.21 und 10.0.13 noch die Logik vor dem Fix. Das ist eine Quellcode-Analyse, ein Crash ist für .NET noch nicht gezeigt. Das .NET-Team prüft die Lücke mit dem Microsoft Security Response Center und will danach einen Plan veröffentlichen.</p>
+
+<p>Weil .NET seine eigene Kopie mitbringt, hilft ein OS-Update von <code>libbrotli</code> bei den offiziellen Microsoft-Builds nicht. Distributions-Builds aus source-build können stattdessen die System-Bibliothek nutzen.</p>
+
+<p>Erreicht wird der Decoder nur, wenn Brotli tatsächlich entpackt wird:</p>
+
+<ul>
+  <li>ASP.NET Core Request Decompression (<code>AddRequestDecompression()</code>/<code>UseRequestDecompression()</code>) entpackt eingehende Bodies mit <code>Content-Encoding: br</code>. Kestrel tut das ohne diese Middleware nicht.</li>
+  <li><code>HttpClient</code> mit <code>AutomaticDecompression = DecompressionMethods.Brotli</code> oder <code>DecompressionMethods.All</code> entpackt Brotli-Antworten fremder Server. Default ist <code>None</code>.</li>
+  <li>Eigener Code, der <code>BrotliStream</code> mit <code>CompressionMode.Decompress</code> oder <code>BrotliDecoder</code> auf fremde Daten anwendet.</li>
+  <li>Response Compression (<code>AddResponseCompression()</code>) komprimiert nur und ist nicht der verwundbare Pfad.</li>
+</ul>
+
+<pre><code class="lang-bash">dotnet --list-runtimes
+grep -rnE "RequestDecompression|DecompressionMethods\.(Brotli|All)|BrotliStream|BrotliDecoder" --include=*.cs .</code></pre>
+
+<p>Bis zum Patch:</p>
+
+<ol>
+  <li>In der Request Decompression den Brotli-Provider entfernen: <code>services.AddRequestDecompression(o =&gt; o.DecompressionProviders.Remove("br"));</code></li>
+  <li>Bei <code>HttpClient</code> nur <code>DecompressionMethods.GZip | DecompressionMethods.Deflate</code> setzen statt <code>All</code>.</li>
+  <li>Eingehend <code>br</code> am Proxy ablehnen (siehe <a href="#übergangslösung-am-proxy">Übergangslösung am Proxy</a>).</li>
+  <li><a href="https://github.com/dotnet/runtime/issues/136422" target="_blank" rel="noopener">dotnet/runtime#136422</a> beobachten. Beim letzten Brotli-CVE (CVE-2020-8927) kam der Fix als reguläres .NET-Update mit Security Advisory. Danach Runtime und Images aktualisieren und self-contained Apps neu bauen, weil sie die Runtime mitbringen.</li>
+</ol>
+
+<p>Der offene PR <a href="https://github.com/dotnet/runtime/pull/136430" target="_blank" rel="noopener">dotnet/runtime#136430</a> ersetzt den nativen Code durch eine verwaltete C#-Portierung von Brotli 1.2.1. Laut Autor ist das ein Experiment und kein Security-Fix.</p>
+
+<h2 id="übergangslösung-am-proxy">Übergangslösung am Proxy</h2>
+
+<p>Gilt für alle Stacks, solange nicht alles gepatcht ist. Eingehend am Reverse-Proxy oder Load Balancer Requests mit <code>br</code> im <code>Content-Encoding</code> ablehnen, zum Beispiel in nginx:</p>
+
+<pre><code class="lang-nginx">if ($http_content_encoding ~* "\bbr\b") {
+    return 415;
+}</code></pre>
+
+<p>In HAProxy per ACL im <code>frontend</code> (oder <code>listen</code>):</p>
+
+<pre><code class="lang-haproxy">http-request deny deny_status 415 if { req.hdr(content-encoding) -m sub -i br }</code></pre>
+
+<p><code>-m sub -i br</code> prüft case-insensitiv auf das Teilwort <code>br</code>; bei den üblichen Encodings (<code>gzip</code>, <code>deflate</code>, <code>compress</code>, <code>identity</code>) gibt es keine Fehltreffer. Wer ganz sauber auf das Token prüfen will, nimmt eine Regex:</p>
+
+<pre><code class="lang-haproxy">http-request deny deny_status 415 if { req.hdr(content-encoding) -m reg -i (^|,)[[:space:]]*br([[:space:]]*(;|,|$)) }</code></pre>
+
+<p>Ausgehend <code>br</code> aus <code>Accept-Encoding</code> entfernen und Antworten mit <code>Content-Encoding: br</code> vor dem Entpacken verwerfen. Nur den Header zu ändern reicht nicht, denn ein bösartiger Server schickt Brotli trotzdem.</p>
+
+<p>Apache <code>mod_brotli</code> entpackt kein Brotli. Nginx entpackt standardmäßig auch nicht. HAProxy kann Brotli gar nicht (nur gzip/deflate, und nur beim Komprimieren von Antworten). Alle drei sind als Proxy selbst nicht betroffen und taugen damit als Filterpunkt.</p>
+
+<h2 id="quellen">Quellen</h2>
+
+<ul>
+  <li><a href="https://www.aikido.dev/blog/node2shell-nodejs-brotli-rce-cve-2026-111497" target="_blank" rel="noopener">Aikido: Node2Shell</a></li>
+  <li><a href="https://www.aikido.dev/blog/python-packages-vulnerable-node2shell-brotli-cve-2026-111497" target="_blank" rel="noopener">Aikido: HTTP2Shell und Python-Pakete</a></li>
+  <li><a href="https://strobes.co/blog/http2shell-brotli-rce-cve-2026-111497/" target="_blank" rel="noopener">Strobes: HTTP2Shell</a></li>
+  <li><a href="https://brandefense.io/blog/node2shell-nodejs-brotli-rce-cve-2026-111497/" target="_blank" rel="noopener">Brandefense: Fixed Node.js Versions</a></li>
+  <li><a href="https://www.miggo.io/post/node2shell-cve-2026-111497-nodejs-vulnerability" target="_blank" rel="noopener">Miggo: Inside Node2Shell</a></li>
+  <li><a href="https://www.imperva.com/blog/node2shell-from-brotli-data-to-remote-code-execution/" target="_blank" rel="noopener">Imperva: From Brotli Data to RCE</a></li>
+  <li><a href="https://blog.qualys.com/product-tech/2026/10/23/node-js-patches-brotli-remote-code-execution-flaw-find-vulnerable-runtimes-before-attackers-do" target="_blank" rel="noopener">Qualys</a></li>
+  <li><a href="https://vercel.com/kb/bulletin/node-js-security-advisory" target="_blank" rel="noopener">Vercel KB: Node.js Security Advisory</a></li>
+  <li><a href="https://security-tracker.debian.org/tracker/CVE-2026-111497" target="_blank" rel="noopener">Debian Security Tracker</a></li>
+  <li><a href="https://cvefeed.io/vuln/detail/CVE-2026-111497" target="_blank" rel="noopener">cvefeed.io: CVE-2026-111497</a></li>
+  <li><a href="https://patchtheplanet.org/brotli" target="_blank" rel="noopener">Patch the Planet: Brotli</a></li>
+  <li><a href="https://mallory.ai/blog/node2shell-rapid-response" target="_blank" rel="noopener">Mallory: Node2Shell / HTTP2Shell Rapid Response</a></li>
+  <li><a href="https://broccoli2shell.com/" target="_blank" rel="noopener">broccoli2shell.com: Fix-Status weiterer Projekte</a></li>
+  <li><a href="https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json" target="_blank" rel="noopener">CISA KEV Feed</a></li>
+  <li><a href="https://github.com/dotnet/runtime/issues/136422" target="_blank" rel="noopener">dotnet/runtime#136422: Does CVE-2026-111497 affect System.IO.Compression.Brotli?</a></li>
+  <li><a href="https://github.com/dotnet/runtime/pull/136430" target="_blank" rel="noopener">dotnet/runtime#136430: Managed C#-Port von Brotli 1.2.1</a></li>
+  <li><a href="https://github.com/dotnet/announcements/issues/211" target="_blank" rel="noopener">dotnet/announcements#211: Advisory zu CVE-2020-8927</a></li>
+  <li><a href="https://github.com/hyperxpro/Brotli4j/releases/tag/v1.24.0" target="_blank" rel="noopener">brotli4j v1.24.0 Release</a></li>
+  <li><a href="https://netty.io/4.1/api/io/netty/handler/codec/compression/Brotli.html" target="_blank" rel="noopener">Netty 4.1: Brotli.isAvailable</a></li>
+  <li><a href="https://netty.io/4.1/xref/io/netty/handler/codec/http/HttpContentDecompressor.html" target="_blank" rel="noopener">Netty 4.1: HttpContentDecompressor</a></li>
+  <li><a href="https://javadoc.jetty.org/jetty-12.1/org/eclipse/jetty/compression/brotli/BrotliCompression.html" target="_blank" rel="noopener">Jetty 12.1: BrotliCompression</a></li>
+  <li><a href="https://mvnrepository.com/artifact/org.eclipse.jetty.compression/jetty-compression-brotli/12.1.1" target="_blank" rel="noopener">Maven: jetty-compression-brotli 12.1.1</a></li>
+  <li><a href="https://github.com/envoyproxy/envoy/security/advisories/GHSA-3wvj-j6qm-62mr" target="_blank" rel="noopener">Envoy Security Advisory: Out-of-Bounds Write in Brotli Decompressor (GHSA-3wvj-j6qm-62mr)</a></li>
+  <li><a href="https://istio.io/latest/news/releases/1.30.x/announcing-1.30.6/" target="_blank" rel="noopener">Istio: Announcing Istio 1.30.6</a></li>
+  <li><a href="https://github.com/istio/istio.io/pull/17737" target="_blank" rel="noopener">Istio Security Bulletin ISTIO-SECURITY-2026-007 (PR)</a></li>
+</ul>
+  </main>
+</body>
+</html>
