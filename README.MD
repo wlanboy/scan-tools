@@ -17,6 +17,8 @@ Eine Sammlung einfacher Security-Scanner für Git-Repositories, Node.js-Projekte
 | [`scan-npm.py`](#2-scan-npmpy) | JS/NPM-Trojaner und Supply-Chain-Angriffe erkennen |
 | [`proxy/scan-proxy.py`](#3-scan-proxypy) | Alle Proxy-Konfigurationen eines Systems inventarisieren |
 | [`scan-secrets.py`](#4-scan-secretspy) | Credentials und Secrets im Git-Repository aufspüren |
+| [`sync/bb-pull-project.sh`](sync/bitbucket.md) | Alle Repositories eines Bitbucket-Projekts/Workspaces klonen oder aktualisieren |
+| [`sync/fj-pull-org.sh`](sync/forgejo.md) | Alle Repositories einer Forgejo-Organisation/eines Benutzers klonen oder aktualisieren |
 | [`whitelist.json`](#5-whitelistjson) | Erlaubte Hosts/IPs/Domains für den URL-Scanner |
 | [`tests/test_scan_npm.py`](#6-teststest_scan_npmpy) | Unit-Tests für den NPM-Scanner (pytest / unittest) |
 | [`testproject.sh`](#7-testprojectsh) | Test-Fixture, das alle NPM-Scanner-Regeln triggert |
