@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Secure Boot: Ablauf der Microsoft-Zertifikate von 2011</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+  <header>
+    <p class="back"><a href="../">← Übersicht</a></p>
+    <h1>Secure Boot: Ablauf der Microsoft-Zertifikate von 2011</h1>
+    <p class="muted">Stand: 25.10.2026</p>
+  </header>
+
+  <main>
+<h2 id="worum-es-geht">Worum es geht</h2>
+
+<p>Secure Boot startet nur Bootloader, deren Signatur zu einem Zertifikat in der UEFI-Datenbank <code>db</code> passt. Auf fast allen x86-Servern und VMs stammen diese Zertifikate von Microsoft, auch bei Linux, denn der erste Bootloader <code>shim</code> ist von Microsoft signiert. Die drei Zertifikate aus dem Jahr 2011 sind 2026 abgelaufen:</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Zertifikat</th><th>Zweck</th><th>Abgelaufen</th><th>Nachfolger</th></tr></thead>
+  <tbody>
+    <tr><td>Microsoft Corporation KEK CA 2011</td><td>signiert Updates von <code>db</code> und der Sperrliste <code>dbx</code></td><td>24.06.2026</td><td>Microsoft Corporation KEK 2K CA 2023</td></tr>
+    <tr><td>Microsoft Corporation UEFI CA 2011</td><td>signiert Linux-<code>shim</code> und andere Drittanbieter-Bootloader</td><td>27.06.2026</td><td>Microsoft UEFI CA 2023</td></tr>
+    <tr><td>Microsoft Windows Production PCA 2011</td><td>signiert den Windows-Bootmanager</td><td>19.10.2026</td><td>Windows UEFI CA 2023</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="warum-das-ein-sicherheitsproblem-ist">Warum das ein Sicherheitsproblem ist</h2>
+
+<p>Die Firmware prüft beim Start keine Ablaufdaten. Bestehende Systeme booten also weiter, und genau deshalb fällt das Problem nicht auf:</p>
+
+<ul>
+  <li><strong>Verwundbare Bootloader lassen sich nicht mehr sperren.</strong> Gegen alte, verwundbare Bootloader hilft nur ein Eintrag in <code>dbx</code>. So wird zum Beispiel das Bootkit BlackLotus (CVE-2023-24932) blockiert. Updates von <code>dbx</code> müssen mit der KEK signiert sein. Fehlt die KEK von 2023, kommen neue Sperren nicht mehr an, und ein Angreifer mit Admin-Rechten kann einen alten, signierten Bootloader einspielen und Secure Boot aushebeln.</li>
+  <li><strong>Updates können den Boot brechen.</strong> Neue <code>shim</code>-Versionen werden mit der 2023-CA signiert. Fehlt diese CA in <code>db</code>, startet das System nach dem Update nicht mehr.</li>
+  <li><strong>Der Widerruf kommt.</strong> Sobald die 2011-Zertifikate per <code>dbx</code> gesperrt werden, starten nur noch Bootloader mit 2023-Signatur.</li>
+</ul>
+
+<p>Betroffen sind nur Systeme mit eingeschaltetem Secure Boot.</p>
+
+<h2 id="prüfen-und-beheben">Prüfen und beheben</h2>
+
+<p>Die Skripte in diesem Ordner prüfen Secure-Boot-Status, <code>db</code>, <code>KEK</code>, die Signatur von <code>shim</code>, die Paketversionen und auf VMware den Platform Key. Am Ende steht <code>AFFECTED</code>, <code>POSSIBLY AFFECTED</code> oder <code>NOT AFFECTED</code>, zusammen mit den passenden Update-Befehlen.</p>
+
+<pre><code class="lang-bash">sudo bash secureboot/check-secureboot-expiry.sh
+sudo python3 secureboot/check_secureboot_expiry.py</code></pre>
+
+<p>Kurz von Hand: Steht in <code>mokutil --db</code> nur <code>UEFI CA 2011</code> und keine <code>UEFI CA 2023</code>, ist das System betroffen.</p>
+
+<p>Behoben wird das mit diesen Schritten:</p>
+
+<ul>
+  <li><strong>Linux:</strong> <code>shim</code> (mindestens 15.8), <code>grub</code> und bei VMs <code>edk2-ovmf</code>/<code>ovmf</code> aktualisieren und neu starten.</li>
+  <li><strong>Physische Server:</strong> Firmware-Update vom Hersteller oder per <code>fwupdmgr update</code>.</li>
+  <li><strong>VMware:</strong> Ist der Platform Key <code>VMW.NULLPK</code>, muss der Admin die vUEFI-Firmware aktualisieren. ESXi 8.x braucht dafür einen Host-Patch.</li>
+  <li><strong>Google Cloud:</strong> Instanzen, die vor dem 07.11.2025 angelegt wurden, aus einem Machine Image neu anlegen.</li>
+</ul>
+
+<h2 id="quellen">Quellen</h2>
+
+<ul>
+  <li><a href="https://access.redhat.com/articles/7128933" target="_blank" rel="noopener">Red Hat: Secure Boot certificate changes in 2026</a></li>
+  <li><a href="https://developers.redhat.com/articles/2026/02/04/secure-boot-certificate-changes-2026-guidance-rhel-environments" target="_blank" rel="noopener">Red Hat Developers: Guidance for RHEL environments</a></li>
+  <li><a href="https://knowledge.broadcom.com/external/article/423893/" target="_blank" rel="noopener">Broadcom KB 423893: Secure Boot certificate expiry on VMware</a></li>
+  <li><a href="https://support.microsoft.com/en-us/topic/windows-secure-boot-certificate-expiration-and-ca-updates-7ff40d33-95dc-4c3c-8725-a9b95457578e" target="_blank" rel="noopener">Microsoft: Secure Boot certificate rollover</a></li>
+</ul>
+  </main>
+</body>
+</html>
