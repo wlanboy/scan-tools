@@ -24,6 +24,8 @@ body {
 header, main { padding: 0 16px; }
 header { padding-top: 16px; }
 h1 { margin: 0; font-size: 1.4rem; }
+.back { margin: 0 0 8px; font-size: 13px; }
+.back a { text-decoration: none; }
 .muted { color: var(--muted); }
 a { color: var(--accent); }
 code { font-family: ui-monospace, monospace; }

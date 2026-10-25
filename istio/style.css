@@ -27,6 +27,7 @@ h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
+.back { margin: 0 0 8px; font-size: 13px; }
 
 .muted { color: var(--muted); }
 .error { color: var(--critical); }
