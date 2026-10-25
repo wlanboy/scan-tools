@@ -1,0 +1,165 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --surface: #171a21;
+  --surface-2: #1d212a;
+  --border: #2a2f3a;
+  --text: #e6e8ec;
+  --muted: #9aa3b2;
+  --accent: #6ea8fe;
+  --danger: #f26d6d;
+  --warn: #e5b45a;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+header, main { padding: 0 16px; }
+header { padding-top: 16px; }
+h1 { margin: 0; font-size: 1.4rem; }
+.muted { color: var(--muted); }
+a { color: var(--accent); }
+code { font-family: ui-monospace, monospace; }
+
+/* Filterleiste */
+#filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 16px 0 8px;
+}
+#filters .grow { flex: 1 1 260px; }
+#filters label { color: var(--muted); white-space: nowrap; }
+
+input, button {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+input:focus-visible, button:focus-visible, tr.row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+input[type="checkbox"] { accent-color: var(--accent); vertical-align: middle; }
+button { cursor: pointer; }
+button:hover { background: var(--surface-2); }
+
+#fallback {
+  border: 1px solid var(--warn);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+
+/* Tabelle — kein overflow am Container, sonst klebt der Kopf nicht am Viewport */
+table { width: 100%; border-collapse: collapse; }
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+td:nth-child(1), td:nth-child(2), td:nth-child(3) { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  padding: 0;
+}
+thead button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-weight: 600;
+  padding: 8px;
+}
+th[aria-sort="ascending"] button::after { content: " ▲"; color: var(--accent); }
+th[aria-sort="descending"] button::after { content: " ▼"; color: var(--accent); }
+
+tr.row { cursor: pointer; }
+tr.row:hover, tr.row[aria-expanded="true"] { background: var(--surface); }
+.badge {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--danger);
+  color: #000;
+  font-weight: 700;
+}
+.due-open { color: var(--warn); }
+
+/* Detailzeile */
+tr.detail > td { background: var(--surface-2); padding: 12px 16px; }
+tr.detail dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+tr.detail dt { color: var(--muted); }
+tr.detail dd { margin: 0; overflow-wrap: anywhere; }
+tr.detail ul { margin: 0; padding-left: 18px; }
+
+#more { display: block; margin: 16px auto 32px; }
+
+/* Schmale Fenster: Tabelle horizontal scrollen statt Spalten zu quetschen */
+@media (max-width: 960px) {
+  .table-wrap { overflow-x: auto; }
+  table { min-width: 900px; }
+}
+
+@media (max-width: 600px) {
+  tr.detail dl { grid-template-columns: 1fr; }
+  tr.detail dt { margin-top: 6px; }
+}
+
+/* Spring-spezifisch */
+:root {
+  --critical: #ff5c7a;
+  --high: #ff9f43;
+  --medium: #f5d547;
+  --low: #4cd38a;
+}
+.back { margin: 0 0 8px; font-size: 13px; }
+.back a { text-decoration: none; }
+select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.sev {
+  display: inline-block;
+  min-width: 5.5em;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  color: #000;
+}
+.sev-CRITICAL { background: var(--critical); }
+.sev-HIGH { background: var(--high); }
+.sev-MEDIUM { background: var(--medium); }
+.sev-LOW { background: var(--low); }
+.enterprise { color: var(--muted); }
+tr.detail dd.text { white-space: pre-line; }
+tr.detail table { width: auto; min-width: 0; }
+tr.detail table th, tr.detail table td { padding: 2px 16px 2px 0; border: 0; white-space: nowrap; }
+tr.detail table th { position: static; background: none; color: var(--muted); font-weight: 400; }
