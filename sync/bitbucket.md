@@ -66,7 +66,7 @@ sync/bb-pull-project.sh
 2. **Repo-Liste sammeln** — ruft die Bitbucket-API seitenweise ab (100 Repos pro Seite) und extrahiert die Clone-URLs über `bb_parse.py`
 3. **Klonen / Aktualisieren** — für jede URL parallel:
    - `TARGET_DIR/<repo>/.git` existiert → `git pull --ff-only`
-   - `TARGET_DIR/<repo>/.git` existiert, hat aber noch keinen Commit (Klon eines leeren Repos) → statt `git pull` → `git fetch`; hat das Remote inzwischen Inhalt, checkt das Skript den Default-Branch aus
+   - `TARGET_DIR/<repo>/.git` existiert, hat aber noch keinen Commit (Klon eines leeren Repos) → statt `git pull` ein `git fetch`; hat das Remote inzwischen Inhalt, checkt das Skript den Default-Branch aus
    - sonst → `git clone`
 
 Der Verzeichnisname ergibt sich aus der Clone-URL ohne `.git`.
