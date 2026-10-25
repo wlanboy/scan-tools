@@ -1242,7 +1242,7 @@ class TestScanSystemdEnv(ScanProxyTestCase):
     def test_unbalanced_quotes_no_crash(self):
         """Ein kaputtes Quoting fällt auf einfaches Split zurück."""
         keys = self._scan('Environment="HTTP_PROXY=http://p:3128\n')
-        self.assertIn('"HTTP_PROXY', keys)
+        self.assertEqual(keys, {'HTTP_PROXY': 'http://p:3128'})
 
     def test_missing_file_no_crash(self):
         """Eine fehlende Datei bricht den Scan nicht ab."""
