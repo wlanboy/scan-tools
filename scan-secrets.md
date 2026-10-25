@@ -9,7 +9,7 @@ Das Skript nutzt nur die Python-Standardbibliothek und braucht keine Installatio
 ## Einsatzgebiet
 
 - **CI/CD-Pipelines**: vor jedem Merge prüfen, ob Secrets in den Code gelangt sind (Exit-Code `1` bricht den Build ab)
-- **Security-Audits**: viele Repositories auf geleakte Credentials prüfen, zusammen mit [`scan-all-repos.sh`](scan-all-repos.sh) und [`bb-pull-project.sh`](bitbucket-parse.md)
+- **Security-Audits**: viele Repositories auf geleakte Credentials prüfen, zusammen mit [`scan-all-repos.sh`](scan-all-repos.sh) und [`sync/bb-pull-project.sh`](sync/bitbucket.md)
 - **Pre-commit-Checks**: Secrets finden, bevor sie auf dem Server landen
 - **Incident Response**: nach einem Leak-Verdacht gezielt nach einzelnen Token-Typen suchen (`--categories`)
 
