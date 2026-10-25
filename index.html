@@ -9,37 +9,57 @@
 <body>
   <header>
     <h1>scan-tools</h1>
-    <p class="muted">Übersichtsseiten zu Schwachstellen-Daten aus diesem Repository.</p>
+    <p class="muted">Übersichtsseiten zu Schwachstellen-Daten und Analysen aus diesem Repository.</p>
   </header>
 
-  <main class="tiles">
-    <a class="tile" href="kev/">
-      <span class="tag">CISA</span>
-      <h2>KEV-Katalog</h2>
-      <p>Known Exploited Vulnerabilities: aktiv ausgenutzte Schwachstellen mit Frist und Maßnahme. Suchen, filtern nach Hersteller, Produkt, Zeitraum und Ransomware, sortieren.</p>
-      <span class="path">kev/ · aktualisieren mit <code>kev/catalog.py download</code></span>
-    </a>
+  <main>
+    <h2 class="section">Schwachstellen-Daten</h2>
+    <div class="tiles">
+      <a class="tile" href="kev/">
+        <span class="tag">CISA</span>
+        <h2>KEV-Katalog</h2>
+        <p>Known Exploited Vulnerabilities: aktiv ausgenutzte Schwachstellen mit Frist und Maßnahme. Suchen, filtern nach Hersteller, Produkt, Zeitraum und Ransomware, sortieren.</p>
+        <span class="path">kev/ · aktualisieren mit <code>kev/catalog.py download</code></span>
+      </a>
 
-    <a class="tile" href="spring/">
-      <span class="tag">Spring</span>
-      <h2>Spring Security Advisories</h2>
-      <p>Alle Advisories von spring.io/security mit betroffenen Versionen und Fixes (OSS/Enterprise). Suchen, filtern nach Projekt, Severity und Zeitraum, sortieren.</p>
-      <span class="path">spring/ · aktualisieren mit <code>spring/advisories.py download</code></span>
-    </a>
+      <a class="tile" href="spring/">
+        <span class="tag">Spring</span>
+        <h2>Spring Security Advisories</h2>
+        <p>Alle Advisories von spring.io/security mit betroffenen Versionen und Fixes (OSS/Enterprise). Suchen, filtern nach Projekt, Severity und Zeitraum, sortieren.</p>
+        <span class="path">spring/ · aktualisieren mit <code>spring/advisories.py download</code></span>
+      </a>
 
-    <a class="tile" href="nodejs/">
-      <span class="tag">Node.js</span>
-      <h2>Node.js-Schwachstellen</h2>
-      <p>CVEs aus den Node.js-Security-Release-Posts und der Security-WG-Datenbank mit betroffenen Release-Linien und gepatchten Versionen. Suchen, filtern nach Release-Linie, Severity und Zeitraum, sortieren.</p>
-      <span class="path">nodejs/ · aktualisieren mit <code>nodejs/vulnerabilities.py download</code></span>
-    </a>
+      <a class="tile" href="nodejs/">
+        <span class="tag">Node.js</span>
+        <h2>Node.js-Schwachstellen</h2>
+        <p>CVEs aus den Node.js-Security-Release-Posts und der Security-WG-Datenbank mit betroffenen Release-Linien und gepatchten Versionen. Suchen, filtern nach Release-Linie, Severity und Zeitraum, sortieren.</p>
+        <span class="path">nodejs/ · aktualisieren mit <code>nodejs/vulnerabilities.py download</code></span>
+      </a>
 
-    <a class="tile" href="istio/">
-      <span class="tag">Istio</span>
-      <h2>Istio Release CVEs</h2>
-      <p>CVEs aus den Release Notes und Security Bulletins der Istio-Releases ab 1.26, nach Minor-Version filterbar und nach CVE gruppierbar.</p>
-      <span class="path">istio/ · aktualisieren mit <code>istio/update.sh</code></span>
-    </a>
+      <a class="tile" href="istio/">
+        <span class="tag">Istio</span>
+        <h2>Istio Release CVEs</h2>
+        <p>CVEs aus den Release Notes und Security Bulletins der Istio-Releases ab 1.26, nach Minor-Version filterbar und nach CVE gruppierbar.</p>
+        <span class="path">istio/ · aktualisieren mit <code>istio/update.sh</code></span>
+      </a>
+    </div>
+
+    <h2 class="section">Analysen</h2>
+    <div class="tiles">
+      <a class="tile" href="2shell/">
+        <span class="tag">CVE-2026-111497</span>
+        <h2>Node2Shell / HTTP2Shell</h2>
+        <p>Out-of-Bounds-Write im Brotli-Decoder: Wer betroffen ist (Spring Boot mit Netty/Jetty, Istio/Envoy, Node.js, Python, .NET), wie man es prüft und welche Übergangslösungen am Proxy helfen.</p>
+        <span class="path">2shell/ · Quelle <code>2shell/2shell.md</code></span>
+      </a>
+
+      <a class="tile" href="eMudhra/">
+        <span class="tag">PKI</span>
+        <h2>eMudhra-Kompromittierung</h2>
+        <p>Kompromittierte Intermediate-CAs und Cross-Signs: Warum Backends gefährdeter sind als Browser, lokale Testergebnisse für Java und Node.js und die Maßnahmen für Spring Boot und Node.</p>
+        <span class="path">eMudhra/ · Quelle <code>eMudhra/eMudhra.md</code></span>
+      </a>
+    </div>
   </main>
 
   <footer class="muted">
