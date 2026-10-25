@@ -12,7 +12,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-core"
       ],
@@ -91,7 +91,7 @@
       "projectSlug": "micrometer-tracing",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.micrometer:micrometer-tracing-bridge-brave"
       ],
@@ -160,7 +160,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-core"
       ],
@@ -239,7 +239,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-scripting"
       ],
@@ -318,7 +318,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.amqp:spring-amqp-client"
       ],
@@ -354,7 +354,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-model-chat-memory-repository-redis"
       ],
@@ -390,7 +390,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:R/S:C/C:H/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-model"
       ],
@@ -446,7 +446,7 @@
       "projectSlug": "spring-kafka",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.kafka:spring-kafka"
       ],
@@ -525,7 +525,7 @@
       "projectSlug": "spring-authorization-server",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-oauth2-authorization-server"
       ],
@@ -567,7 +567,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-config-monitor"
       ],
@@ -628,7 +628,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:L/A:N",
-      "weakness": "[\"CWE-113\"]",
+      "weakness": [
+        "CWE-113"
+      ],
       "artifacts": [
         "org.springframework:spring-web"
       ],
@@ -713,7 +715,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:R/S:U/C:N/I:L/A:N",
-      "weakness": "[\"CWE-93\"]",
+      "weakness": [
+        "CWE-93"
+      ],
       "artifacts": [
         "org.springframework:spring-webmvc"
       ],
@@ -789,7 +793,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-zip"
       ],
@@ -859,7 +863,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-redis-semantic-cache"
       ],
@@ -895,7 +899,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:N/S:C/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-jdbc"
       ],
@@ -965,7 +969,7 @@
       "projectSlug": "spring-cloud-stream",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-stream"
       ],
@@ -1017,7 +1021,7 @@
       "projectSlug": "spring-cloud-stream",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-stream"
       ],
@@ -1069,7 +1073,7 @@
       "projectSlug": "spring-cloud-stream",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-stream-schema-registry-client",
         "org.springframework.cloud:spring-cloud-stream-schema-registry-core",
@@ -1123,7 +1127,7 @@
       "projectSlug": "spring-cloud-stream",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-stream"
       ],
@@ -1175,7 +1179,7 @@
       "projectSlug": "spring-cloud-stream",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-stream"
       ],
@@ -1227,7 +1231,7 @@
       "projectSlug": "spring-cloud-function",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-function-adapter-azure"
       ],
@@ -1279,7 +1283,7 @@
       "projectSlug": "spring-cloud-function",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-function-adapter-aws"
       ],
@@ -1340,7 +1344,7 @@
       "projectSlug": "spring-cloud-function",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-function-context"
       ],
@@ -1401,7 +1405,7 @@
       "projectSlug": "spring-cloud-function",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-function-web"
       ],
@@ -1462,7 +1466,7 @@
       "projectSlug": "spring-cloud-function",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-function-serverless-web"
       ],
@@ -1514,7 +1518,7 @@
       "projectSlug": "micrometer",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.micrometer:micrometer-core",
         "io.micrometer:micrometer-registry-statsd"
@@ -1599,7 +1603,7 @@
       "projectSlug": "micrometer",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.micrometer:micrometer-core"
       ],
@@ -1683,7 +1687,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-transformers"
       ],
@@ -1738,7 +1742,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-smb"
       ],
@@ -1808,7 +1812,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:L/AC:L/PR:H/UI:N/S:C/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-core"
       ],
@@ -1887,7 +1891,7 @@
       "projectSlug": "spring-cloud-function",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:R/S:U/C:N/I:L/A:N/CR:M/IR:L/AR:L/MAV:N/MAC:H/MPR:H/MUI:R/MS:U/MC:L/MI:H/MA:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-function-context"
       ],
@@ -1939,7 +1943,9 @@
       "projectSlug": "spring-graphql",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "[\"CWE-770\"]",
+      "weakness": [
+        "CWE-770"
+      ],
       "artifacts": [
         "org.springframework.graphql:spring-graphql"
       ],
@@ -1995,7 +2001,9 @@
       "projectSlug": "spring-graphql",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:N/A:N",
-      "weakness": "[\"CWE-200\"]",
+      "weakness": [
+        "CWE-200"
+      ],
       "artifacts": [
         "org.springframework.graphql:spring-graphql"
       ],
@@ -2061,7 +2069,9 @@
       "projectSlug": "spring-graphql",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "[\"CWE-770\"]",
+      "weakness": [
+        "CWE-770"
+      ],
       "artifacts": [
         "org.springframework.graphql:spring-graphql"
       ],
@@ -2117,7 +2127,9 @@
       "projectSlug": "spring-graphql",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:L/A:N",
-      "weakness": "[\"CWE-494\"]",
+      "weakness": [
+        "CWE-494"
+      ],
       "artifacts": [
         "org.springframework.graphql:spring-graphql"
       ],
@@ -2183,7 +2195,9 @@
       "projectSlug": "spring-graphql",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "[\"CWE-502\"]",
+      "weakness": [
+        "CWE-502"
+      ],
       "artifacts": [
         "org.springframework.graphql:spring-graphql"
       ],
@@ -2219,7 +2233,7 @@
       "projectSlug": "spring-cloud-commons",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:H/UI:N/S:C/C:N/I:H/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-context"
       ],
@@ -2280,7 +2294,10 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:H",
-      "weakness": "[\"CWE-913\",\"CWE-770\"]",
+      "weakness": [
+        "CWE-913",
+        "CWE-770"
+      ],
       "artifacts": [
         "org.springframework:spring-expression"
       ],
@@ -2365,7 +2382,10 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "[\"CWE-400\",\"CWE-770\"]",
+      "weakness": [
+        "CWE-400",
+        "CWE-770"
+      ],
       "artifacts": [
         "org.springframework:spring-beans"
       ],
@@ -2450,7 +2470,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:L/A:N",
-      "weakness": "[\"CWE-79\"]",
+      "weakness": [
+        "CWE-79"
+      ],
       "artifacts": [
         "org.springframework:spring-web"
       ],
@@ -2535,7 +2557,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "[\"CWE-22\"]",
+      "weakness": [
+        "CWE-22"
+      ],
       "artifacts": [
         "org.springframework:spring-context-support"
       ],
@@ -2620,7 +2644,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:mcp-spring-webflux",
         "org.springframework.ai:mcp-spring-webmvc"
@@ -2657,7 +2681,7 @@
       "projectSlug": "spring-kafka",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.kafka:spring-kafka"
       ],
@@ -2736,7 +2760,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-core"
       ],
@@ -2772,7 +2796,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-core"
       ],
@@ -2862,7 +2886,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.amqp:spring-amqp"
       ],
@@ -2931,7 +2955,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-zip"
       ],
@@ -3001,7 +3025,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.amqp:spring-rabbit"
       ],
@@ -3070,7 +3094,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.amqp:spring-rabbit-junit"
       ],
@@ -3139,7 +3163,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-ldap"
       ],
@@ -3229,7 +3253,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-config-server"
       ],
@@ -3290,7 +3314,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N",
-      "weakness": "[\"CWE-209\"]",
+      "weakness": [
+        "CWE-209"
+      ],
       "artifacts": [
         "org.springframework:spring-webflux"
       ],
@@ -3375,7 +3401,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "[\"CWE-863\"]",
+      "weakness": [
+        "CWE-863"
+      ],
       "artifacts": [
         "org.springframework:spring-webflux"
       ],
@@ -3461,7 +3489,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "[\"CWE-770\"]",
+      "weakness": [
+        "CWE-770"
+      ],
       "artifacts": [
         "org.springframework:spring-webflux"
       ],
@@ -3546,7 +3576,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:R/S:U/C:N/I:L/A:N",
-      "weakness": "[\"CWE-93\"]",
+      "weakness": [
+        "CWE-93"
+      ],
       "artifacts": [
         "org.springframework:spring-webmvc",
         "org.springframework:spring-webflux"
@@ -3593,7 +3625,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N",
-      "weakness": "[\"CWE-1275\"]",
+      "weakness": [
+        "CWE-1275"
+      ],
       "artifacts": [
         "org.springframework:spring-web"
       ],
@@ -3639,7 +3673,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "[\"CWE-401\"]",
+      "weakness": [
+        "CWE-401"
+      ],
       "artifacts": [
         "org.springframework:spring-messaging"
       ],
@@ -3725,7 +3761,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "[\"CWE-601\"]",
+      "weakness": [
+        "CWE-601"
+      ],
       "artifacts": [
         "org.springframework:spring-webmvc"
       ],
@@ -3810,7 +3848,10 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "[\"CWE-400\",\"CWE-770\"]",
+      "weakness": [
+        "CWE-400",
+        "CWE-770"
+      ],
       "artifacts": [
         "org.springframework:spring-expression"
       ],
@@ -3895,7 +3936,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "[\"CWE-770\"]",
+      "weakness": [
+        "CWE-770"
+      ],
       "artifacts": [
         "org.springframework:spring-web"
       ],
@@ -3951,7 +3994,10 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:N/A:N",
-      "weakness": "[\"CWE-22\",\"CWE-918\"]",
+      "weakness": [
+        "CWE-22",
+        "CWE-918"
+      ],
       "artifacts": [
         "org.springframework:spring-webmvc"
       ],
@@ -4036,7 +4082,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "[\"CWE-601\"]",
+      "weakness": [
+        "CWE-601"
+      ],
       "artifacts": [
         "org.springframework:spring-webmvc",
         "org.springframework:spring-webflux"
@@ -4083,7 +4131,7 @@
       "projectSlug": "spring-batch",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.batch:spring-batch-infrastructure"
       ],
@@ -4139,7 +4187,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-jms"
       ],
@@ -4218,7 +4266,7 @@
       "projectSlug": "spring-cloud-gateway",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:N/S:C/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-gateway-server"
       ],
@@ -4282,7 +4330,7 @@
       "projectSlug": "spring-batch",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.batch:spring-batch-core"
       ],
@@ -4328,7 +4376,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-oauth2-authorization-server"
       ],
@@ -4378,7 +4426,7 @@
       "projectSlug": "spring-batch",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.batch:spring-batch-core"
       ],
@@ -4424,7 +4472,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.projectreactor.netty:reactor-netty-http"
       ],
@@ -4479,7 +4527,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-http"
       ],
@@ -4558,7 +4606,7 @@
       "projectSlug": "reactor-core",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.projectreactor:reactor-core"
       ],
@@ -4604,7 +4652,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-zip"
       ],
@@ -4674,7 +4722,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-ip"
       ],
@@ -4753,7 +4801,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.amqp:spring-amqp"
       ],
@@ -4822,7 +4870,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-syslog"
       ],
@@ -4901,7 +4949,7 @@
       "projectSlug": "reactor-core",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.projectreactor:reactor-core"
       ],
@@ -4956,7 +5004,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-core"
       ],
@@ -5035,7 +5083,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-transformers"
       ],
@@ -5091,7 +5139,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-pdf-document-reader"
       ],
@@ -5147,7 +5195,7 @@
       "projectSlug": "spring-data-rest",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-rest-core"
       ],
@@ -5226,7 +5274,7 @@
       "projectSlug": "spring-data-rest",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-rest-core"
       ],
@@ -5305,7 +5353,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.projectreactor.netty:reactor-netty-http"
       ],
@@ -5360,7 +5408,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.projectreactor.netty:reactor-netty-http"
       ],
@@ -5415,7 +5463,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.projectreactor.netty:reactor-netty-http-brave"
       ],
@@ -5470,7 +5518,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.projectreactor.netty:reactor-netty-core"
       ],
@@ -5525,7 +5573,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-crypto"
       ],
@@ -5615,7 +5663,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-webauthn"
       ],
@@ -5691,7 +5739,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:H/UI:N/S:C/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-config-server"
       ],
@@ -5752,7 +5800,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "3.1",
       "cvssVector": "AV:L/AC:H/PR:H/UI:N/S:C/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-config-server"
       ],
@@ -5813,7 +5861,7 @@
       "projectSlug": "spring-data-jpa",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-jpa"
       ],
@@ -5883,7 +5931,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-oauth2-jose"
       ],
@@ -5943,7 +5991,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-elasticsearch-store",
         "org.springframework.ai:spring-ai-opensearch-store",
@@ -5987,7 +6035,7 @@
       "projectSlug": "spring-cloud-gateway",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:C/C:N/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-gateway"
       ],
@@ -6071,7 +6119,7 @@
       "projectSlug": "spring-statemachine",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.statemachine:spring-statemachine-core"
       ],
@@ -6117,7 +6165,7 @@
       "projectSlug": "spring-cloud-sleuth",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-sleuth-instrumentation"
       ],
@@ -6149,7 +6197,7 @@
       "projectSlug": "spring-graphql",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.graphql:spring-graphql"
       ],
@@ -6218,7 +6266,7 @@
       "projectSlug": "spring-graphql",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.graphql:spring-graphql"
       ],
@@ -6287,7 +6335,7 @@
       "projectSlug": "spring-graphql",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.graphql:spring-graphql"
       ],
@@ -6347,7 +6395,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot-artemis",
         "org.springframework.boot:spring-boot-autoconfigure"
@@ -6427,7 +6475,7 @@
       "projectSlug": "spring-ws",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ws:spring-ws-security"
       ],
@@ -6496,7 +6544,7 @@
       "projectSlug": "spring-ws",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ws:spring-ws-core"
       ],
@@ -6565,7 +6613,7 @@
       "projectSlug": "spring-ws",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ws:spring-xml"
       ],
@@ -6634,7 +6682,7 @@
       "projectSlug": "spring-ws",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ws:spring-ws-security"
       ],
@@ -6703,7 +6751,7 @@
       "projectSlug": "spring-ws",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ws:spring-ws-security"
       ],
@@ -6772,7 +6820,7 @@
       "projectSlug": "spring-ws",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ws:spring-ws-security"
       ],
@@ -6841,7 +6889,7 @@
       "projectSlug": "spring-ws",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ws:spring-ws-security"
       ],
@@ -6910,7 +6958,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:A/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot-mail",
         "org.springframework.boot:spring-boot-autoconfigure"
@@ -6976,7 +7024,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:R/S:C/C:L/I:H/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.integration:spring-integration-ftp"
       ],
@@ -7055,7 +7103,7 @@
       "projectSlug": "spring-webflow",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:R/S:U/C:N/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.webflow:spring-js-resources"
       ],
@@ -7114,7 +7162,7 @@
       "projectSlug": "spring-webflow",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:R/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.webflow:spring-webflow"
       ],
@@ -7173,7 +7221,7 @@
       "projectSlug": "spring-authorization-server",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-oauth2-authorization-server"
       ],
@@ -7209,7 +7257,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-web"
       ],
@@ -7284,7 +7332,7 @@
       "projectSlug": "spring-data-rest",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-rest-core"
       ],
@@ -7363,7 +7411,7 @@
       "projectSlug": "spring-pulsar",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.pulsar:spring-pulsar"
       ],
@@ -7422,7 +7470,7 @@
       "projectSlug": "spring-kafka",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.kafka:spring-kafka"
       ],
@@ -7501,7 +7549,7 @@
       "projectSlug": "spring-data-rest",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-rest-core"
       ],
@@ -7580,7 +7628,7 @@
       "projectSlug": "spring-data-rest",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-rest-core"
       ],
@@ -7659,7 +7707,7 @@
       "projectSlug": "spring-data-rest",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-rest-core"
       ],
@@ -7738,7 +7786,7 @@
       "projectSlug": "spring-kafka",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.kafka:spring-kafka"
       ],
@@ -7817,7 +7865,7 @@
       "projectSlug": "spring-kafka",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.kafka:spring-kafka"
       ],
@@ -7896,7 +7944,7 @@
       "projectSlug": "spring-data-commons",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-commons"
       ],
@@ -7975,7 +8023,7 @@
       "projectSlug": "spring-data-keyvalue",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-keyvalue",
         "org.springframework.data:spring-data-redis"
@@ -8055,7 +8103,7 @@
       "projectSlug": "spring-data-mongodb",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-mongodb"
       ],
@@ -8134,7 +8182,7 @@
       "projectSlug": "spring-data-commons",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-commons"
       ],
@@ -8213,7 +8261,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:C/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.amqp:spring-amqp"
       ],
@@ -8282,7 +8330,7 @@
       "projectSlug": "spring-data-commons",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-commons"
       ],
@@ -8361,7 +8409,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-web"
       ],
@@ -8450,7 +8498,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:H/UI:N/S:C/C:L/I:L/A:N/E:P/RL:O/RC:R/CR:M/IR:X/AR:X/MAV:N/MAC:H/MPR:L/MUI:N/MS:C/MC:L/MI:L/MA:X",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.amqp:spring-amqp"
       ],
@@ -8519,7 +8567,7 @@
       "projectSlug": "spring-data-relational",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-jdbc",
         "org.springframework.data:spring-data-r2dbc"
@@ -8599,7 +8647,7 @@
       "projectSlug": "spring-data-mongodb",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-mongodb"
       ],
@@ -8678,7 +8726,7 @@
       "projectSlug": "spring-data-commons",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-commons"
       ],
@@ -8738,7 +8786,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-saml2-service-provider"
       ],
@@ -8827,7 +8875,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-oauth2-authorization-server"
       ],
@@ -8863,7 +8911,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:R/S:C/C:H/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-saml2-service-provider"
       ],
@@ -8952,7 +9000,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:A/AC:H/PR:H/UI:N/S:C/C:N/I:H/A:H/E:U/RL:O/RC:C/CR:L/IR:H/AR:M/MAV:A/MAC:H/MPR:H/MUI:N/MS:C/MC:N/MI:H/MA:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-saml2-service-provider"
       ],
@@ -8988,7 +9036,7 @@
       "projectSlug": "spring-restdocs",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.restdocs:spring-restdocs-webtestclient",
         "org.springframework.restdocs:spring-restdocs-restassured"
@@ -9048,7 +9096,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H/E:U/RL:O/RC:C/CR:X/IR:X/AR:M/MAV:N/MAC:L/MPR:N/MUI:N/MS:U/MC:N/MI:N/MA:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-saml2-service-provider"
       ],
@@ -9137,7 +9185,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-jms"
       ],
@@ -9206,7 +9254,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-web"
       ],
@@ -9256,7 +9304,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webmvc",
         "org.springframework:spring-webflux"
@@ -9326,7 +9374,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-expression"
       ],
@@ -9395,7 +9443,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-expression"
       ],
@@ -9464,7 +9512,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "[\"CWE-770\"]",
+      "weakness": [
+        "CWE-770"
+      ],
       "artifacts": [
         "org.springframework:spring-expression"
       ],
@@ -9533,7 +9583,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-expression"
       ],
@@ -9564,7 +9614,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-core"
       ],
@@ -9633,7 +9683,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webflux"
       ],
@@ -9664,7 +9714,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webmvc"
       ],
@@ -9733,7 +9783,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-web"
       ],
@@ -9802,7 +9852,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webmvc",
         "org.springframework:spring-webflux"
@@ -9872,7 +9922,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webmvc",
         "org.springframework:spring-webflux"
@@ -9942,7 +9992,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webmvc",
         "org.springframework:spring-webflux"
@@ -10012,7 +10062,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webmvc",
         "org.springframework:spring-webflux"
@@ -10082,7 +10132,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webflux"
       ],
@@ -10151,7 +10201,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webflux"
       ],
@@ -10220,7 +10270,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:R/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-websocket"
       ],
@@ -10289,7 +10339,7 @@
       "projectSlug": "spring-ldap",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ldap:spring-ldap-core"
       ],
@@ -10358,7 +10408,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.projectreactor.netty:reactor-netty-http"
       ],
@@ -10428,7 +10478,7 @@
       "projectSlug": "spring-retry",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.retry:spring-retry"
       ],
@@ -10473,7 +10523,7 @@
       "projectSlug": "spring-hateoas",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.hateoas:spring-hateoas"
       ],
@@ -10552,7 +10602,7 @@
       "projectSlug": "spring-hateoas",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.hateoas:spring-hateoas"
       ],
@@ -10631,7 +10681,7 @@
       "projectSlug": "micrometer",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.micrometer:micrometer-core",
         "io.micrometer:micrometer-jetty11",
@@ -10717,7 +10767,7 @@
       "projectSlug": "micrometer",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.micrometer:micrometer-core"
       ],
@@ -10767,7 +10817,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-anthropic"
       ],
@@ -10799,7 +10849,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-client-chat"
       ],
@@ -10841,7 +10891,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-client-chat"
       ],
@@ -10883,7 +10933,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-milvus-store"
       ],
@@ -10925,7 +10975,7 @@
       "projectSlug": "spring-cloud-function",
       "cvssVersion": "3.1",
       "cvssVector": "AV:P/AC:L/PR:L/UI:R/S:C/C:N/I:L/A:H/CR:X/IR:X/AR:X/MAV:P/MAC:L/MPR:X/MUI:R/MS:C/MC:N/MI:X/MA:X",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-function-web"
       ],
@@ -10996,7 +11046,7 @@
       "projectSlug": "spring-cloud-function",
       "cvssVersion": "3.1",
       "cvssVector": "AV:P/AC:L/PR:L/UI:R/S:C/C:N/I:L/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-function-web"
       ],
@@ -11067,7 +11117,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "3.1",
       "cvssVector": "AV:L/AC:L/PR:H/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-config-server"
       ],
@@ -11138,7 +11188,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "3.1",
       "cvssVector": "AV:L/AC:H/PR:H/UI:N/S:C/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-config-server"
       ],
@@ -11209,7 +11259,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-config-server"
       ],
@@ -11280,7 +11330,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-config-server"
       ],
@@ -11351,7 +11401,7 @@
       "projectSlug": "spring-grpc",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.grpc:spring-grpc-core"
       ],
@@ -11382,7 +11432,7 @@
       "projectSlug": "spring-grpc",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.grpc:spring-grpc-core"
       ],
@@ -11413,7 +11463,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-pdf-document-reader"
       ],
@@ -11455,7 +11505,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-transformers"
       ],
@@ -11497,7 +11547,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-azure-cosmos-db-store"
       ],
@@ -11539,7 +11589,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-vector-store"
       ],
@@ -11581,7 +11631,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-vector-store-advisor"
       ],
@@ -11623,7 +11673,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:L/AC:H/PR:H/UI:N/S:U/C:N/I:L/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot"
       ],
@@ -11694,7 +11744,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot-actuator-autoconfigure"
       ],
@@ -11726,7 +11776,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot"
       ],
@@ -11797,7 +11847,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:A/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot-cassandra",
         "org.springframework.boot:spring-boot-autoconfigure"
@@ -11869,7 +11919,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot"
       ],
@@ -11940,7 +11990,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:A/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot-devtools"
       ],
@@ -12011,7 +12061,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:A/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot-autoconfigure",
         "org.springframework.boot:spring-boot-amqp"
@@ -12054,7 +12104,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:A/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot-elasticsearch"
       ],
@@ -12086,7 +12136,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-oauth2-authorization-server"
       ],
@@ -12118,7 +12168,7 @@
       "projectSlug": "spring-authorization-server",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-oauth2-authorization-server"
       ],
@@ -12170,7 +12220,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-core"
       ],
@@ -12222,7 +12272,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N/E:U/RL:O/RC:C/CR:L/IR:H/AR:L/MAV:N/MAC:L/MPR:N/MUI:N/MS:U/MC:N/MI:H/MA:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-web"
       ],
@@ -12254,7 +12304,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N/E:U/RL:O/RC:C/CR:L/IR:H/AR:L/MAV:N/MAC:L/MPR:N/MUI:N/MS:U/MC:N/MI:H/MA:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-config"
       ],
@@ -12286,7 +12336,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:N/E:U/RL:O/RC:C/CR:L/IR:M/AR:L/MAV:N/MAC:H/MPR:H/MUI:N/MS:C/MC:N/MI:H/MA:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-oauth2-jose"
       ],
@@ -12348,7 +12398,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-web"
       ],
@@ -12380,7 +12430,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-core"
       ],
@@ -12461,7 +12511,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webflux",
         "org.springframework:spring-webmvc"
@@ -12523,7 +12573,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webflux",
         "org.springframework:spring-webmvc"
@@ -12585,7 +12635,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webflux"
       ],
@@ -12646,7 +12696,7 @@
       "projectSlug": "spring-cloud-gateway",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-gateway"
       ],
@@ -12678,7 +12728,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-redis-store"
       ],
@@ -12720,7 +12770,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-neo4j-store"
       ],
@@ -12762,7 +12812,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-bedrock-converse"
       ],
@@ -12804,7 +12854,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-vector-store"
       ],
@@ -12846,7 +12896,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-config-server"
       ],
@@ -12917,7 +12967,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webmvc",
         "org.springframework:spring-webflux"
@@ -12979,7 +13029,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:R/S:U/C:N/I:L/A:N",
-      "weakness": "[\"CWE-93\"]",
+      "weakness": [
+        "CWE-93"
+      ],
       "artifacts": [
         "org.springframework:spring-webmvc",
         "org.springframework:spring-webflux"
@@ -13056,7 +13108,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot-actuator"
       ],
@@ -13127,7 +13179,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-web"
       ],
@@ -13208,7 +13260,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot-actuator"
       ],
@@ -13260,7 +13312,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-mariadb-store"
       ],
@@ -13302,7 +13354,7 @@
       "projectSlug": "spring-ai",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.ai:spring-ai-vector-store"
       ],
@@ -13344,7 +13396,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-websocket"
       ],
@@ -13395,7 +13447,7 @@
       "projectSlug": "spring-cloud-gateway",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-gateway-server",
         "org.springframework.cloud:spring-cloud-gateway-server-webflux"
@@ -13457,7 +13509,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-beans"
       ],
@@ -13517,7 +13569,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-core"
       ],
@@ -13572,7 +13624,7 @@
       "projectSlug": "spring-cloud-gateway",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-gateway-server",
         "org.springframework.cloud:spring-cloud-gateway-server-webflux"
@@ -13634,7 +13686,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-webmvc"
       ],
@@ -13685,7 +13737,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "io.projectreactor.netty:reactor-netty-http"
       ],
@@ -13736,7 +13788,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:R/S:C/C:H/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-web"
       ],
@@ -13790,7 +13842,7 @@
       "projectSlug": "spring-cloud-gateway",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:C/C:N/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-gateway-server",
         "org.springframework.cloud:spring-cloud-gateway-server-webmvc",
@@ -13853,7 +13905,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/E:X/RL:O/RC:C/CR:L/IR:L/AR:X/MAV:N/MAC:L/MPR:N/MUI:N/MS:U/MC:H/MI:H/MA:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-aspects"
       ],
@@ -13885,7 +13937,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework:spring-context"
       ],
@@ -13946,7 +13998,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.boot:spring-boot-actuator-autoconfigure"
       ],
@@ -14017,7 +14069,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-crypto"
       ],
@@ -14108,7 +14160,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.cloud:spring-cloud-config-server"
       ],
@@ -14190,7 +14242,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-crypto"
       ],
@@ -14281,7 +14333,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N/E:X/RL:O/RC:C/CR:L/IR:X/AR:X/MAV:N/MAC:L/MPR:N/MUI:N/MS:U/MC:L/MI:N/MA:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.security:spring-security-config"
       ],
@@ -14313,7 +14365,7 @@
       "projectSlug": "spring-ldap",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -14372,7 +14424,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -14451,7 +14503,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -14480,7 +14532,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -14559,7 +14611,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -14608,7 +14660,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -14666,7 +14718,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -14715,7 +14767,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -14785,7 +14837,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -14817,7 +14869,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -14866,7 +14918,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "[\"CWE-770\"]",
+      "weakness": [
+        "CWE-770"
+      ],
       "artifacts": [],
       "versions": [
         {
@@ -14897,7 +14951,7 @@
       "projectSlug": "spring-cloud-dataflow",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -14927,7 +14981,7 @@
       "projectSlug": "spring-cloud-function",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -14970,7 +15024,7 @@
       "projectSlug": "spring-cloud-dataflow",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15000,7 +15054,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15049,7 +15103,9 @@
       "projectSlug": "spring-authorization-server",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N/E:F/RL:O/RC:C/CR:L/IR:L/AR:X/MAV:N/MAC:L/MPR:N/MUI:R/MS:C/MC:L/MI:L/MA:N",
-      "weakness": "[\"CWE-287\"]",
+      "weakness": [
+        "CWE-287"
+      ],
       "artifacts": [],
       "versions": [
         {
@@ -15098,7 +15154,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15167,7 +15223,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15216,7 +15272,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15265,7 +15321,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15305,7 +15361,7 @@
       "projectSlug": "spring-cloud-contract",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15358,7 +15414,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15398,7 +15454,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15447,7 +15503,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15486,7 +15542,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15516,7 +15572,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15555,7 +15611,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15595,7 +15651,7 @@
       "projectSlug": "spring-graphql",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15635,7 +15691,9 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:L/AC:H/PR:H/UI:N/S:U/C:N/I:H/A:N/E:U/RL:O/RC:C/CR:L/IR:H/AR:X/MAV:L/MAC:H/MPR:H/MUI:N/MS:U/MC:N/MI:H/MA:N",
-      "weakness": "[\"CWE-732\"]",
+      "weakness": [
+        "CWE-732"
+      ],
       "artifacts": [],
       "versions": [
         {
@@ -15695,7 +15753,7 @@
       "projectSlug": "spring-kafka",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15735,7 +15793,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/E:P/RL:O/RC:C/CR:H/IR:H/AR:X/MAV:N/MAC:L/MPR:N/MUI:N/MS:U/MC:H/MI:H/MA:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15805,7 +15863,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15855,7 +15913,7 @@
       "projectSlug": "spring-hateoas",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15905,7 +15963,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -15964,7 +16022,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16023,7 +16081,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16077,7 +16135,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "[\"CWE-770\"]",
+      "weakness": [
+        "CWE-770"
+      ],
       "artifacts": [],
       "versions": [
         {
@@ -16128,7 +16188,7 @@
       "projectSlug": "spring-session",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16158,7 +16218,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "[\"CWE-770\"]",
+      "weakness": [
+        "CWE-770"
+      ],
       "artifacts": [],
       "versions": [
         {
@@ -16209,7 +16271,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N/E:P/RL:O/RC:C/CR:H/IR:H/AR:X/MAV:N/MAC:L/MPR:N/MUI:N/MS:U/MC:H/MI:H/MA:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16248,7 +16310,7 @@
       "projectSlug": "spring-vault",
       "cvssVersion": "3.1",
       "cvssVector": "AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16287,7 +16349,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16329,7 +16391,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N/E:P/RL:O/RC:C/CR:M/IR:M/AR:X/MAV:N/MAC:L/MPR:L/MUI:N/MS:U/MC:H/MI:H/MA:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16372,7 +16434,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16404,7 +16466,7 @@
       "projectSlug": "spring-data-rest",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:H/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16443,7 +16505,7 @@
       "projectSlug": "spring-data-mongodb",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:H/E:P/RL:O/RC:C/CR:H/IR:H/AR:H/MAV:N/MAC:H/MPR:N/MUI:N/MS:C/MC:H/MI:H/MA:H",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16482,7 +16544,10 @@
       "projectSlug": "spring-cloud-function",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "[\"CWE-770\",\"CWE-497\"]",
+      "weakness": [
+        "CWE-770",
+        "CWE-497"
+      ],
       "artifacts": [],
       "versions": [
         {
@@ -16513,7 +16578,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16555,7 +16620,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "3.1",
       "cvssVector": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16604,7 +16669,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16645,7 +16710,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16686,7 +16751,7 @@
       "projectSlug": "spring-security-oauth",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16717,7 +16782,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "[\"CWE-178\"]",
+      "weakness": [
+        "CWE-178"
+      ],
       "artifacts": [],
       "versions": [
         {
@@ -16759,7 +16826,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16801,7 +16868,10 @@
       "projectSlug": "spring-cloud-function",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "[\"CWE-770\",\"CWE-497\"]",
+      "weakness": [
+        "CWE-770",
+        "CWE-497"
+      ],
       "artifacts": [],
       "versions": [
         {
@@ -16847,7 +16917,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "[\"CWE-770\"]",
+      "weakness": [
+        "CWE-770"
+      ],
       "artifacts": [],
       "versions": [
         {
@@ -16893,7 +16965,7 @@
       "projectSlug": "spring-cloud-gateway",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16934,7 +17006,7 @@
       "projectSlug": "spring-cloud-gateway",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -16966,7 +17038,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17007,7 +17079,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17049,7 +17121,7 @@
       "projectSlug": "spring-cloud-netflix",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17080,7 +17152,7 @@
       "projectSlug": "spring-cloud-gateway",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17121,7 +17193,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17163,7 +17235,9 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "[\"CWE-117\"]",
+      "weakness": [
+        "CWE-117"
+      ],
       "artifacts": [],
       "versions": [
         {
@@ -17204,7 +17278,7 @@
       "projectSlug": "spring-data-rest",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17245,7 +17319,7 @@
       "projectSlug": "spring-cloud-openfeign",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17291,7 +17365,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17352,7 +17426,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17394,7 +17468,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17451,7 +17525,7 @@
       "projectSlug": "spring-cloud-netflix",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17483,7 +17557,7 @@
       "projectSlug": "spring-cloud-task",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17515,7 +17589,7 @@
       "projectSlug": "spring-cloud-dataflow",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17567,7 +17641,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17628,7 +17702,7 @@
       "projectSlug": "spring-cloud-netflix",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17669,7 +17743,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17731,7 +17805,7 @@
       "projectSlug": "spring-batch",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17764,7 +17838,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17811,7 +17885,9 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "[\"CWE-329\"]",
+      "weakness": [
+        "CWE-329"
+      ],
       "artifacts": [],
       "versions": [
         {
@@ -17880,7 +17956,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17922,7 +17998,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -17964,7 +18040,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18005,7 +18081,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18047,7 +18123,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18100,7 +18176,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18133,7 +18209,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18176,7 +18252,7 @@
       "projectSlug": "reactor-netty",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18208,7 +18284,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18237,7 +18313,7 @@
       "projectSlug": "spring-security-oauth",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18299,7 +18375,9 @@
       "projectSlug": "spring-data-jpa",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "[\"CWE-155\"]",
+      "weakness": [
+        "CWE-155"
+      ],
       "artifacts": [],
       "versions": [
         {
@@ -18350,7 +18428,7 @@
       "projectSlug": "spring-cloud-config",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18401,7 +18479,7 @@
       "projectSlug": "spring-data-jpa",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18450,7 +18528,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18500,7 +18578,7 @@
       "projectSlug": "spring-security-oauth",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18562,7 +18640,7 @@
       "projectSlug": "spring-batch",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18613,7 +18691,7 @@
       "projectSlug": "spring-ws",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18654,7 +18732,7 @@
       "projectSlug": "spring-integration",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18705,7 +18783,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18738,7 +18816,7 @@
       "projectSlug": "spring-security-oauth",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18800,7 +18878,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18849,7 +18927,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18889,7 +18967,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18932,7 +19010,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -18971,7 +19049,7 @@
       "projectSlug": "spring-security-oauth",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19033,7 +19111,7 @@
       "projectSlug": "spring-data-commons",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-commons"
       ],
@@ -19078,7 +19156,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19113,7 +19191,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19155,7 +19233,7 @@
       "projectSlug": "spring-data-commons",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-commons"
       ],
@@ -19205,7 +19283,7 @@
       "projectSlug": "spring-data-commons",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [
         "org.springframework.data:spring-data-commons"
       ],
@@ -19256,7 +19334,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19308,7 +19386,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19347,7 +19425,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19393,7 +19471,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19440,7 +19518,7 @@
       "projectSlug": "spring-boot",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19469,7 +19547,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19518,7 +19596,7 @@
       "projectSlug": "spring-ldap",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19551,7 +19629,7 @@
       "projectSlug": "spring-data-rest",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19599,7 +19677,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19651,7 +19729,7 @@
       "projectSlug": "spring-webflow",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19685,7 +19763,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19720,7 +19798,7 @@
       "projectSlug": "spring-webflow",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19753,7 +19831,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19805,7 +19883,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19859,7 +19937,7 @@
       "projectSlug": "spring-data-jpa",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19901,7 +19979,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19934,7 +20012,7 @@
       "projectSlug": "spring-security-oauth",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -19975,7 +20053,7 @@
       "projectSlug": "spring-amqp",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20008,7 +20086,7 @@
       "projectSlug": "spring-social",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20040,7 +20118,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20094,7 +20172,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20135,7 +20213,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20168,7 +20246,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20222,7 +20300,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20268,7 +20346,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20311,7 +20389,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20359,7 +20437,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20407,7 +20485,7 @@
       "projectSlug": "spring-security",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20461,7 +20539,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20513,7 +20591,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20545,7 +20623,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20581,7 +20659,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
@@ -20617,7 +20695,7 @@
       "projectSlug": "spring-framework",
       "cvssVersion": "",
       "cvssVector": "",
-      "weakness": "",
+      "weakness": [],
       "artifacts": [],
       "versions": [
         {
