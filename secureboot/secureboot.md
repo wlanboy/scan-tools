@@ -45,4 +45,3 @@ Behoben wird das mit diesen Schritten:
 - [Red Hat: Secure Boot certificate changes in 2026](https://access.redhat.com/articles/7128933)
 - [Red Hat Developers: Guidance for RHEL environments](https://developers.redhat.com/articles/2026/02/04/secure-boot-certificate-changes-2026-guidance-rhel-environments)
 - [Broadcom KB 423893: Secure Boot certificate expiry on VMware](https://knowledge.broadcom.com/external/article/423893/)
-- [Microsoft: Secure Boot certificate rollover](https://support.microsoft.com/en-us/topic/windows-secure-boot-certificate-expiration-and-ca-updates-7ff40d33-95dc-4c3c-8725-a9b95457578e)
