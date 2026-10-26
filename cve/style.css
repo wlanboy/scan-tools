@@ -13,6 +13,7 @@
   --medium: #f0d65e;
   --low: #4a8ae0;
   --none: #6b7183;
+  --half: #b26bff;
 }
 
 * { box-sizing: border-box; }
@@ -35,6 +36,7 @@ a:hover { text-decoration: underline; }
 .muted { color: var(--muted); }
 .error { color: var(--critical); }
 .note { font-size: 13px; }
+.half-text { margin: 4px 0 0; color: var(--half); }
 code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em; }
 
 .toolbar {
@@ -118,6 +120,31 @@ label { color: var(--muted); }
 .col { flex: 1 1 0; min-width: 0; display: flex; align-items: flex-end; }
 .col:hover { background: var(--surface-2); }
 .col.partial .bar { opacity: .45; }  /* laufende Woche/Monat oder vom Zeitraum angeschnitten */
+.col { position: relative; }
+
+/* Halbierungslinie: rechts davon so viele CVEs wie links davon */
+.half {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--half);
+  pointer-events: none;
+}
+.half span {
+  position: absolute;
+  top: 0;
+  left: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--half);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 .bar { width: 100%; display: flex; flex-direction: column-reverse; gap: 1px; }
 .bar i { flex-basis: 0; min-height: 1px; }

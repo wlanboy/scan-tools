@@ -79,12 +79,19 @@ function render() {
     grid += `<div class="grid" style="bottom:${v / yMax * 100}%"><span>${num(v)}</span></div>`;
   }
 
+  // Lila Linie: rechts davon liegen genauso viele CVEs wie links davon (Position innerhalb der Spalte interpoliert)
+  let mid = -1, midPos = 0;
+  for (let i = list.length - 1, acc = 0; i >= 0 && sum; acc += totals[i--]) {
+    if (acc + totals[i] >= sum / 2) { mid = i; midPos = 1 - (sum / 2 - acc) / totals[i]; break; }
+  }
+
   const bars = list.map((b, i) => {
     const partial = b.days < daysInBucket(b, mode) ? " (unvollständig)" : "";
     const tip = [label(b, mode, true) + partial, `Gesamt: ${num(totals[i])}`,
       ...KEYS.map((k, j) => `${NAMES[j]}: ${num(b.counts[j])}`)].join("&#10;");
     const segs = KEYS.map((k, j) => on[j] && b.counts[j] ? `<i class="${k}" style="flex-grow:${b.counts[j]}"></i>` : "").join("");
-    return `<div class="col${partial && " partial"}" title="${tip}"><div class="bar" style="height:${totals[i] / yMax * 100}%">${segs}</div></div>`;
+    const half = i === mid ? `<b class="half" style="left:${midPos * 100}%"><span>50 %</span></b>` : "";
+    return `<div class="col${partial && " partial"}" title="${tip}">${half}<div class="bar" style="height:${totals[i] / yMax * 100}%">${segs}</div></div>`;
   });
   $("#plot").innerHTML = `${grid}<div class="bars">${bars.join("")}</div>`;
 
@@ -99,6 +106,16 @@ function render() {
 
   const filter = on.every(Boolean) ? "" : ` (${NAMES.filter((n, j) => on[j]).join(", ")})`;
   $("#summary").textContent = `${num(sum)} CVEs${filter} vom ${de(from, DMY)} bis ${de(to, DMY)} · Ø ${num(Math.round(sum / list.length))} pro ${UNITS[mode]}`;
+
+  // Zeitpunkt der Linie: innerhalb des (evtl. angeschnittenen) Zeitraums linear interpoliert
+  let halfText = "";
+  if (mid >= 0) {
+    const b = list[mid], t = Math.max(b.start, from) + midPos * b.days * DAY;
+    const weeks = (ms) => num(Math.round(ms / (7 * DAY)));
+    halfText = `Die letzten ${weeks(to + DAY - t)} Wochen (seit ${de(t, DMY)}) hatten so viele CVEs`
+      + ` wie die ${weeks(t - from)} Wochen davor (${de(from, DMY)} bis ${de(t - DAY, DMY)}).`;
+  }
+  $("#half").textContent = halfText;
 
   $("#head").innerHTML = `<tr><th>Zeitraum</th>${NAMES.map((n, j) => on[j] ? `<th>${n}</th>` : "").join("")}<th>Gesamt</th></tr>`;
   $("#rows").innerHTML = list.map((b, i) =>
