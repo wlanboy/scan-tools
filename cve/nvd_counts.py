@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import datetime as dt
+import fcntl
 import gzip
 import http.client
 import json
@@ -222,6 +223,20 @@ def count_feeds(start: dt.date, end: dt.date) -> dict[str, list[int]]:
 # Datei
 # ---------------------------------------------------------------------------
 
+def lock(path: Path) -> int:
+    """Verhindert parallele Läufe: Jeder Lauf hält die Tage im Speicher und schreibt
+    sie nach jedem Fenster komplett - ein zweiter Lauf würde die Datei mit seinem
+    veralteten Stand überschreiben. Gesperrt wird das Verzeichnis (die Datei selbst
+    wird per os.replace ersetzt). Der Lock gilt bis zum Prozessende."""
+    fd = os.open(path.parent, os.O_RDONLY)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        raise NvdError(f"{path} wird bereits von einem anderen Lauf aktualisiert") from None
+    return fd
+
+
 def load(path: Path) -> dict[str, list[int]]:
     if not path.exists():
         return {}
@@ -271,6 +286,7 @@ def main() -> int:
     delay = 0.7 if api_key else 6.5
 
     try:
+        lock(args.file)
         days = load(args.file)
         today = dt.datetime.now(dt.timezone.utc).date()
         if args.since:
