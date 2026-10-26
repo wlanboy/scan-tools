@@ -10,7 +10,7 @@
   <header>
     <p class="back"><a href="../">← Übersicht</a></p>
     <h1>Node2Shell / Python2Shell / HTTP2Shell (CVE-2026-111497)</h1>
-    <p class="muted">Stand: 25.10.2026</p>
+    <p class="muted">Stand: 26.10.2026</p>
   </header>
 
   <main>
@@ -26,8 +26,11 @@
   <li>Ein Angreifer braucht keinen Login. Ein Request mit <code>Content-Encoding: br</code> reicht. Mögliche Folgen sind Absturz, Speicherleck oder Remote Code Execution.</li>
   <li>Ausgehende Requests sind genauso betroffen. Holt der eigene Dienst eine Antwort von einem bösartigen Server und entpackt sie als Brotli, schlägt die Lücke dort zu. Eine Proxy-Regel für eingehenden Traffic hilft dagegen nicht.</li>
   <li>Brotli kommt oft nur als transitive Abhängigkeit ins Projekt, in HTTP-Clients, Sidecars und Base-Images.</li>
-  <li>Seit dem 22.10. gibt es öffentlichen Exploit-Code. Auf einem unveränderten Node-Build bringt er bisher nur Abstürze. Code Execution auf dem offiziellen Image Node 24.22.0 haben Forscher mit eigenen, nicht veröffentlichten Exploits gezeigt: Imperva auf arm64 nach mehreren Versuchen, OtterSec laut Mallory auf x86_64 mit ASLR in 50 von 50 Versuchen (von OtterSec selbst noch nicht veröffentlicht). Aktive Angriffe sind bis 24.10. nicht bekannt, und CISA führt die Lücke noch nicht im KEV-Katalog (Version 2026.10.23).</li>
-  <li>pip-audit, Dependabot und Safety melden die betroffenen Versionen noch nicht. Auf grüne Scanner ist also kein Verlass.</li>
+  <li>Seit dem 22.10. gibt es öffentlichen Exploit-Code. Seit dem 24.10. liegt laut Mallory auch ein öffentlicher Exploit gegen das offizielle, unveränderte Image Node 24.22.0 auf x86_64 vor. Er greift eine Express-5-/body-parser-2.x-Route an, die große Request-Bodies annimmt, und trifft in einem von sieben bis zehn Versuchen. Jeder Fehlversuch bringt den Worker zum Absturz. Startet ein Process Manager ihn neu, versucht es der Exploit einfach wieder. Unabhängig bestätigt hat das bisher niemand: Aikido und Brandefense kennen nur öffentlichen Code, der Abstürze auslöst oder auf einem absichtlich geschwächten Build läuft.</li>
+  <li>Mit eigenen, nicht veröffentlichten Exploits haben Forscher Code Execution auf dem offiziellen Image Node 24.22.0 gezeigt: Imperva auf arm64 nach mehreren Versuchen, OtterSec laut Robert Chen auf x86_64 mit ASLR in 50 von 50 Versuchen (geschrieben von einem KI-Agenten in fünf Stunden).</li>
+  <li>Aktive Angriffe sind laut Mallory und NCSC-NL bis 25.10. nicht bekannt. Der EPSS-Wert liegt bei 0,7 %. CISA führt die Lücke am 26.10. noch nicht im KEV-Katalog (Version 2026.10.23).</li>
+  <li>Assetnote hat mit dem <a href="https://github.com/assetnote/node2shell-scanner" target="_blank" rel="noopener">node2shell-scanner</a> einen kostenlosen Scanner veröffentlicht. Er findet verwundbare HTTP-Endpunkte im Netz, ohne sie auszunutzen. Laut Shodan senden rund 1,41 Mio. Dienste <code>X-Powered-By: Express</code> und 878.000 <code>X-Powered-By: Next.js</code>, dazu kommen rund 482.000 Envoy-/Istio-Gateways.</li>
+  <li>pip-audit, Dependabot und Safety haben die betroffenen Python-Versionen anfangs nicht gemeldet. Inzwischen führt GitHubs Advisory PYSEC-2026-4322 und PYSEC-2026-4323. Bis die Scanner nachweislich anschlagen, trotzdem manuell prüfen (siehe <a href="#python">Python</a>).</li>
 </ul>
 
 <p>Betroffen ist nur nativer C-Code, also die Google-Bibliothek selbst und alles, was sie einbindet. Ein reiner Java-Decoder wie <code>org.brotli:dec</code> hat keinen Speicher-Overflow, weil die JVM jeden Array-Zugriff prüft. Das ist meine Einschätzung. Eine offizielle Aussage zu Java habe ich nicht gefunden.</p>
@@ -96,7 +99,7 @@ unzip -l target/*.jar | grep -i brotli</code></pre>
 <p>Auch reine Java-Dienste laufen selten allein:</p>
 
 <ul>
-  <li>Base-Images neu bauen und das Betriebssystem aktualisieren (<code>apt-get upgrade</code>), weil <code>libbrotli</code> und <code>curl</code> aus dem OS kommen. Gefixte Pakete gibt es bisher nur für Debian bookworm (<code>1.0.9-2+deb12u1</code>, DLA-4855-1) und trixie (<code>1.1.0-2+deb13u1</code>, DSA-6582-1). Für Debian forky/sid, Red Hat, Ubuntu, SUSE und Amazon Linux gab es am 24.10. noch keine Pakete; dort hilft das OS-Update noch nicht.</li>
+  <li>Base-Images neu bauen und das Betriebssystem aktualisieren (<code>apt-get upgrade</code>), weil <code>libbrotli</code> und <code>curl</code> aus dem OS kommen. Gefixte Pakete gibt es bisher nur für Debian bookworm (<code>1.0.9-2+deb12u1</code>, DLA-4855-1), trixie (<code>1.1.0-2+deb13u1</code>, DSA-6582-1) und sid (<code>1.2.0-4.1</code>). Debian forky ist am 26.10. noch offen. Für Red Hat, Ubuntu, SUSE und Amazon Linux gab es am 24.10. noch keine Pakete, einen neueren Stand habe ich nicht gefunden. Dort hilft das OS-Update noch nicht.</li>
   <li>Service Mesh prüfen: Envoy und Istio sind betroffen (siehe eigenen Abschnitt <a href="#istio-und-envoy">Istio und Envoy</a>).</li>
   <li>Node- oder Python-Tools im selben Image (Build-Steps, Sidecars) mit aktualisieren.</li>
 </ul>
@@ -211,7 +214,7 @@ spec:
 
 <ol>
   <li>Node aktualisieren auf 22.23.4, 24.22.1 oder 26.12.1. Node 20 und älter sowie 23.x und 25.x bekommen keinen Patch. Diese Versionen müssen auf eine gepatchte LTS-Version.</li>
-  <li>Docker-Images neu bauen (<code>FROM node:...</code> mit gepatchtem Tag) und neu deployen. Danach im laufenden Container <code>node -v</code> prüfen. CI-Runner nicht vergessen.</li>
+  <li>Docker-Images neu bauen (<code>FROM node:...</code> mit gepatchtem Tag) und neu deployen. Danach im laufenden Container <code>node -v</code> prüfen. CI-Runner nicht vergessen. Die <code>nodejs</code>-Pakete von Debian (bookworm bis sid) führt der Debian-Tracker am 26.10. noch als verwundbar.</li>
   <li>Bun auf 1.4.4 aktualisieren und mit Bun kompilierte Executables neu bauen.</li>
   <li>Bis zum Update <code>br</code>-Requests vor dem Body-Parser ablehnen:</li>
 </ol>
@@ -239,9 +242,23 @@ spec:
 
 <h2 id="net">.NET</h2>
 
-<p>Stand 25.10. gibt es keinen Fix und keine offizielle Aussage von Microsoft. <code>System.IO.Compression.Brotli</code> (<code>BrotliStream</code>, <code>BrotliDecoder</code>) ruft per P/Invoke eine mitgelieferte native Kopie von Google Brotli auf (.NET 10: Version 1.1.0). Laut <a href="https://github.com/dotnet/runtime/issues/136422" target="_blank" rel="noopener">dotnet/runtime#136422</a> enthält der mitgelieferte Decoder in 9.0.21 und 10.0.13 noch die Logik vor dem Fix. Das ist eine Quellcode-Analyse, ein Crash ist für .NET noch nicht gezeigt. Das .NET-Team prüft die Lücke mit dem Microsoft Security Response Center und will danach einen Plan veröffentlichen.</p>
+<p>Microsoft hat am 25.10. Fixes veröffentlicht (<a href="https://github.com/dotnet/announcements/issues/494" target="_blank" rel="noopener">dotnet/announcements#494</a>, CVSS 3.1 8.1). <code>System.IO.Compression.Brotli</code> (<code>BrotliStream</code>, <code>BrotliDecoder</code>) ruft per P/Invoke eine mitgelieferte native Kopie von Google Brotli auf (.NET 10: Version 1.1.0). Betroffen sind alle Plattformen und Architekturen, .NET Framework nicht. Einen Crash unter .NET hat bisher niemand öffentlich gezeigt.</p>
 
-<p>Weil .NET seine eigene Kopie mitbringt, hilft ein OS-Update von <code>libbrotli</code> bei den offiziellen Microsoft-Builds nicht. Distributions-Builds aus source-build können stattdessen die System-Bibliothek nutzen.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>.NET</th><th>Betroffen</th><th>Gepatchte Runtime</th><th>Gepatchtes SDK</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>8.0</td><td>&lt; 8.0.33</td><td>8.0.33</td><td>8.0.133, 8.0.427</td></tr>
+      <tr><td>9.0</td><td>&lt; 9.0.22</td><td>9.0.22</td><td>9.0.123, 9.0.320</td></tr>
+      <tr><td>10.0</td><td>&lt; 10.0.14</td><td>10.0.14</td><td>10.0.114, 10.0.403</td></tr>
+      <tr><td>11.0 Preview</td><td>&lt; 11.0.0-rc.3.26522.148</td><td>11.0.0-rc.3.26522.148</td><td>11.0.100-rc.3.26522.148</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<p>Weil .NET seine eigene Kopie mitbringt, hilft ein OS-Update von <code>libbrotli</code> bei den offiziellen Microsoft-Builds nicht. Distributions-Builds aus source-build können stattdessen die System-Bibliothek nutzen. Wer .NET selbst aus den GitHub-Quellen baut, ist noch betroffen, bis die Fixes in die öffentlichen Branches portiert sind. <a href="https://github.com/dotnet/runtime/issues/136422" target="_blank" rel="noopener">dotnet/runtime#136422</a> ist dafür wieder offen.</p>
 
 <p>Erreicht wird der Decoder nur, wenn Brotli tatsächlich entpackt wird:</p>
 
@@ -252,19 +269,42 @@ spec:
   <li>Response Compression (<code>AddResponseCompression()</code>) komprimiert nur und ist nicht der verwundbare Pfad.</li>
 </ul>
 
+<p>Ein installiertes Paket allein macht eine Anwendung laut Microsoft nicht angreifbar.</p>
+
 <pre><code class="lang-bash">dotnet --list-runtimes
+dotnet --list-sdks
 grep -rnE "RequestDecompression|DecompressionMethods\.(Brotli|All)|BrotliStream|BrotliDecoder" --include=*.cs .</code></pre>
 
-<p>Bis zum Patch:</p>
+<p>Update:</p>
+
+<ol>
+  <li>Runtime bzw. SDK auf die gepatchte Version heben, Docker-Images neu bauen und Anwendungen neu starten.</li>
+  <li>Self-contained Apps mit der neuen Runtime neu bauen und neu deployen, weil sie die Runtime mitbringen.</li>
+  <li>NativeAOT-Apps: SDK und explizite Referenzen auf <code>Microsoft.DotNet.ILCompiler</code> und die Runtime-Packs aktualisieren, dann neu publishen. Ein Update der Shared Runtime ersetzt den Decoder nicht, der schon ins Executable gelinkt ist.</li>
+  <li>Direkte Paketreferenzen auf die gepatchten Versionen heben.</li>
+</ol>
+
+<p>Bis zum Update:</p>
 
 <ol>
   <li>In der Request Decompression den Brotli-Provider entfernen: <code>services.AddRequestDecompression(o =&gt; o.DecompressionProviders.Remove("br"));</code></li>
   <li>Bei <code>HttpClient</code> nur <code>DecompressionMethods.GZip | DecompressionMethods.Deflate</code> setzen statt <code>All</code>.</li>
   <li>Eingehend <code>br</code> am Proxy ablehnen (siehe <a href="#übergangslösung-am-proxy">Übergangslösung am Proxy</a>).</li>
-  <li><a href="https://github.com/dotnet/runtime/issues/136422" target="_blank" rel="noopener">dotnet/runtime#136422</a> beobachten. Beim letzten Brotli-CVE (CVE-2020-8927) kam der Fix als reguläres .NET-Update mit Security Advisory. Danach Runtime und Images aktualisieren und self-contained Apps neu bauen, weil sie die Runtime mitbringen.</li>
 </ol>
 
+<p>Microsoft rät, dabei keine Decompression neu einzuschalten, die die Anwendung bisher nicht nutzt. Automatisches Entpacken birgt auch ohne Brotli ein DoS-Risiko.</p>
+
 <p>Der offene PR <a href="https://github.com/dotnet/runtime/pull/136430" target="_blank" rel="noopener">dotnet/runtime#136430</a> ersetzt den nativen Code durch eine verwaltete C#-Portierung von Brotli 1.2.1. Laut Autor ist das ein Experiment und kein Security-Fix.</p>
+
+<h2 id="weitere-projekte-mit-eigener-brotli-kopie">Weitere Projekte mit eigener Brotli-Kopie</h2>
+
+<p>Viele Projekte bringen eine eigene Kopie von <code>decode.c</code> mit. Ein OS-Update erreicht diese Kopien nicht. Stand 26.10. laut <a href="https://broccoli2shell.com/" target="_blank" rel="noopener">broccoli2shell.com</a>:</p>
+
+<ul>
+  <li>Gefixt mit Release: Ruby-Gem <code>brotli</code> 0.9.1, PHP-Extension <code>brotli</code> 0.21.1, UEFITool A76, MuPDF 1.28.x (1.27.x ist weiter betroffen).</li>
+  <li>Fix gemergt, aber noch kein Release: ClickHouse (Backport auf 26.10 gemergt, Backports auf 26.9, 26.8 und 26.3 LTS offen), NanaZip, GraalJS, YDB, libjxl.</li>
+  <li>Noch ungefixt: DuckDB (PR offen), Apache Arrow (gebündeltes Brotli 1.0.9, PR approved, aber nicht gemergt), v8-jsi, 7-Zip-zstd, p7zip, EDK II, woff2 (nur der Makefile-Build; der CMake-Build linkt die System-Bibliothek).</li>
+</ul>
 
 <h2 id="übergangslösung-am-proxy">Übergangslösung am Proxy</h2>
 
@@ -306,6 +346,8 @@ grep -rnE "RequestDecompression|DecompressionMethods\.(Brotli|All)|BrotliStream|
   <li><a href="https://github.com/dotnet/runtime/issues/136422" target="_blank" rel="noopener">dotnet/runtime#136422: Does CVE-2026-111497 affect System.IO.Compression.Brotli?</a></li>
   <li><a href="https://github.com/dotnet/runtime/pull/136430" target="_blank" rel="noopener">dotnet/runtime#136430: Managed C#-Port von Brotli 1.2.1</a></li>
   <li><a href="https://github.com/dotnet/announcements/issues/211" target="_blank" rel="noopener">dotnet/announcements#211: Advisory zu CVE-2020-8927</a></li>
+  <li><a href="https://github.com/dotnet/announcements/issues/494" target="_blank" rel="noopener">dotnet/announcements#494: Microsoft Security Advisory CVE-2026-111497</a></li>
+  <li><a href="https://github.com/assetnote/node2shell-scanner" target="_blank" rel="noopener">Assetnote: node2shell-scanner</a></li>
   <li><a href="https://github.com/hyperxpro/Brotli4j/releases/tag/v1.24.0" target="_blank" rel="noopener">brotli4j v1.24.0 Release</a></li>
   <li><a href="https://netty.io/4.1/api/io/netty/handler/codec/compression/Brotli.html" target="_blank" rel="noopener">Netty 4.1: Brotli.isAvailable</a></li>
   <li><a href="https://netty.io/4.1/xref/io/netty/handler/codec/http/HttpContentDecompressor.html" target="_blank" rel="noopener">Netty 4.1: HttpContentDecompressor</a></li>
