@@ -12,6 +12,7 @@ const DMY = { day: "2-digit", month: "2-digit", year: "numeric" };
 const de = (t, opts) =>new Date(t).toLocaleDateString("de-DE", { timeZone: "UTC", ...opts });
 
 let days = {};   // "YYYY-MM-DD" -> [critical, high, medium, low, none]
+const on = KEYS.map(() => true);   // per Klick auf die Legende ein-/ausgeblendet
 
 // [Jahr, KW] nach ISO 8601: die Woche gehört zum Jahr ihres Donnerstags
 function isoWeek(t) {
@@ -68,7 +69,7 @@ function render() {
   if (from > to) [from, to] = [to, from];
 
   const list = buckets(from, to, mode);
-  const totals = list.map((b) => b.counts.reduce((a, n) => a + n, 0));
+  const totals = list.map((b) => b.counts.reduce((a, n, j) => a + (on[j] ? n : 0), 0));
   const sum = totals.reduce((a, n) => a + n, 0);
   const top = Math.max(1, ...totals);
   const step = niceStep(top), yMax = Math.ceil(top / step) * step;
@@ -82,7 +83,7 @@ function render() {
     const partial = b.days < daysInBucket(b, mode) ? " (unvollständig)" : "";
     const tip = [label(b, mode, true) + partial, `Gesamt: ${num(totals[i])}`,
       ...KEYS.map((k, j) => `${NAMES[j]}: ${num(b.counts[j])}`)].join("&#10;");
-    const segs = KEYS.map((k, j) => b.counts[j] ? `<i class="${k}" style="flex-grow:${b.counts[j]}"></i>` : "").join("");
+    const segs = KEYS.map((k, j) => on[j] && b.counts[j] ? `<i class="${k}" style="flex-grow:${b.counts[j]}"></i>` : "").join("");
     return `<div class="col${partial && " partial"}" title="${tip}"><div class="bar" style="height:${totals[i] / yMax * 100}%">${segs}</div></div>`;
   });
   $("#plot").innerHTML = `${grid}<div class="bars">${bars.join("")}</div>`;
@@ -92,12 +93,16 @@ function render() {
   $("#xaxis").innerHTML = list.map((b, i) => `<span>${i % every ? "" : label(b, mode)}</span>`).join("");
 
   const perKey = KEYS.map((k, j) => list.reduce((a, b) => a + b.counts[j], 0));
-  $("#legend").innerHTML = KEYS.map((k, j) => `<li><i class="${k}"></i>${NAMES[j]} <b>${num(perKey[j])}</b></li>`).join("");
+  $("#legend").innerHTML = KEYS.map((k, j) =>
+    `<li><button type="button" data-i="${j}" aria-pressed="${on[j]}"><i class="${k}"></i>${NAMES[j]} <b>${num(perKey[j])}</b></button></li>`
+  ).join("");
 
-  $("#summary").textContent = `${num(sum)} CVEs vom ${de(from, DMY)} bis ${de(to, DMY)} · Ø ${num(Math.round(sum / list.length))} pro ${UNITS[mode]}`;
+  const filter = on.every(Boolean) ? "" : ` (${NAMES.filter((n, j) => on[j]).join(", ")})`;
+  $("#summary").textContent = `${num(sum)} CVEs${filter} vom ${de(from, DMY)} bis ${de(to, DMY)} · Ø ${num(Math.round(sum / list.length))} pro ${UNITS[mode]}`;
 
+  $("#head").innerHTML = `<tr><th>Zeitraum</th>${NAMES.map((n, j) => on[j] ? `<th>${n}</th>` : "").join("")}<th>Gesamt</th></tr>`;
   $("#rows").innerHTML = list.map((b, i) =>
-    `<tr><td>${label(b, mode, true)}</td>${b.counts.map((n) => `<td>${num(n)}</td>`).join("")}<td>${num(totals[i])}</td></tr>`
+    `<tr><td>${label(b, mode, true)}</td>${b.counts.map((n, j) => on[j] ? `<td>${num(n)}</td>` : "").join("")}<td>${num(totals[i])}</td></tr>`
   ).reverse().join("");
 }
 
@@ -112,6 +117,14 @@ fetch("cve-counts.json")
     $("#from").value = first;
     document.title += ` (Stand ${de(Date.parse(data.updated))})`;
     for (const id of ["#interval", "#from", "#to"]) $(id).addEventListener("change", render);
+    $("#legend").addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      const j = +btn.dataset.i;
+      if (on[j] && on.filter(Boolean).length === 1) return;  // mindestens eine Severity bleibt sichtbar
+      on[j] = !on[j];
+      render();
+    });
     addEventListener("resize", render);
     render();
   })

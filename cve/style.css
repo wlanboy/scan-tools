@@ -65,7 +65,23 @@ label { color: var(--muted); }
   padding: 0;
   list-style: none;
 }
-.legend li { display: flex; align-items: center; gap: 6px; }
+.legend button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin: 0 -8px;
+  background: none;
+  color: inherit;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+.legend button:hover { background: var(--surface); }
+.legend button:focus-visible { outline: none; border-color: var(--accent); }
+.legend button[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; }
+.legend button[aria-pressed="false"] i { background: none; box-shadow: inset 0 0 0 1px var(--muted); }
 .legend i { width: 12px; height: 12px; border-radius: 3px; }
 .legend b { font-weight: 600; font-variant-numeric: tabular-nums; }
 

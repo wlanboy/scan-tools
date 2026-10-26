@@ -24,7 +24,7 @@
       <label>bis <input id="to" type="date"></label>
     </div>
 
-    <ul id="legend" class="legend"></ul>
+    <ul id="legend" class="legend" aria-label="Severity filtern"></ul>
 
     <figure class="chart">
       <div id="plot" class="plot"></div>
@@ -35,9 +35,7 @@
       <summary>Tabelle</summary>
       <div class="table-wrap">
         <table>
-          <thead>
-            <tr><th>Zeitraum</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th><th>Ohne</th><th>Gesamt</th></tr>
-          </thead>
+          <thead id="head"></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
