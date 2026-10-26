@@ -296,6 +296,56 @@ grep -rnE "RequestDecompression|DecompressionMethods\.(Brotli|All)|BrotliStream|
 
 <p>Der offene PR <a href="https://github.com/dotnet/runtime/pull/136430" target="_blank" rel="noopener">dotnet/runtime#136430</a> ersetzt den nativen Code durch eine verwaltete C#-Portierung von Brotli 1.2.1. Laut Autor ist das ein Experiment und kein Security-Fix.</p>
 
+<h2 id="grafana">Grafana</h2>
+
+<p>Grafana hat bis 26.10. kein Advisory zu CVE-2026-111497 veröffentlicht. Der Grafana-Server ist nach meiner Einschätzung nicht betroffen, das Image des Grafana Image Renderer schon.</p>
+
+<h3 id="grafana-server">Grafana-Server</h3>
+
+<ul>
+  <li>Das Backend ist in Go geschrieben. Brotli kommt über <code>github.com/andybalholm/brotli</code> (v1.2.3) ins Projekt. Das ist eine reine Go-Portierung ohne nativen Code. Go prüft wie die JVM jeden Array-Zugriff, ein Speicher-Overflow kann so nicht entstehen. Das ist meine Einschätzung, eine Aussage von Grafana dazu habe ich nicht gefunden.</li>
+  <li>Das Frontend wird beim Build mit Node gebaut und als statisches Bundle ausgeliefert. Im fertigen Image läuft kein Node.js.</li>
+  <li>Das Alpine-Image installiert <code>curl</code>, und <code>libcurl</code> zieht <code>brotli-libs</code> mit. Der Grafana-Prozess nutzt diese Bibliothek nicht, nur <code>curl</code> im Container. Scanner melden sie trotzdem.</li>
+  <li>Backend-Plugins von Drittanbietern laufen als eigene Binaries. Plugins, die nativen Code per cgo einbinden oder nicht in Go geschrieben sind, einzeln prüfen.</li>
+</ul>
+
+<h3 id="grafana-image-renderer">Grafana Image Renderer</h3>
+
+<ul>
+  <li>Der Renderer ist in Go geschrieben und steuert einen Chromium. Das Image basiert auf <code>debian:trixie</code> und installiert Chromium aus den Debian-Paketen.</li>
+  <li>Das aktuelle Release v5.12.9 vom 23.10. enthält noch <code>libbrotli1 1.1.0-2+b7</code> und ist damit verwundbar. Gefixt ist <code>1.1.0-2+deb13u1</code> (DSA-6582-1). PR <a href="https://github.com/grafana/grafana-image-renderer/pull/1069" target="_blank" rel="noopener">#1069</a> baut das Image mit dem gefixten Paket neu, ist am 26.10. aber noch nicht gemergt.</li>
+  <li>Das Debian-Paket <code>chromium</code> hängt nicht von <code>libbrotli1</code> ab und nutzt damit eine eigene, mitkompilierte Brotli-Kopie. Chromium entpackt Brotli bei HTTP-Antworten mit <code>Content-Encoding: br</code> und in WOFF2-Schriften. Ob diese Kopie betroffen und schon gefixt ist, habe ich nicht gefunden. Der Debian-Tracker führt Chromium bei dieser CVE nicht.</li>
+  <li>Der Renderer lädt normalerweise nur Grafana-Seiten. Bindet ein Dashboard aber fremde Inhalte ein (Bilder oder iframes im Text-Panel, externe Webfonts), entpackt Chromium deren Antworten.</li>
+  <li>Ältere Versionen des Renderers liefen als Node-Plugin. Wer die noch nutzt, hat zusätzlich Node.js mit gebündeltem Brotli im Prozess (siehe <a href="#nodejs">Node.js</a>).</li>
+</ul>
+
+<h3 id="prüfen">Prüfen</h3>
+
+<pre><code class="lang-bash"># Grafana-Image (Alpine): OS-Bibliothek
+docker run --rm --entrypoint sh grafana/grafana -c 'apk info -v | grep -i brotli'
+
+# Renderer-Image: libbrotli1 muss 1.1.0-2+deb13u1 oder neuer sein
+docker run --rm --entrypoint sh grafana/grafana-image-renderer -c 'dpkg -l | grep -iE "brotli|chromium"'</code></pre>
+
+<h3 id="was-tun-1">Was tun</h3>
+
+<ol>
+  <li>Bis ein gefixtes Renderer-Release erscheint, das Image selbst nachziehen:</li>
+</ol>
+
+<pre><code class="lang-dockerfile">FROM grafana/grafana-image-renderer:5.12.9
+USER root
+RUN apt-get update \
+ &amp;&amp; apt-get install -y --only-upgrade --no-install-recommends libbrotli1 chromium chromium-shell chromium-driver chromium-sandbox \
+ &amp;&amp; rm -rf /var/lib/apt/lists/*
+USER 65532</code></pre>
+
+<ol start="2">
+  <li>Den Renderer nur intern erreichbar machen, sodass nur Grafana ihn aufruft, und das Auth-Token (<code>rendering.renderer_token</code> in Grafana) setzen.</li>
+  <li>Keine fremden Inhalte in Dashboards einbinden, die gerendert werden, solange der Chromium-Status unklar ist.</li>
+  <li>Grafana-Server und dessen Image beim nächsten Turnus aktualisieren. Nötig ist das wegen dieser Lücke nicht.</li>
+</ol>
+
 <h2 id="weitere-projekte-mit-eigener-brotli-kopie">Weitere Projekte mit eigener Brotli-Kopie</h2>
 
 <p>Viele Projekte bringen eine eigene Kopie von <code>decode.c</code> mit. Ein OS-Update erreicht diese Kopien nicht. Stand 26.10. laut <a href="https://broccoli2shell.com/" target="_blank" rel="noopener">broccoli2shell.com</a>:</p>
@@ -356,6 +406,12 @@ grep -rnE "RequestDecompression|DecompressionMethods\.(Brotli|All)|BrotliStream|
   <li><a href="https://github.com/envoyproxy/envoy/security/advisories/GHSA-3wvj-j6qm-62mr" target="_blank" rel="noopener">Envoy Security Advisory: Out-of-Bounds Write in Brotli Decompressor (GHSA-3wvj-j6qm-62mr)</a></li>
   <li><a href="https://istio.io/latest/news/releases/1.30.x/announcing-1.30.6/" target="_blank" rel="noopener">Istio: Announcing Istio 1.30.6</a></li>
   <li><a href="https://github.com/istio/istio.io/pull/17737" target="_blank" rel="noopener">Istio Security Bulletin ISTIO-SECURITY-2026-007 (PR)</a></li>
+  <li><a href="https://github.com/grafana/grafana-image-renderer/pull/1068" target="_blank" rel="noopener">grafana/grafana-image-renderer#1068: libbrotli1 in v5.12.9</a></li>
+  <li><a href="https://github.com/grafana/grafana-image-renderer/pull/1069" target="_blank" rel="noopener">grafana/grafana-image-renderer#1069: Cachebuster-Bump für libbrotli1</a></li>
+  <li><a href="https://github.com/grafana/grafana-image-renderer/blob/master/Dockerfile" target="_blank" rel="noopener">grafana-image-renderer: Dockerfile</a></li>
+  <li><a href="https://github.com/grafana/grafana/blob/main/Dockerfile" target="_blank" rel="noopener">Grafana: Dockerfile</a></li>
+  <li><a href="https://github.com/grafana/grafana/blob/main/go.mod" target="_blank" rel="noopener">Grafana: go.mod</a></li>
+  <li><a href="https://packages.debian.org/trixie/chromium" target="_blank" rel="noopener">Debian: Paket chromium (trixie)</a></li>
 </ul>
   </main>
 </body>
