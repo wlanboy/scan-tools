@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CVEs pro Zeitraum</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <p class="back"><a href="../">← Übersicht</a></p>
+    <h1>CVEs pro Zeitraum</h1>
+    <p id="summary" class="muted">Lade cve-counts.json ...</p>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <select id="interval">
+        <option value="week">pro Kalenderwoche</option>
+        <option value="month">pro Monat</option>
+      </select>
+      <label>von <input id="from" type="date"></label>
+      <label>bis <input id="to" type="date"></label>
+    </div>
+
+    <ul id="legend" class="legend"></ul>
+
+    <figure class="chart">
+      <div id="plot" class="plot"></div>
+      <div id="xaxis" class="xaxis"></div>
+    </figure>
+
+    <details>
+      <summary>Tabelle</summary>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Zeitraum</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th><th>Ohne</th><th>Gesamt</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </details>
+
+    <p class="muted note">Quelle: NVD CVE API 2.0, Datum der Veröffentlichung, ohne abgelehnte CVEs.
+      Severity nach CVSS v3.1, sonst v4.0, v3.0, v2. Aktualisieren mit <code>cve/update.sh</code>.</p>
+    <p id="error" class="error" hidden></p>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
