@@ -109,7 +109,7 @@ fetch("cve-counts.json")
     const first = keys[0], last = keys[keys.length - 1];
     for (const id of ["#from", "#to"]) Object.assign($(id), { min: first, max: last });
     $("#to").value = last;
-    $("#from").value = [first, iso(Date.parse(last) - 364 * DAY)].sort()[1];  // letztes Jahr
+    $("#from").value = first;
     document.title += ` (Stand ${de(Date.parse(data.updated))})`;
     for (const id of ["#interval", "#from", "#to"]) $(id).addEventListener("change", render);
     addEventListener("resize", render);
