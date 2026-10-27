@@ -40,9 +40,12 @@ jobs:
       - name: Kafka CVEs
         run: kafka/update.sh
 
+      - name: Hadoop CVEs
+        run: hadoop/update.sh
+
       - name: Commit & Push
         run: |
-          files="spring/advisories.json kev/known_exploited_vulnerabilities.json nodejs/vulnerabilities.json istio/istio-cves.json kafka/cves.json cve/cve-counts.json"
+          files="spring/advisories.json kev/known_exploited_vulnerabilities.json nodejs/vulnerabilities.json istio/istio-cves.json kafka/cves.json hadoop/cves.json cve/cve-counts.json"
           git add $files
           if git diff --cached --quiet; then
             echo "Keine Änderungen."
@@ -51,5 +54,5 @@ jobs:
           git diff --cached --stat
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Update Spring/KEV/Node.js/Istio/Kafka/CVE Daten ($(date -u +%Y-%m-%d))"
+          git commit -m "Update Spring/KEV/Node.js/Istio/Kafka/Hadoop/CVE Daten ($(date -u +%Y-%m-%d))"
           git push
