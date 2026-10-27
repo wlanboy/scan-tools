@@ -80,6 +80,27 @@ Wenn brotli4j drin ist, auf 1.24.0 heben (siehe oben). Wer Brotli gar nicht brau
 - Jetty 12.1 hat das neue Modul `org.eclipse.jetty.compression:jetty-compression-brotli`. Es hängt an brotli4j (12.1.1 nutzt brotli4j 1.17.0). Der `CompressionHandler` kann damit auch Request-Bodies entpacken. Wer dieses Modul eingebunden hat, ist betroffen und muss brotli4j auf 1.24.0 heben (siehe oben) oder das Modul entfernen.
 - Für den Jetty-`HttpClient` gilt dasselbe, sobald das Brotli-Modul geladen ist.
 
+### libbrotli im Base-Image
+
+Scanner melden `libbrotli1` (Debian, Ubuntu), `brotli-libs` (Alpine) oder `brotli` (RHEL, UBI) in fast jedem Java-Image, weil `curl` oder `libfreetype` die Bibliothek mitziehen. Für HTTP nutzt der Java-Prozess diese Bibliothek nicht:
+
+- Die JVM selbst kann kein Brotli. Tomcat, Netty, Jetty und der JDK-`HttpClient` rufen die System-Bibliothek nicht auf.
+- Nativen C-Code erreicht Java nur über JNI. Dafür braucht es eine Bridge in den Maven-Abhängigkeiten, praktisch immer brotli4j, selten ältere Bindings wie jbrotli. Ohne diese Bridge entpackt der Java-Prozess kein Brotli mit dem verwundbaren C-Decoder, egal welche `libbrotli` im Image liegt.
+- brotli4j nutzt die OS-Bibliothek ebenfalls nicht, sondern bringt eine eigene Kopie im JAR mit. Ein OS-Update repariert brotli4j deshalb nicht, und ein brotli4j-Update repariert die OS-Bibliothek nicht.
+- Im Image bleiben die Tools, die die OS-Bibliothek nutzen, vor allem `curl`. libcurl entpackt aber nur mit `--compressed` (bzw. gesetztem `CURLOPT_ACCEPT_ENCODING`). Kritisch ist das nur, wenn ein Skript im Container damit fremde Server abfragt. Ein Healthcheck gegen `localhost` ist es nicht.
+- Ausnahme Schriften: Rendert die Anwendung Schriften (AWT, PDF- oder Bildgenerierung), lädt das JDK `libfreetype`, und die hängt an `libbrotlidec`. Die Bibliothek liegt dann im Prozess. Freetype entpackt damit nur WOFF2-Schriften. Erreichbar ist der Decoder also nur, wenn die Anwendung Schriften aus fremder Quelle lädt. Nach meiner Einschätzung ist das kein realistischer Angriffsweg. Wer Font-Uploads verarbeitet, aktualisiert das Image trotzdem zuerst.
+
+Ob der laufende Java-Prozess Brotli geladen hat, zeigt `/proc/<pid>/maps`. Bei `exec java` im Entrypoint ist das PID 1:
+
+```bash
+docker exec <container> grep -i brotli /proc/1/maps
+# kein Treffer:              kein nativer Brotli-Decoder im Prozess
+# Pfad unter /usr/lib:       OS-Bibliothek, meist über libfreetype (siehe oben)
+# Pfad unter /tmp:           von brotli4j entpackte eigene Kopie, brotli4j auf 1.24.0 heben
+```
+
+Die Maven-Abhängigkeiten prüft man wie oben mit `mvn dependency:tree` oder `unzip -l` auf dem Fat-JAR.
+
 ### Container und Plattform rund um Spring Boot
 
 Auch reine Java-Dienste laufen selten allein:

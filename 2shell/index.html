@@ -96,6 +96,27 @@ unzip -l target/*.jar | grep -i brotli</code></pre>
   <li>Für den Jetty-<code>HttpClient</code> gilt dasselbe, sobald das Brotli-Modul geladen ist.</li>
 </ul>
 
+<h3 id="libbrotli-im-base-image">libbrotli im Base-Image</h3>
+
+<p>Scanner melden <code>libbrotli1</code> (Debian, Ubuntu), <code>brotli-libs</code> (Alpine) oder <code>brotli</code> (RHEL, UBI) in fast jedem Java-Image, weil <code>curl</code> oder <code>libfreetype</code> die Bibliothek mitziehen. Für HTTP nutzt der Java-Prozess diese Bibliothek nicht:</p>
+
+<ul>
+  <li>Die JVM selbst kann kein Brotli. Tomcat, Netty, Jetty und der JDK-<code>HttpClient</code> rufen die System-Bibliothek nicht auf.</li>
+  <li>Nativen C-Code erreicht Java nur über JNI. Dafür braucht es eine Bridge in den Maven-Abhängigkeiten, praktisch immer brotli4j, selten ältere Bindings wie jbrotli. Ohne diese Bridge entpackt der Java-Prozess kein Brotli mit dem verwundbaren C-Decoder, egal welche <code>libbrotli</code> im Image liegt.</li>
+  <li>brotli4j nutzt die OS-Bibliothek ebenfalls nicht, sondern bringt eine eigene Kopie im JAR mit. Ein OS-Update repariert brotli4j deshalb nicht, und ein brotli4j-Update repariert die OS-Bibliothek nicht.</li>
+  <li>Im Image bleiben die Tools, die die OS-Bibliothek nutzen, vor allem <code>curl</code>. libcurl entpackt aber nur mit <code>--compressed</code> (bzw. gesetztem <code>CURLOPT_ACCEPT_ENCODING</code>). Kritisch ist das nur, wenn ein Skript im Container damit fremde Server abfragt. Ein Healthcheck gegen <code>localhost</code> ist es nicht.</li>
+  <li>Ausnahme Schriften: Rendert die Anwendung Schriften (AWT, PDF- oder Bildgenerierung), lädt das JDK <code>libfreetype</code>, und die hängt an <code>libbrotlidec</code>. Die Bibliothek liegt dann im Prozess. Freetype entpackt damit nur WOFF2-Schriften. Erreichbar ist der Decoder also nur, wenn die Anwendung Schriften aus fremder Quelle lädt. Nach meiner Einschätzung ist das kein realistischer Angriffsweg. Wer Font-Uploads verarbeitet, aktualisiert das Image trotzdem zuerst.</li>
+</ul>
+
+<p>Ob der laufende Java-Prozess Brotli geladen hat, zeigt <code>/proc/&lt;pid&gt;/maps</code>. Bei <code>exec java</code> im Entrypoint ist das PID 1:</p>
+
+<pre><code class="lang-bash">docker exec &lt;container&gt; grep -i brotli /proc/1/maps
+# kein Treffer:              kein nativer Brotli-Decoder im Prozess
+# Pfad unter /usr/lib:       OS-Bibliothek, meist über libfreetype (siehe oben)
+# Pfad unter /tmp:           von brotli4j entpackte eigene Kopie, brotli4j auf 1.24.0 heben</code></pre>
+
+<p>Die Maven-Abhängigkeiten prüft man wie oben mit <code>mvn dependency:tree</code> oder <code>unzip -l</code> auf dem Fat-JAR.</p>
+
 <h3 id="container-und-plattform-rund-um-spring-boot">Container und Plattform rund um Spring Boot</h3>
 
 <p>Auch reine Java-Dienste laufen selten allein:</p>
