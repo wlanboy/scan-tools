@@ -311,6 +311,26 @@ USER 65532
 3. Keine fremden Inhalte in Dashboards einbinden, die gerendert werden, solange der Chromium-Status unklar ist.
 4. Grafana-Server und dessen Image beim nächsten Turnus aktualisieren. Nötig ist das wegen dieser Lücke nicht.
 
+## MySQL
+
+Oracle hat bis 27.10. nichts zu CVE-2026-111497 veröffentlicht. Der MySQL-Server ist nach meiner Einschätzung nicht betroffen.
+
+- MySQL komprimiert das Client-Protokoll nur mit zlib und zstd, Brotli gibt es dort nicht. `mysqld` und die Standard-Plugins linken `libbrotli` nicht (geprüft mit `ldd` in `mysql:8.0` 8.0.46 und `mysql:9.7` 9.7.2).
+- Die curl-Kopie im Quellcode (`extra/curl`) baut MySQL ohne Brotli (`set(HAVE_BROTLI OFF)`). Eine eigene Kopie von `decode.c` bringt MySQL nicht mit.
+- Die offiziellen Images (Oracle Linux 9) enthalten trotzdem `libbrotli` 1.0.9 aus dem OS, gezogen über `curl`. Gefixte Pakete für Oracle Linux gibt es noch nicht. Scanner melden sie deshalb.
+- Nur zwei Komponenten im Image laden die Bibliothek über libcurl: MySQL Shell (`mysqlsh`) und unter 9.x die Telemetrie-Komponente (`component_telemetry`). Bei uns ist die Telemetrie nicht installiert, und `mysqlsh` läuft nur lokal als SQL-Client und lädt nichts von fremden Servern. Der Decoder ist damit nicht erreichbar.
+
+```bash
+docker run --rm --entrypoint sh mysql:9.7 -c 'rpm -q libbrotli; ldd /usr/sbin/mysqld | grep -i brotli'
+```
+
+```sql
+-- Telemetrie-Komponente geladen?
+SELECT * FROM mysql.component;
+```
+
+Was tun: Kein Notfall-Patch nötig. Die Images neu bauen, sobald Oracle Linux ein gefixtes `libbrotli` hat.
+
 ## Weitere Projekte mit eigener Brotli-Kopie
 
 Viele Projekte bringen eine eigene Kopie von `decode.c` mit. Ein OS-Update erreicht diese Kopien nicht. Stand 26.10. laut [broccoli2shell.com](https://broccoli2shell.com/):
@@ -380,3 +400,4 @@ Apache `mod_brotli` entpackt kein Brotli. Nginx entpackt standardmäßig auch ni
 - [Grafana: Dockerfile](https://github.com/grafana/grafana/blob/main/Dockerfile)
 - [Grafana: go.mod](https://github.com/grafana/grafana/blob/main/go.mod)
 - [Debian: Paket chromium (trixie)](https://packages.debian.org/trixie/chromium)
+- [MySQL: extra/curl CMakeLists.txt](https://github.com/mysql/mysql-server/blob/trunk/extra/curl/curl-8.14.1/CMakeLists.txt)

@@ -346,6 +346,24 @@ USER 65532</code></pre>
   <li>Grafana-Server und dessen Image beim nächsten Turnus aktualisieren. Nötig ist das wegen dieser Lücke nicht.</li>
 </ol>
 
+<h2 id="mysql">MySQL</h2>
+
+<p>Oracle hat bis 27.10. nichts zu CVE-2026-111497 veröffentlicht. Der MySQL-Server ist nach meiner Einschätzung nicht betroffen.</p>
+
+<ul>
+  <li>MySQL komprimiert das Client-Protokoll nur mit zlib und zstd, Brotli gibt es dort nicht. <code>mysqld</code> und die Standard-Plugins linken <code>libbrotli</code> nicht (geprüft mit <code>ldd</code> in <code>mysql:8.0</code> 8.0.46 und <code>mysql:9.7</code> 9.7.2).</li>
+  <li>Die curl-Kopie im Quellcode (<code>extra/curl</code>) baut MySQL ohne Brotli (<code>set(HAVE_BROTLI OFF)</code>). Eine eigene Kopie von <code>decode.c</code> bringt MySQL nicht mit.</li>
+  <li>Die offiziellen Images (Oracle Linux 9) enthalten trotzdem <code>libbrotli</code> 1.0.9 aus dem OS, gezogen über <code>curl</code>. Gefixte Pakete für Oracle Linux gibt es noch nicht. Scanner melden sie deshalb.</li>
+  <li>Nur zwei Komponenten im Image laden die Bibliothek über libcurl: MySQL Shell (<code>mysqlsh</code>) und unter 9.x die Telemetrie-Komponente (<code>component_telemetry</code>). Bei uns ist die Telemetrie nicht installiert, und <code>mysqlsh</code> läuft nur lokal als SQL-Client und lädt nichts von fremden Servern. Der Decoder ist damit nicht erreichbar.</li>
+</ul>
+
+<pre><code class="lang-bash">docker run --rm --entrypoint sh mysql:9.7 -c 'rpm -q libbrotli; ldd /usr/sbin/mysqld | grep -i brotli'</code></pre>
+
+<pre><code class="lang-sql">-- Telemetrie-Komponente geladen?
+SELECT * FROM mysql.component;</code></pre>
+
+<p>Was tun: Kein Notfall-Patch nötig. Die Images neu bauen, sobald Oracle Linux ein gefixtes <code>libbrotli</code> hat.</p>
+
 <h2 id="weitere-projekte-mit-eigener-brotli-kopie">Weitere Projekte mit eigener Brotli-Kopie</h2>
 
 <p>Viele Projekte bringen eine eigene Kopie von <code>decode.c</code> mit. Ein OS-Update erreicht diese Kopien nicht. Stand 26.10. laut <a href="https://broccoli2shell.com/" target="_blank" rel="noopener">broccoli2shell.com</a>:</p>
@@ -412,6 +430,7 @@ USER 65532</code></pre>
   <li><a href="https://github.com/grafana/grafana/blob/main/Dockerfile" target="_blank" rel="noopener">Grafana: Dockerfile</a></li>
   <li><a href="https://github.com/grafana/grafana/blob/main/go.mod" target="_blank" rel="noopener">Grafana: go.mod</a></li>
   <li><a href="https://packages.debian.org/trixie/chromium" target="_blank" rel="noopener">Debian: Paket chromium (trixie)</a></li>
+  <li><a href="https://github.com/mysql/mysql-server/blob/trunk/extra/curl/curl-8.14.1/CMakeLists.txt" target="_blank" rel="noopener">MySQL: extra/curl CMakeLists.txt</a></li>
 </ul>
   </main>
 </body>
