@@ -65,8 +65,10 @@ DOWNLOAD_RETRIES = 3
 DOWNLOAD_WORKERS = 4
 DEFAULT_MAX_AGE_HOURS = 24.0
 
-# Release-Linien, für die Betroffenheit und Fixes ausgewertet werden
+# Release-Linien, für die Betroffenheit und Fixes ausgewertet werden, mit Datum
+# des x.0.0-Release: "All versions" in einem älteren Eintrag betrifft spätere Linien nicht
 LINES = (2, 3, 4)
+LINE_RELEASED = {2: "2018-07-30", 3: "2021-09-21", 4: "2025-03-18"}
 
 SEVERITIES = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
 SEVERITY_ORDER = {s: i for i, s in enumerate(SEVERITIES)}
@@ -359,7 +361,13 @@ def range_overlaps(r: dict[str, Any], major: int) -> bool:
     return (version_key(hi) if VERSION_RE.fullmatch(hi) else INF) >= start
 
 
+def is_open(r: dict[str, Any]) -> bool:
+    return not (r.get("introduced") or r.get("last-affected") or r.get("before"))
+
+
 def format_range(r: dict[str, Any]) -> str:
+    if is_open(r):
+        return "alle Versionen"
     lo = r.get("introduced") or "?"
     if r.get("before"):
         return f"{lo} – <{r['before']}"
@@ -369,11 +377,12 @@ def format_range(r: dict[str, Any]) -> str:
     return f"{lo} – {hi or 'neueste'}"
 
 
-def line_status(ranges: list[dict[str, Any]], fixes: list[str]) -> dict[str, Any]:
+def line_status(ranges: list[dict[str, Any]], fixes: list[str], published: str) -> dict[str, Any]:
     """Je Linie: betroffene Bereiche und Fix-Versionen dieser Linie (leer = kein Fix in der Linie)."""
     lines: dict[str, Any] = {}
     for major in LINES:
-        hit = [format_range(r) for r in ranges if range_overlaps(r, major)]
+        hit = [format_range(r) for r in ranges if range_overlaps(r, major)
+               and not (is_open(r) and published and published < LINE_RELEASED[major])]
         if hit:
             lines[f"{major}.x"] = {
                 "affected": hit,
@@ -491,14 +500,17 @@ def build_entry(item: dict[str, Any], record: dict[str, Any]) -> dict[str, Any]:
     not_affected = bool(NOT_AFFECTED_RE.match(affected_text))
     ranges = [] if not_affected else parse_ranges(affected_text) or ranges_from_record(record)
     fixes = parse_fixes(fixed_text)
+    published = str(meta.get("datePublished") or "")[:10]
+    # Referenzen des CVE-Records nur, wenn er Kafka beschreibt (nicht bei den Log4j-CVEs);
     # Rückverweise auf die CVE-Liste selbst und auf cve.org bringen nichts
-    references = [r for r in dict.fromkeys(item["links"] + record_references(record))
+    kafka_record = any("kafka" in str(p.get("product") or "").lower() for p in cna.get("affected") or [])
+    references = [r for r in dict.fromkeys(item["links"] + (record_references(record) if kafka_record else []))
                   if not SELF_LINK_RE.match(r) and r != CVE_ORG_URL.format(id=item["id"])]
     return {
         "id": item["id"],
         "url": f"{SOURCE_URL}#{item['anchor']}",
         "title": item["title"] or cna.get("title") or "",
-        "published": str(meta.get("datePublished") or "")[:10],
+        "published": published,
         "updated": str(meta.get("dateUpdated") or "")[:10],
         **record_metrics(record),
         "weakness": record_cwes(record),
@@ -508,7 +520,7 @@ def build_entry(item: dict[str, Any], record: dict[str, Any]) -> dict[str, Any]:
         "fixes": fixes,
         # Ohne auswertbare Versionsangabe ist offen, welche Linien betroffen sind
         "affectedUnknown": not ranges and not not_affected,
-        "lines": line_status(ranges, fixes),
+        "lines": line_status(ranges, fixes, published),
         "description": "\n\n".join(item["paragraphs"]),
         "impact": fields.get("impact", ""),
         "advice": fields.get("advice", ""),
