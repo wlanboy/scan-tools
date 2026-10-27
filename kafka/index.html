@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kafka CVEs</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header>
+    <p class="back"><a href="../">← Übersicht</a></p>
+    <h1>Apache Kafka CVEs</h1>
+    <p id="meta" class="muted">Lade CVEs …</p>
+  </header>
+
+  <main>
+    <form id="filters" autocomplete="off">
+      <input type="search" name="q" placeholder="Suche (alle Begriffe, &quot;Phrase&quot; möglich)" aria-label="Suche" class="grow">
+      <select name="line" aria-label="Release-Linie">
+        <option value="">Alle Linien</option>
+        <option value="2.x">betrifft 2.x</option>
+        <option value="3.x">betrifft 3.x</option>
+        <option value="4.x">betrifft 4.x</option>
+      </select>
+      <select name="severity" aria-label="Mindest-Severity">
+        <option value="">Jede Severity</option>
+        <option value="MEDIUM">ab MEDIUM</option>
+        <option value="HIGH">ab HIGH</option>
+        <option value="CRITICAL">nur CRITICAL</option>
+      </select>
+      <label>ab <input type="date" name="since"></label>
+      <label>bis <input type="date" name="until"></label>
+      <label title="Betroffene Linie (bzw. die gewählte Linie) hat keine Fix-Version, Upgrade auf eine neuere Linie nötig"><input type="checkbox" name="unfixed"> ohne Fix in der Linie</label>
+      <button type="reset">Zurücksetzen</button>
+    </form>
+
+    <div id="fallback" hidden>
+      <p>Die CVEs konnten nicht automatisch geladen werden (z. B. weil die Seite per <code>file://</code> geöffnet wurde).</p>
+      <label>JSON-Datei wählen: <input type="file" accept=".json,application/json"></label>
+    </div>
+
+    <p id="status" class="muted" aria-live="polite"></p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-key="published" aria-sort="descending"><button type="button">Veröffentlicht</button></th>
+            <th data-key="id"><button type="button">CVE</button></th>
+            <th data-key="severity"><button type="button">Severity</button></th>
+            <th data-key="title"><button type="button">Titel</button></th>
+            <th data-key="2.x" class="line" title="Fix-Versionen der Linie 2.x"><button type="button">2.x</button></th>
+            <th data-key="3.x" class="line" title="Fix-Versionen der Linie 3.x"><button type="button">3.x</button></th>
+            <th data-key="4.x" class="line" title="Fix-Versionen der Linie 4.x"><button type="button">4.x</button></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+
+    <p class="muted legend">
+      Spalten 2.x/3.x/4.x: Fix-Versionen der Linie · <span class="nofix">kein Fix</span> = Linie betroffen, Upgrade auf neuere Linie nötig · – = nicht betroffen · ? = Versionsangabe nicht auswertbar
+    </p>
+
+    <button id="more" type="button" hidden></button>
+  </main>
+</body>
+</html>
