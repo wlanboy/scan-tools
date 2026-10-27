@@ -1,0 +1,1372 @@
+{
+  "source": "https://hadoop.apache.org/cve_list.html",
+  "lines": [
+    "2.x",
+    "3.x"
+  ],
+  "count": 22,
+  "cves": [
+    {
+      "id": "CVE-2025-27821",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2025-27821-out-of-bounds-write-in-uri-parser-of-native-hdfs-client",
+      "title": "Out of bounds write in URI parser of native HDFS client",
+      "published": "2026-01-26",
+      "updated": "2026-01-26",
+      "severity": "HIGH",
+      "cvssScore": 7.3,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L",
+      "scoreSource": "CISA-ADP",
+      "weakness": [
+        "CWE-787"
+      ],
+      "affectedText": "3.2.0 to 3.4.1",
+      "fixedText": "3.4.2",
+      "ranges": [
+        {
+          "introduced": "3.2.0",
+          "last-affected": "3.4.1"
+        }
+      ],
+      "fixes": [
+        "3.4.2"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "3.x": {
+          "affected": [
+            "3.2.0 – 3.4.1"
+          ],
+          "fixes": [
+            "3.4.2"
+          ]
+        }
+      },
+      "description": "Out-of-bounds Write vulnerability in Apache Hadoop HDFS native client.\n\nThis issue affects Apache Hadoop: from 3.2.0 before 3.4.2.\n\nUsers are recommended to upgrade to version 3.4.2, which fixes the issue.\n\nThis issue is being tracked as HDFS-17754.",
+      "impact": "Memory Corruption",
+      "advice": "",
+      "reporter": "BUI Ngoc Tan",
+      "reported": "2025-03-01",
+      "announced": "2026-01-23",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2025-27821",
+        "https://issues.apache.org/jira/browse/HDFS-17754"
+      ]
+    },
+    {
+      "id": "CVE-2023-26031",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2023-26031-privilege-escalation-in-apache-haoop-yarn-container-executor-binary-on-linux-systems",
+      "title": "Privilege escalation in Apache Haoop Yarn container-executor binary on Linux systems",
+      "published": "2023-11-16",
+      "updated": "2025-02-13",
+      "severity": "HIGH",
+      "cvssScore": 7.5,
+      "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "CISA-ADP",
+      "weakness": [
+        "CWE-426"
+      ],
+      "affectedText": "3.3.1 to 3.3.4",
+      "fixedText": "3.3.5",
+      "ranges": [
+        {
+          "introduced": "3.3.1",
+          "last-affected": "3.3.4"
+        }
+      ],
+      "fixes": [
+        "3.3.5"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "3.x": {
+          "affected": [
+            "3.3.1 – 3.3.4"
+          ],
+          "fixes": [
+            "3.3.5"
+          ]
+        }
+      },
+      "description": "Relative library resolution in linux container-executor binary in Apache Hadoop 3.3.1-3.3.4 on Linux allows local user to gain root privileges. If the YARN cluster is accepting work from remote (authenticated) users, this MAY permit remote users to gain root privileges.\n\nHadoop 3.3.0 updated the YARN Secure Containers to add a feature for executing user-submitted applications in isolated linux containers.\n\nThe native binary HADOOP_HOME/bin/container-executor is used to launch these containers; it must be owned by root and have the suid bit set in order for the YARN processes to run the containers as the specific users submitting the jobs.\n\nThe patch YARN-10495 “make the rpath of container-executor configurable” modified the library loading path for loading .so files from $ORIGIN/ to $ORIGIN/:../lib/native/. This is the a path through which libcrypto.so is located. Thus it is is possible for a user with reduced privileges to install a malicious libcrypto library into a path to which they have write access, invoke the container-executor command, and have their modified library executed as root. If the YARN cluster is accepting work from remote (authenticated) users, and these users’ submitted job are executed in the physical host, rather than a container, then the CVE permits remote users to gain root privileges.\n\nThe fix for the vulnerability is to revert the change, which is done in YARN-11441, “Revert YARN-10495”. This patch is in hadoop-3.3.5.\n\nTo determine whether a version of container-executor is vulnerable, use the readelf command. If the RUNPATH or RPATH value contains the relative path ./lib/native/ then it is at risk\n\n$ readelf -d container-executor|grep 'RUNPATH\\|RPATH'\n0x000000000000001d (RUNPATH) Library runpath: [$ORIGIN/:../lib/native/]\n\nIf it does not, then it is safe:\n\n$ readelf -d container-executor|grep 'RUNPATH\\|RPATH'\n0x000000000000001d (RUNPATH) Library runpath: [$ORIGIN/]\n\nFor an at-risk version of container-executor to enable privilege escalation, the owner must be root and the suid bit must be set\n\n$ ls -laF /opt/hadoop/bin/container-executor\n---Sr-s---. 1 root hadoop 802968 May 9 20:21 /opt/hadoop/bin/container-executor\n\nA safe installation lacks the suid bit; ideally is also not owned by root.\n\n$ ls -laF /opt/hadoop/bin/container-executor\n-rwxr-xr-x. 1 yarn hadoop 802968 May 9 20:21 /opt/hadoop/bin/container-executor\n\nThis configuration does not support Yarn Secure Containers, but all other hadoop services, including YARN job execution outside secure containers continue to work.",
+      "impact": "privilege escalation",
+      "advice": "",
+      "reporter": "Esa Hiltunen, Mikko Kortelainen",
+      "reported": "2022-07-13",
+      "announced": "2023-11-16",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-26031",
+        "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/SecureContainer.html",
+        "https://issues.apache.org/jira/browse/YARN-10495",
+        "https://issues.apache.org/jira/browse/YARN-11441",
+        "https://lists.apache.org/thread/q9qpdlv952gb4kphpndd5phvl7fkh71r",
+        "https://security.netapp.com/advisory/ntap-20240112-0001/"
+      ]
+    },
+    {
+      "id": "CVE-2021-25642",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2021-25642-apache-hadoop-yarn-remote-code-execution-in-zkconfigurationstore-of-capacity-scheduler",
+      "title": "Apache Hadoop YARN remote code execution in ZKConfigurationStore of capacity scheduler",
+      "published": "2022-08-25",
+      "updated": "2024-08-03",
+      "severity": "HIGH",
+      "cvssScore": 8.8,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.1)",
+      "weakness": [
+        "CWE-502"
+      ],
+      "affectedText": "2.9.0 to 2.10.1, 3.0.0-alpha to 3.2.3, 3.3.0 to 3.3.3",
+      "fixedText": "2.10.2, 3.2.4, 3.3.4",
+      "ranges": [
+        {
+          "introduced": "2.9.0",
+          "last-affected": "2.10.1"
+        },
+        {
+          "introduced": "3.0.0-alpha",
+          "last-affected": "3.2.3"
+        },
+        {
+          "introduced": "3.3.0",
+          "last-affected": "3.3.3"
+        }
+      ],
+      "fixes": [
+        "2.10.2",
+        "3.2.4",
+        "3.3.4"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.9.0 – 2.10.1"
+          ],
+          "fixes": [
+            "2.10.2"
+          ]
+        },
+        "3.x": {
+          "affected": [
+            "3.0.0-alpha – 3.2.3",
+            "3.3.0 – 3.3.3"
+          ],
+          "fixes": [
+            "3.2.4",
+            "3.3.4"
+          ]
+        }
+      },
+      "description": "ZKConfigurationStore which is optionally used by CapacityScheduler of Apache Hadoop YARN deserializes data obtained from ZooKeeper without validation. An attacker having access to ZooKeeper can run arbitrary commands as YARN user by exploiting this.",
+      "impact": "remote command execution",
+      "advice": "",
+      "reporter": "Liu Ximing",
+      "reported": "2020-12-16",
+      "announced": "2022-08-25",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-25642",
+        "https://lists.apache.org/thread/w1nf92148xcnxl5ys0owtokf9y0l9zsv",
+        "https://lists.apache.org/thread/g6vf2h4wdgzzdgk91mqozhs58wotq150",
+        "https://security.netapp.com/advisory/ntap-20221201-0003/"
+      ]
+    },
+    {
+      "id": "CVE-2022-25168",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2022-25168-command-injection-in-orgapachehadoopfsfileutiluntarusingtar",
+      "title": "Command injection in org.apache.hadoop.fs.FileUtil.unTarUsingTar",
+      "published": "2022-08-04",
+      "updated": "2024-08-03",
+      "severity": "CRITICAL",
+      "cvssScore": 9.8,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.1)",
+      "weakness": [
+        "CWE-78"
+      ],
+      "affectedText": "2.0.0 to 2.10.1, 3.0.0-alpha1 to 3.2.3, 3.3.0 to 3.3.2",
+      "fixedText": "2.10.2, 3.2.4, 3.3.3",
+      "ranges": [
+        {
+          "introduced": "2.0.0",
+          "last-affected": "2.10.1"
+        },
+        {
+          "introduced": "3.0.0-alpha1",
+          "last-affected": "3.2.3"
+        },
+        {
+          "introduced": "3.3.0",
+          "last-affected": "3.3.2"
+        }
+      ],
+      "fixes": [
+        "2.10.2",
+        "3.2.4",
+        "3.3.3"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.0.0 – 2.10.1"
+          ],
+          "fixes": [
+            "2.10.2"
+          ]
+        },
+        "3.x": {
+          "affected": [
+            "3.0.0-alpha1 – 3.2.3",
+            "3.3.0 – 3.3.2"
+          ],
+          "fixes": [
+            "3.2.4",
+            "3.3.3"
+          ]
+        }
+      },
+      "description": "Apache Hadoop’s FileUtil.unTar(File, File) API does not escape the input file name before being passed to the shell. An attacker can inject arbitrary commands.\n\nThis is only used in Hadoop 3.3 InMemoryAliasMap.completeBootstrapTransfer, which is only ever run by a local user.\n\nIt has been used in Hadoop 2.x for yarn localization, which does enable remote code execution.\n\nIt is used in Apache Spark, from the SQL command ADD ARCHIVE. As the ADD ARCHIVE command adds new binaries to the classpath, being able to execute shell scripts does not confer new permissions to the caller.\n\nSPARK-38305. “Check existence of file before untarring/zipping”, which is included in 3.3.0, 3.1.4, 3.2.2, prevents shell commands being executed, regardless of which version of the hadoop libraries are in use.",
+      "impact": "injection attack",
+      "advice": "",
+      "reporter": "Kostya Kortchinsky",
+      "reported": "2022-02-12",
+      "announced": "2022-08-04",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-25168",
+        "https://lists.apache.org/thread/ktplnsr0b9zn8ylzb98zcnt5gydfvjm1",
+        "https://lists.apache.org/thread/mxqnb39jfrwgs3j6phwvlrfq4mlox130",
+        "https://security.netapp.com/advisory/ntap-20220915-0007/"
+      ]
+    },
+    {
+      "id": "CVE-2021-33036",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2021-33036-apache-hadoop-privilege-escalation-vulnerability",
+      "title": "Apache Hadoop Privilege escalation vulnerability",
+      "published": "2022-06-15",
+      "updated": "2024-08-03",
+      "severity": "HIGH",
+      "cvssScore": 8.8,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.1)",
+      "weakness": [
+        "CWE-264",
+        "CWE-24"
+      ],
+      "affectedText": "2.2.0 to 2.10.1, 3.0.0-alpha1 to 3.1.4, 3.2.0 to 3.2.2, 3.3.0 to 3.3.1",
+      "fixedText": "2.10.2, 3.2.3, 3.3.2",
+      "ranges": [
+        {
+          "introduced": "2.2.0",
+          "last-affected": "2.10.1"
+        },
+        {
+          "introduced": "3.0.0-alpha1",
+          "last-affected": "3.1.4"
+        },
+        {
+          "introduced": "3.2.0",
+          "last-affected": "3.2.2"
+        },
+        {
+          "introduced": "3.3.0",
+          "last-affected": "3.3.1"
+        }
+      ],
+      "fixes": [
+        "2.10.2",
+        "3.2.3",
+        "3.3.2"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.2.0 – 2.10.1"
+          ],
+          "fixes": [
+            "2.10.2"
+          ]
+        },
+        "3.x": {
+          "affected": [
+            "3.0.0-alpha1 – 3.1.4",
+            "3.2.0 – 3.2.2",
+            "3.3.0 – 3.3.1"
+          ],
+          "fixes": [
+            "3.2.3",
+            "3.3.2"
+          ]
+        }
+      },
+      "description": "In Apache Hadoop 2.2.0 to 2.10.1, 3.0.0-alpha1 to 3.1.4, 3.2.0 to 3.2.2, and 3.3.0 to 3.3.1, A user who can escalate to yarn user can possibly run arbitrary commands as root user.\n\nIf you are using the affected version of Apache Hadoop and some users can escalate to yarn user and cannot escalate to root user, remove the permission to escalate to yarn user from them.",
+      "impact": "privilege escalation",
+      "advice": "",
+      "reporter": "Hideyuki Furue",
+      "reported": "2021-05-05",
+      "announced": "2022-06-15",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-33036",
+        "https://lists.apache.org/thread/ctr84rmo3xd2tzqcx2b277c8z692vhl5",
+        "http://www.openwall.com/lists/oss-security/2022/06/15/2",
+        "https://security.netapp.com/advisory/ntap-20220722-0003/"
+      ]
+    },
+    {
+      "id": "CVE-2021-37404",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2021-37404-heap-buffer-overflow-in-libhdfs-native-library",
+      "title": "Heap buffer overflow in libhdfs native library",
+      "published": "2022-06-13",
+      "updated": "2024-08-04",
+      "severity": "CRITICAL",
+      "cvssScore": 9.8,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.1)",
+      "weakness": [
+        "CWE-787"
+      ],
+      "affectedText": "2.9.0 to 2.10.1, 3.0.0 to 3.1.4, 3.2.0 to 3.2.2, 3.3.0 to 3.3.1",
+      "fixedText": "2.10.2, 3.2.3, 3.3.2",
+      "ranges": [
+        {
+          "introduced": "2.9.0",
+          "last-affected": "2.10.1"
+        },
+        {
+          "introduced": "3.0.0",
+          "last-affected": "3.1.4"
+        },
+        {
+          "introduced": "3.2.0",
+          "last-affected": "3.2.2"
+        },
+        {
+          "introduced": "3.3.0",
+          "last-affected": "3.3.1"
+        }
+      ],
+      "fixes": [
+        "2.10.2",
+        "3.2.3",
+        "3.3.2"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.9.0 – 2.10.1"
+          ],
+          "fixes": [
+            "2.10.2"
+          ]
+        },
+        "3.x": {
+          "affected": [
+            "3.0.0 – 3.1.4",
+            "3.2.0 – 3.2.2",
+            "3.3.0 – 3.3.1"
+          ],
+          "fixes": [
+            "3.2.3",
+            "3.3.2"
+          ]
+        }
+      },
+      "description": "There is a potential heap buffer overflow in libhdfs native code. Opening a file path provided by user without validation may result in a denial of service or arbitrary code execution.",
+      "impact": "denial of service or arbitrary code execution",
+      "advice": "",
+      "reporter": "Igor Chervatyuk",
+      "reported": "2021-04-04",
+      "announced": "2022-06-11",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-37404",
+        "https://lists.apache.org/thread/36k6f4s4ff97tgo4wl9681vtcp7dsg06",
+        "https://lists.apache.org/thread/2h56ztcj3ojc66qzf1nno88vjw9vd4wo",
+        "https://security.netapp.com/advisory/ntap-20220715-0007/"
+      ]
+    },
+    {
+      "id": "CVE-2022-26612",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2022-26612-arbitrary-file-write-during-untar-on-windows",
+      "title": "Arbitrary file write during untar on Windows",
+      "published": "2022-04-07",
+      "updated": "2024-08-03",
+      "severity": "CRITICAL",
+      "cvssScore": 9.8,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.1)",
+      "weakness": [],
+      "affectedText": "Versions below 3.2.3, 3.3.2",
+      "fixedText": "3.2.3, 3.3.3, 3.4 onwards",
+      "ranges": [
+        {
+          "introduced": "",
+          "before": "3.2.3"
+        },
+        {
+          "introduced": "3.3.0",
+          "before": "3.3.2"
+        }
+      ],
+      "fixes": [
+        "3.2.3",
+        "3.3.3",
+        "3.4"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "? – <3.2.3"
+          ],
+          "fixes": []
+        },
+        "3.x": {
+          "affected": [
+            "? – <3.2.3",
+            "3.3.0 – <3.3.2"
+          ],
+          "fixes": [
+            "3.2.3",
+            "3.3.3",
+            "3.4"
+          ]
+        }
+      },
+      "description": "In Apache Hadoop, The unTar function uses unTarUsingJava function on Windows and the built-in tar utility on Unix and other OSes. As a result, a TAR entry may create a symlink under the expected extraction directory which points to an external directory. A subsequent TAR entry may extract an arbitrary file into the external directory using the symlink name. This however would be caught by the same targetDirPath check on Unix because of the getCanonicalPath call. However on Windows, getCanonicalPath doesn’t resolve symbolic links, which bypasses the check. unpackEntries during TAR extraction follows symbolic links which allows writing outside expected base directory on Windows.\n\nUsers of the affected versions should apply either of the following mitigations:\n\nDo not run any of the YARN daemons as a user possessing the permissions to create symlinks on Windows.\n\nDo not use symlinks in the tar file.",
+      "impact": "file write to arbitrary path in Windows",
+      "advice": "",
+      "reporter": "A member of GitHub Security Lab, Jaroslav Lobačevski",
+      "reported": "2022-02-09",
+      "announced": "2022-04-07",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-26612",
+        "https://github.com/JarLob",
+        "https://lists.apache.org/thread/wps21pzjl1myxw23yb466y9yofv104yl",
+        "https://lists.apache.org/thread/hslo7wzw2449gv1jyjk8g6ttd7935fyz",
+        "https://security.netapp.com/advisory/ntap-20220519-0004/"
+      ]
+    },
+    {
+      "id": "CVE-2021-4104",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2021-4104-log4shell-vulnerability",
+      "title": "Log4Shell Vulnerability",
+      "published": "2021-12-14",
+      "updated": "2026-05-28",
+      "severity": "HIGH",
+      "cvssScore": 7.5,
+      "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "CISA-ADP",
+      "weakness": [
+        "CWE-502"
+      ],
+      "affectedText": "N/A",
+      "fixedText": "",
+      "ranges": [],
+      "fixes": [],
+      "affectedUnknown": false,
+      "lines": {},
+      "description": "JMSAppender in Log4j 1.2, used by all versions of Apache Hadoop, is vulnerable to the Log4Shell attack in a similar fashion to CVE-2021-44228. However, the JMSAppender is not the default configuration shipped in Hadoop. When JMSAppender is not enabled, Hadoop is not vulnerable to the attack.\n\nTo mitigate the risk, you can remove JMSAppender from the log4j-1.2.17.jar artifact yourself following the instructions in this link.",
+      "impact": "",
+      "advice": "",
+      "reporter": "",
+      "reported": "",
+      "announced": "",
+      "references": [
+        "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-4104",
+        "http://slf4j.org/log4shell.html"
+      ]
+    },
+    {
+      "id": "CVE-2021-44228",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2021-44228-log4shell-vulnerability",
+      "title": "Log4Shell Vulnerability",
+      "published": "2021-12-10",
+      "updated": "2025-10-21",
+      "severity": "CRITICAL",
+      "cvssScore": 10,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+      "scoreSource": "CISA-ADP",
+      "weakness": [
+        "CWE-502",
+        "CWE-400",
+        "CWE-20"
+      ],
+      "affectedText": "N/A",
+      "fixedText": "",
+      "ranges": [],
+      "fixes": [],
+      "affectedUnknown": false,
+      "lines": {},
+      "description": "It is understood that the log4shell vulnerability CVE-2021-44228 impacts log4j2. Hadoop, as of 3.3.x depends on log4j 1.x, which is NOT susceptible to the attack. Once we migrate over to log4j2, we will adopt a version that is not susceptible to the attack, too. Therefore, no ASF version of Hadoop has ever been vulnerable. Third party products and applications based on Hadoop may be vulnerable, please consult the vendor or the project owner.",
+      "impact": "",
+      "advice": "",
+      "reporter": "",
+      "reported": "",
+      "announced": "",
+      "references": [
+        "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44228"
+      ]
+    },
+    {
+      "id": "CVE-2020-9492",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2020-9492-apache-hadoop-potential-privilege-escalation",
+      "title": "Apache Hadoop Potential privilege escalation",
+      "published": "2021-01-26",
+      "updated": "2024-08-04",
+      "severity": "HIGH",
+      "cvssScore": 8.8,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.1)",
+      "weakness": [],
+      "affectedText": "3.2.0 to 3.2.1, 3.0.0-alpha1 to 3.1.3, 2.0.0-alpha to 2.10.0",
+      "fixedText": "3.2.2, 3.1.4, 2.10.1",
+      "ranges": [
+        {
+          "introduced": "3.2.0",
+          "last-affected": "3.2.1"
+        },
+        {
+          "introduced": "3.0.0-alpha1",
+          "last-affected": "3.1.3"
+        },
+        {
+          "introduced": "2.0.0-alpha",
+          "last-affected": "2.10.0"
+        }
+      ],
+      "fixes": [
+        "2.10.1",
+        "3.1.4",
+        "3.2.2"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.0.0-alpha – 2.10.0"
+          ],
+          "fixes": [
+            "2.10.1"
+          ]
+        },
+        "3.x": {
+          "affected": [
+            "3.2.0 – 3.2.1",
+            "3.0.0-alpha1 – 3.1.3"
+          ],
+          "fixes": [
+            "3.1.4",
+            "3.2.2"
+          ]
+        }
+      },
+      "description": "WebHDFS client might send SPNEGO authorization header to remote URL without proper verification. A crafty user can trigger services to send server credentials to a webhdfs path for capturing the service principal.\n\nUsers of the affected versions should apply either of the following mitigations:\n\nSet different http signature secrets and use dedicated hosts for each privileged impersonation service (such as HiveServer2).\n\nUpgrade to 3.3.0, 3.2.2, 3.1.4, 2.10.1, or newer with TLS encryption enabled and configure dfs.http.policy to HTTPS_ONLY.",
+      "impact": "privilege escalation",
+      "advice": "",
+      "reporter": "Kevin Risden",
+      "reported": "2020-03-17",
+      "announced": "2021-01-26",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-9492",
+        "https://lists.apache.org/thread.html/r513758942356ccd0d14538ba18a09903fc72716d74be1cb727ea91ff%40%3Cgeneral.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/rca4516b00b55b347905df45e5d0432186248223f30497db87aba8710%40%3Cannounce.apache.org%3E",
+        "https://lists.apache.org/thread.html/r79323adac584edab99fd5e4b52a013844b784a5d4b600da0662b33d6%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/r941e9be04efe0f455d20aeac88516c0848decd7e7b1d93d5687060f4%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/rc0057ebf32b646ab47f7f5744a8948332e015c39044cbb9d87ea76cd%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/r0a534f1cde7555f7208e9f9b791c1ab396d215eaaef283b3a9153429%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/r6341f2a468ced8872a71997aa1786ce036242413484f0fa68dc9ca02%40%3Cissues.solr.apache.org%3E",
+        "https://lists.apache.org/thread.html/r9328eb49305e4cacc80e182bfd8a2efd8e640d940e24f5bfd7d5cb26%40%3Cissues.solr.apache.org%3E",
+        "https://lists.apache.org/thread.html/r4a57de5215494c35c8304cf114be75d42df7abc6c0c54bf163c3e370%40%3Cissues.solr.apache.org%3E",
+        "https://lists.apache.org/thread.html/r6c2fa7949738e9d39606f1d7cd890c93a2633e3357c9aeaf886ea9a6%40%3Cissues.solr.apache.org%3E",
+        "https://lists.apache.org/thread.html/r49c9ab444ab1107c6a8be8a0d66602dec32a16d96c2631fec8d309fb%40%3Cissues.solr.apache.org%3E",
+        "https://lists.apache.org/thread.html/re4129c6b9e0410848bbd3761187ce9c19bc1cd491037b253007df99e%40%3Cissues.solr.apache.org%3E",
+        "https://lists.apache.org/thread.html/r79201a209df9a4e7f761e537434131b4e39eabec4369a7d668904df4%40%3Cissues.solr.apache.org%3E",
+        "https://lists.apache.org/thread.html/rb12afaa421d483863c4175e42e5dbd0673917a3cff73f3fca4f8275f%40%3Cissues.solr.apache.org%3E",
+        "https://www.oracle.com/security-alerts/cpujul2022.html",
+        "https://security.netapp.com/advisory/ntap-20210304-0001/"
+      ]
+    },
+    {
+      "id": "CVE-2018-11764",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2018-11764-apache-hadoop-privilege-escalation-in-web-endpoint",
+      "title": "Apache Hadoop Privilege escalation in web endpoint",
+      "published": "2020-10-21",
+      "updated": "2024-08-05",
+      "severity": "HIGH",
+      "cvssScore": 8.8,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.1)",
+      "weakness": [],
+      "affectedText": "3.0.0-alpha4, 3.0.0-beta1, 3.0.0",
+      "fixedText": "3.0.1",
+      "ranges": [
+        {
+          "introduced": "3.0.0-alpha4",
+          "last-affected": "3.0.0-alpha4"
+        },
+        {
+          "introduced": "3.0.0-beta1",
+          "last-affected": "3.0.0-beta1"
+        },
+        {
+          "introduced": "3.0.0",
+          "last-affected": "3.0.0"
+        }
+      ],
+      "fixes": [
+        "3.0.1"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "3.x": {
+          "affected": [
+            "3.0.0-alpha4",
+            "3.0.0-beta1",
+            "3.0.0"
+          ],
+          "fixes": [
+            "3.0.1"
+          ]
+        }
+      },
+      "description": "Web endpoint authentication check is broken. Authenticated users may impersonate any user even if no proxy user is configured.",
+      "impact": "privilege escalation",
+      "advice": "",
+      "reporter": "Daryn Sharp",
+      "reported": "2018-03-17",
+      "announced": "2020-10-21",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-11764",
+        "https://lists.apache.org/thread.html/r790ad0a049cde713b93589ecfd4dd2766fda0fc6807eedb6cf69f5c1%40%3Cgeneral.hadoop.apache.org%3E",
+        "https://security.netapp.com/advisory/ntap-20201103-0003/"
+      ]
+    },
+    {
+      "id": "CVE-2018-11765",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2018-11765-potential-information-disclosure-in-apache-hadoop-web-interfaces",
+      "title": "Potential information disclosure in Apache Hadoop Web interfaces",
+      "published": "2020-09-30",
+      "updated": "2024-08-05",
+      "severity": "HIGH",
+      "cvssScore": 7.5,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      "scoreSource": "NVD (CVSS 3.1)",
+      "weakness": [],
+      "affectedText": "3.0.0-alpha2 to 3.0.0, 2.9.0 to 2.9.2, 2.8.0 to 2.8.5",
+      "fixedText": "3.0.1, 2.10.0",
+      "ranges": [
+        {
+          "introduced": "3.0.0-alpha2",
+          "last-affected": "3.0.0"
+        },
+        {
+          "introduced": "2.9.0",
+          "last-affected": "2.9.2"
+        },
+        {
+          "introduced": "2.8.0",
+          "last-affected": "2.8.5"
+        }
+      ],
+      "fixes": [
+        "2.10.0",
+        "3.0.1"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.9.0 – 2.9.2",
+            "2.8.0 – 2.8.5"
+          ],
+          "fixes": [
+            "2.10.0"
+          ]
+        },
+        "3.x": {
+          "affected": [
+            "3.0.0-alpha2 – 3.0.0"
+          ],
+          "fixes": [
+            "3.0.1"
+          ]
+        }
+      },
+      "description": "When Kerberos authentication is enabled and SPNEGO through HTTP is not enabled, any users can access some servlets without authentication.",
+      "impact": "information disclosure",
+      "advice": "",
+      "reporter": "Larry McCay (Discovered by Owen O’Malley)",
+      "reported": "2018-03-11",
+      "announced": "2020-09-28",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-11765",
+        "https://lists.apache.org/thread.html/r2c7f899911a04164ed1707083fcd4135f8427e04778c87d83509b0da%40%3Cgeneral.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/rf9dfa8b77585c9227db9637552eebb2ab029255a0db4eb76c2b6c4cf%40%3Cdev.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/rbe25cac0f499374f8ae17a4a44a8404927b56de28d4c41940d82b7a4%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/r4dddf1705dbedfa94392913b2dad1cd2d1d89040facd389eea0b3510%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/r79b15c5b66c6df175d01d7560adf0cd5c369129b9a161905e0339927%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/reea5eb8622afbfbfca46bc758f79db83d90a3263a906c4d1acba4971%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/rb21df54a4e39732ce653d2aa5672e36a792b59eb6717f2a06bb8d02a%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/r46447f38ea8c89421614e9efd7de5e656186d35e10fc97cf88477a01%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/r17d94d132b207dad221595fd8b8b18628f5f5ec7e3f5be939ecd8928%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/rb241464d83baa3749b08cd3dabc8dba70a9a9027edcef3b5d4c24ef4%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/r74825601e93582167eb7cdc2f764c74c9c6d8006fa90018562fda60f%40%3Ccommits.druid.apache.org%3E",
+        "https://security.netapp.com/advisory/ntap-20201016-0005/"
+      ]
+    },
+    {
+      "id": "CVE-2018-11768",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2018-11768-apache-hadoop-hdfs-fsimage-corruption",
+      "title": "Apache Hadoop HDFS FSImage Corruption",
+      "published": "2019-10-04",
+      "updated": "2024-08-05",
+      "severity": "HIGH",
+      "cvssScore": 7.5,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+      "scoreSource": "NVD (CVSS 3.1)",
+      "weakness": [],
+      "affectedText": "3.1.0 to 3.1.1, 3.0.0-alpha1 to 3.0.3, 2.9.0 to 2.9.1, 2.0.0-alpha to 2.8.4",
+      "fixedText": "3.1.2, 2.9.2, 2.8.5",
+      "ranges": [
+        {
+          "introduced": "3.1.0",
+          "last-affected": "3.1.1"
+        },
+        {
+          "introduced": "3.0.0-alpha1",
+          "last-affected": "3.0.3"
+        },
+        {
+          "introduced": "2.9.0",
+          "last-affected": "2.9.1"
+        },
+        {
+          "introduced": "2.0.0-alpha",
+          "last-affected": "2.8.4"
+        }
+      ],
+      "fixes": [
+        "2.8.5",
+        "2.9.2",
+        "3.1.2"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.9.0 – 2.9.1",
+            "2.0.0-alpha – 2.8.4"
+          ],
+          "fixes": [
+            "2.8.5",
+            "2.9.2"
+          ]
+        },
+        "3.x": {
+          "affected": [
+            "3.1.0 – 3.1.1",
+            "3.0.0-alpha1 – 3.0.3"
+          ],
+          "fixes": [
+            "3.1.2"
+          ]
+        }
+      },
+      "description": "There is a mismatch in the size of the fields used to store user/group information between memory and disk representation. This causes the user/group information to be corrupted across storing in fsimage and reading back from fsimage.\n\nThis vulnerability fix contains a fsimage layout change, so once the image is saved in the new layout format you cannot go back to a version that doesn’t support the newer layout. This means that once 2.7.x users upgraded to the fixed version, they cannot downgrade to 2.7.x because there is no fixed version in 2.7.x. We suggest downgrade to 2.8.5 or upper version that contains the vulnerability fix.",
+      "impact": "information disclosure",
+      "advice": "",
+      "reporter": "Ekanth Sethuramalingam",
+      "reported": "2018-06-05",
+      "announced": "2019-10-03",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-11768",
+        "https://lists.apache.org/thread.html/2067a797b330530a6932f4b08f703b3173253d0a2b7c8c524e54adaf@%3Cgeneral.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/2067a797b330530a6932f4b08f703b3173253d0a2b7c8c524e54adaf%40%3Cgeneral.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/caacbbba2dcc1105163f76f3dfee5fbd22e0417e0783212787086378%40%3Cgeneral.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/ea6d2dfbefab8ebe46be18b05136b83ae53b7866f1bc60c680a2b600%40%3Chdfs-dev.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/2c9cc65864be0058a5d5ed2025dfb9c700bf23d352b0c826c36ff96a%40%3Chdfs-dev.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/f20bb4e055d8394fc525cc7772fb84096f706389043e76220c8a29a4%40%3Chdfs-dev.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/ceb16af9139ab0fea24aef935b6321581976887df7ad632e9a515dda%40%3Cdev.lucene.apache.org%3E",
+        "https://lists.apache.org/thread.html/9b609d4392d886711e694cf40d86f770022baf42a1b1aa97e8244c87%40%3Cdev.lucene.apache.org%3E",
+        "https://lists.apache.org/thread.html/72ca514e01cd5f08151e74f9929799b4cbe1b6e9e6cd24faa72ffcc6%40%3Cdev.lucene.apache.org%3E",
+        "https://lists.apache.org/thread.html/r02e39d7beb32eebcdbb4b516e95f67d71c90d5d462b26f4078d21eeb%40%3Cdev.flink.apache.org%3E",
+        "https://lists.apache.org/thread.html/r02e39d7beb32eebcdbb4b516e95f67d71c90d5d462b26f4078d21eeb%40%3Cuser.flink.apache.org%3E"
+      ]
+    },
+    {
+      "id": "CVE-2018-8029",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2018-8029-apache-hadoop-privilege-escalation-vulnerability",
+      "title": "Apache Hadoop Privilege escalation vulnerability",
+      "published": "2019-05-30",
+      "updated": "2024-08-05",
+      "severity": "HIGH",
+      "cvssScore": 8.8,
+      "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.0)",
+      "weakness": [],
+      "affectedText": "3.0.0-alpha1 to 3.1.0, 2.9.0 to 2.9.1, 2.2.0 to 2.8.4",
+      "fixedText": "3.1.1, 2.9.2, 2.8.5",
+      "ranges": [
+        {
+          "introduced": "3.0.0-alpha1",
+          "last-affected": "3.1.0"
+        },
+        {
+          "introduced": "2.9.0",
+          "last-affected": "2.9.1"
+        },
+        {
+          "introduced": "2.2.0",
+          "last-affected": "2.8.4"
+        }
+      ],
+      "fixes": [
+        "2.8.5",
+        "2.9.2",
+        "3.1.1"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.9.0 – 2.9.1",
+            "2.2.0 – 2.8.4"
+          ],
+          "fixes": [
+            "2.8.5",
+            "2.9.2"
+          ]
+        },
+        "3.x": {
+          "affected": [
+            "3.0.0-alpha1 – 3.1.0"
+          ],
+          "fixes": [
+            "3.1.1"
+          ]
+        }
+      },
+      "description": "A user who can escalate to yarn user can possibly run arbitrary commands as root user.",
+      "impact": "privilege escalation",
+      "advice": "",
+      "reporter": "Miklos Szegedi",
+      "reported": "2018-05-08",
+      "announced": "2019-05-30",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-8029",
+        "https://lists.apache.org/thread.html/17084c09e6dedf60efe08028b429c92ffd28aacc28454e4fa924578a@%3Cgeneral.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/17084c09e6dedf60efe08028b429c92ffd28aacc28454e4fa924578a%40%3Cgeneral.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/a97c53a81e639ca2fc7b8f61a4fcd1842c2a78544041244a7c624727%40%3Cissues.hbase.apache.org%3E",
+        "http://www.securityfocus.com/bid/108518",
+        "https://lists.apache.org/thread.html/a0164b87660223a2d491f83c88f905fe1a9fa8dc795148d9b0d968c8%40%3Cdev.hbase.apache.org%3E",
+        "https://lists.apache.org/thread.html/0b8d58e02dbd0fb8bf7320c514fe58da1d6728bdc150f1ba04e0d9fc%40%3Cissues.hbase.apache.org%3E",
+        "https://security.netapp.com/advisory/ntap-20190617-0001/",
+        "https://lists.apache.org/thread.html/r4dddf1705dbedfa94392913b2dad1cd2d1d89040facd389eea0b3510%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/rb21df54a4e39732ce653d2aa5672e36a792b59eb6717f2a06bb8d02a%40%3Ccommits.druid.apache.org%3E"
+      ]
+    },
+    {
+      "id": "CVE-2018-11767",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2018-11767-apache-hadoop-kms-acl-regression",
+      "title": "Apache Hadoop KMS ACL regression",
+      "published": "2019-03-18",
+      "updated": "2024-08-05",
+      "severity": "HIGH",
+      "cvssScore": 7.4,
+      "cvssVector": "CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:H",
+      "scoreSource": "NVD (CVSS 3.0)",
+      "weakness": [],
+      "affectedText": "2.9.0 to 2.9.1, 2.8.3 to 2.8.4, 2.7.5 to 2.7.6",
+      "fixedText": "2.9.2, 2.8.5, 2.7.7",
+      "ranges": [
+        {
+          "introduced": "2.9.0",
+          "last-affected": "2.9.1"
+        },
+        {
+          "introduced": "2.8.3",
+          "last-affected": "2.8.4"
+        },
+        {
+          "introduced": "2.7.5",
+          "last-affected": "2.7.6"
+        }
+      ],
+      "fixes": [
+        "2.7.7",
+        "2.8.5",
+        "2.9.2"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.9.0 – 2.9.1",
+            "2.8.3 – 2.8.4",
+            "2.7.5 – 2.7.6"
+          ],
+          "fixes": [
+            "2.7.7",
+            "2.8.5",
+            "2.9.2"
+          ]
+        }
+      },
+      "description": "After the security fix for CVE-2017-15713, KMS has an access control regression, blocking users or granting access to users incorrectly, if the system uses non-default groups mapping mechanisms such as LdapGroupsMapping, CompositeGroupsMapping, or NullGroupsMapping.",
+      "impact": "privilege escalation",
+      "advice": "",
+      "reporter": "Wei-Chiu Chuang",
+      "reported": "2018-05-09",
+      "announced": "2019-03-11",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-11767",
+        "https://lists.apache.org/thread.html/5fb771f66946dd5c99a8a5713347c24873846f555d716f9ac17bccca@%3Cgeneral.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/5fb771f66946dd5c99a8a5713347c24873846f555d716f9ac17bccca%40%3Cgeneral.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/246cf223e7dc0c1dff90b78dccb6c3fe94e1a044dbf98e2333393302%40%3Ccommon-issues.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/5a44590b4eedc5e25f5bd3081d1631b52c174b5b99157f7950ddc270%40%3Ccommon-dev.hadoop.apache.org%3E",
+        "https://security.netapp.com/advisory/ntap-20190416-0009/",
+        "https://lists.apache.org/thread.html/9317fd092b257a0815434b116a8af8daea6e920b6673f4fd5583d5fe%40%3Ccommits.druid.apache.org%3E"
+      ]
+    },
+    {
+      "id": "CVE-2018-1296",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2018-1296-apache-hadoop-hdfs-permissive-listxattr-authorization",
+      "title": "Apache Hadoop HDFS Permissive listXAttr Authorization",
+      "published": "2019-02-07",
+      "updated": "2024-09-16",
+      "severity": "HIGH",
+      "cvssScore": 7.5,
+      "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      "scoreSource": "NVD (CVSS 3.0)",
+      "weakness": [],
+      "affectedText": "3.0.0-alpha1 to 3.0.0, 2.9.0, 2.8.0 to 2.8.3, 2.5.0 to 2.7.5",
+      "fixedText": "3.0.1, 2.9.1, 2.8.4, 2.7.6",
+      "ranges": [
+        {
+          "introduced": "3.0.0-alpha1",
+          "last-affected": "3.0.0"
+        },
+        {
+          "introduced": "2.9.0",
+          "last-affected": "2.9.0"
+        },
+        {
+          "introduced": "2.8.0",
+          "last-affected": "2.8.3"
+        },
+        {
+          "introduced": "2.5.0",
+          "last-affected": "2.7.5"
+        }
+      ],
+      "fixes": [
+        "2.7.6",
+        "2.8.4",
+        "2.9.1",
+        "3.0.1"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.9.0",
+            "2.8.0 – 2.8.3",
+            "2.5.0 – 2.7.5"
+          ],
+          "fixes": [
+            "2.7.6",
+            "2.8.4",
+            "2.9.1"
+          ]
+        },
+        "3.x": {
+          "affected": [
+            "3.0.0-alpha1 – 3.0.0"
+          ],
+          "fixes": [
+            "3.0.1"
+          ]
+        }
+      },
+      "description": "HDFS exposes extended attribute key/value pairs during listXAttrs, verifying only path-level search access to the directory rather than path-level read permission to the referent. This affects features that store sensitive data in extended attributes, such as HDFS encryption secrets.",
+      "impact": "information disclosure",
+      "advice": "",
+      "reporter": "Rushabh Shah",
+      "reported": "2018-02-09",
+      "announced": "2019-01-24",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-1296",
+        "https://lists.apache.org/thread.html/752d5fe697ca6be6f472eabb1bcae7961a47d416e4013ac803a2ab2c@%3Cgeneral.hadoop.apache.org%3E",
+        "http://www.securityfocus.com/bid/106764",
+        "https://lists.apache.org/thread.html/a5b15bc76fbdad2ee40761aacf954a13aeef67e305f86d483f267e8e%40%3Cuser.hadoop.apache.org%3E"
+      ]
+    },
+    {
+      "id": "CVE-2018-11766",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2018-11766-apache-hadoop-privilege-escalation-vulnerability",
+      "title": "Apache Hadoop privilege escalation vulnerability",
+      "published": "2018-11-27",
+      "updated": "2024-08-05",
+      "severity": "HIGH",
+      "cvssScore": 8.8,
+      "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.0)",
+      "weakness": [],
+      "affectedText": "2.7.4 to 2.7.6",
+      "fixedText": "2.7.7",
+      "ranges": [
+        {
+          "introduced": "2.7.4",
+          "last-affected": "2.7.6"
+        }
+      ],
+      "fixes": [
+        "2.7.7"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.7.4 – 2.7.6"
+          ],
+          "fixes": [
+            "2.7.7"
+          ]
+        }
+      },
+      "description": "In Apache Hadoop 2.7.4 to 2.7.6, the security fix for CVE-2016-6811 is incomplete. A user who can escalate to yarn user can possibly run arbitrary commands as root user.",
+      "impact": "privilege escalation",
+      "advice": "",
+      "reporter": "Wilfred Spiegelenburg",
+      "reported": "2018-05-04",
+      "announced": "2018-11-27",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-11766",
+        "https://lists.apache.org/thread.html/ff37bbbe09d5f03090e2dd2c3dea95de16ef4249e731f19b8959ce4c@%3Cgeneral.hadoop.apache.org%3E",
+        "http://www.securityfocus.com/bid/106035",
+        "https://lists.apache.org/thread.html/ff37bbbe09d5f03090e2dd2c3dea95de16ef4249e731f19b8959ce4c%40%3Cgeneral.hadoop.apache.org%3E"
+      ]
+    },
+    {
+      "id": "CVE-2018-8009",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2018-8009-apache-hadoop-distributed-cache-archive-vulnerability",
+      "title": "Apache Hadoop distributed cache archive vulnerability",
+      "published": "2018-11-13",
+      "updated": "2024-08-05",
+      "severity": "HIGH",
+      "cvssScore": 8.8,
+      "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.0)",
+      "weakness": [],
+      "affectedText": "3.1.0, 3.0.0-alpha to 3.0.2, 2.9.0 to 2.9.1, 2.8.0 to 2.8.4, 2.0.0-alpha to 2.7.6, 0.23.0 to 0.23.11",
+      "fixedText": "3.1.1, 3.0.3, 2.9.2, 2.8.5, 2.7.7",
+      "ranges": [
+        {
+          "introduced": "3.1.0",
+          "last-affected": "3.1.0"
+        },
+        {
+          "introduced": "3.0.0-alpha",
+          "last-affected": "3.0.2"
+        },
+        {
+          "introduced": "2.9.0",
+          "last-affected": "2.9.1"
+        },
+        {
+          "introduced": "2.8.0",
+          "last-affected": "2.8.4"
+        },
+        {
+          "introduced": "2.0.0-alpha",
+          "last-affected": "2.7.6"
+        },
+        {
+          "introduced": "0.23.0",
+          "last-affected": "0.23.11"
+        }
+      ],
+      "fixes": [
+        "2.7.7",
+        "2.8.5",
+        "2.9.2",
+        "3.0.3",
+        "3.1.1"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.9.0 – 2.9.1",
+            "2.8.0 – 2.8.4",
+            "2.0.0-alpha – 2.7.6"
+          ],
+          "fixes": [
+            "2.7.7",
+            "2.8.5",
+            "2.9.2"
+          ]
+        },
+        "3.x": {
+          "affected": [
+            "3.1.0",
+            "3.0.0-alpha – 3.0.2"
+          ],
+          "fixes": [
+            "3.0.3",
+            "3.1.1"
+          ]
+        }
+      },
+      "description": "Vulnerability allows a cluster user to publish a public archive that can affect other files owned by the user running the YARN NodeManager daemon. If the impacted files belong to another already localized, public archive on the node then code can be injected into the jobs of other cluster users using the public archive.",
+      "impact": "injection attack",
+      "advice": "",
+      "reporter": "Snyk Security Research Team",
+      "reported": "2018-04-19",
+      "announced": "2018-11-22",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-8009",
+        "https://lists.apache.org/thread.html/a1c227745ce30acbcf388c5b0cc8423e8bf495d619cd0fa973f7f38d@%3Cuser.hadoop.apache.org%3E",
+        "https://snyk.io/research/zip-slip-vulnerability",
+        "http://www.securityfocus.com/bid/105927",
+        "https://lists.apache.org/thread.html/a1c227745ce30acbcf388c5b0cc8423e8bf495d619cd0fa973f7f38d%40%3Cuser.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/708d94141126eac03011144a971a6411fcac16d9c248d1d535a39451%40%3Csolr-user.lucene.apache.org%3E",
+        "https://access.redhat.com/errata/RHSA-2019:3892",
+        "https://lists.apache.org/thread.html/r4dddf1705dbedfa94392913b2dad1cd2d1d89040facd389eea0b3510%40%3Ccommits.druid.apache.org%3E",
+        "https://lists.apache.org/thread.html/rb21df54a4e39732ce653d2aa5672e36a792b59eb6717f2a06bb8d02a%40%3Ccommits.druid.apache.org%3E"
+      ]
+    },
+    {
+      "id": "CVE-2017-15718",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2017-15718-apache-hadoop-yarn-nodemanager-vulnerability",
+      "title": "Apache Hadoop YARN NodeManager vulnerability",
+      "published": "2018-01-24",
+      "updated": "2024-09-17",
+      "severity": "CRITICAL",
+      "cvssScore": 9.8,
+      "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.0)",
+      "weakness": [],
+      "affectedText": "2.7.3, 2.7.4",
+      "fixedText": "2.7.5",
+      "ranges": [
+        {
+          "introduced": "2.7.3",
+          "last-affected": "2.7.3"
+        },
+        {
+          "introduced": "2.7.4",
+          "last-affected": "2.7.4"
+        }
+      ],
+      "fixes": [
+        "2.7.5"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.7.3",
+            "2.7.4"
+          ],
+          "fixes": [
+            "2.7.5"
+          ]
+        }
+      },
+      "description": "In Apache Hadoop 2.7.3 and 2.7.4, the security fix for CVE-2016-3086 is incomplete. The YARN NodeManager can leak the password for credential store provider used by the NodeManager to YARN Applications.\n\nIf you use the CredentialProvider feature to encrypt passwords used in NodeManager configs, it may be possible for any Container launched by that NodeManager to gain access to the encryption password. The other passwords themselves are not directly exposed.",
+      "impact": "privilege escalation",
+      "advice": "",
+      "reporter": "Vinayakumar B.",
+      "reported": "2017-09-18",
+      "announced": "2018-01-24",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-15718",
+        "https://lists.apache.org/thread.html/23a277506bc0d85c1bbe5c0766ffe55e8c3923c8d6f58893b6966957@%3Cuser.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/773c93c2d8a6a52bbe97610c2b1c2ad205b970e1b8c04fb5b2fccad6%40%3Cgeneral.hadoop.apache.org%3E"
+      ]
+    },
+    {
+      "id": "CVE-2017-15713",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2017-15713-apache-hadoop-mapreduce-job-history-server-vulnerability",
+      "title": "Apache Hadoop MapReduce job history server vulnerability",
+      "published": "2018-01-19",
+      "updated": "2024-09-17",
+      "severity": "MEDIUM",
+      "cvssScore": 6.5,
+      "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N",
+      "scoreSource": "NVD (CVSS 3.0)",
+      "weakness": [],
+      "affectedText": "3.0.0-alpha to 3.0.0-beta1, 2.8.0 to 2.8.2, 2.0.0-alpha to 2.7.4, 0.23.0 to 0.23.11",
+      "fixedText": "3.0.0, 2.9.0, 2.8.3, 2.7.5",
+      "ranges": [
+        {
+          "introduced": "3.0.0-alpha",
+          "last-affected": "3.0.0-beta1"
+        },
+        {
+          "introduced": "2.8.0",
+          "last-affected": "2.8.2"
+        },
+        {
+          "introduced": "2.0.0-alpha",
+          "last-affected": "2.7.4"
+        },
+        {
+          "introduced": "0.23.0",
+          "last-affected": "0.23.11"
+        }
+      ],
+      "fixes": [
+        "2.7.5",
+        "2.8.3",
+        "2.9.0",
+        "3.0.0"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.8.0 – 2.8.2",
+            "2.0.0-alpha – 2.7.4"
+          ],
+          "fixes": [
+            "2.7.5",
+            "2.8.3",
+            "2.9.0"
+          ]
+        },
+        "3.x": {
+          "affected": [
+            "3.0.0-alpha – 3.0.0-beta1"
+          ],
+          "fixes": [
+            "3.0.0"
+          ]
+        }
+      },
+      "description": "Vulnerability allows a cluster user to expose private files owned by the user running the MapReduce job history server process. The malicious user can construct a configuration file containing XML directives that reference sensitive files on the MapReduce job history server host.",
+      "impact": "privilege escalation",
+      "advice": "",
+      "reporter": "Man Yue Mo of lgtm.com",
+      "reported": "2017-06-30",
+      "announced": "2018-01-19",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-15713",
+        "https://lists.apache.org/thread.html/9e5d86d5792d04f8a3b458f735e63fa9bdfe28ff454de257a2e02f18@%3Cuser.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/a790a251ace7213bde9f69777dedb453b1a01a6d18289c14a61d4f91%40%3Cgeneral.hadoop.apache.org%3E"
+      ]
+    },
+    {
+      "id": "CVE-2017-3166",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2017-3166-apache-hadoop-privilege-escalation-vulnerability",
+      "title": "Apache Hadoop Privilege escalation vulnerability",
+      "published": "2017-11-13",
+      "updated": "2024-09-16",
+      "severity": "HIGH",
+      "cvssScore": 7.8,
+      "cvssVector": "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.0)",
+      "weakness": [],
+      "affectedText": "3.0.0-alpha1 - 3.0.0-alpha3 , 2.7.0 to 2.7.3, 2.6.1-2.6.5",
+      "fixedText": "3.0.0-alpha4, 2.8.0, 2.7.4",
+      "ranges": [
+        {
+          "introduced": "3.0.0-alpha1",
+          "last-affected": "3.0.0-alpha3"
+        },
+        {
+          "introduced": "2.7.0",
+          "last-affected": "2.7.3"
+        },
+        {
+          "introduced": "2.6.1",
+          "last-affected": "2.6.5"
+        }
+      ],
+      "fixes": [
+        "2.7.4",
+        "2.8.0",
+        "3.0.0-alpha4"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.7.0 – 2.7.3",
+            "2.6.1 – 2.6.5"
+          ],
+          "fixes": [
+            "2.7.4",
+            "2.8.0"
+          ]
+        },
+        "3.x": {
+          "affected": [
+            "3.0.0-alpha1 – 3.0.0-alpha3"
+          ],
+          "fixes": [
+            "3.0.0-alpha4"
+          ]
+        }
+      },
+      "description": "In a cluster where the YARN user has been granted access to all HDFS encryption keys, if a file in an encryption zone with access permissions that make it world readable is localized via YARN’s localization mechanism, e.g. via the MapReduce distributed cache, that file will be stored in a world-readable location and shared freely with any application that requests to localize that file, no matter who the application owner is or whether that user should be allowed to access files from the target encryption zone.",
+      "impact": "privilege escalation",
+      "advice": "",
+      "reporter": "Luke Herbert",
+      "reported": "2016-11-18",
+      "announced": "2017-11-08",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-3166",
+        "https://lists.apache.org/thread.html/2e16689b44bdd1976b6368c143a4017fc7159d1f2d02a5d54fe9310f@%3Cgeneral.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/2e16689b44bdd1976b6368c143a4017fc7159d1f2d02a5d54fe9310f%40%3Cgeneral.hadoop.apache.org%3E",
+        "https://lists.apache.org/thread.html/9317fd092b257a0815434b116a8af8daea6e920b6673f4fd5583d5fe%40%3Ccommits.druid.apache.org%3E"
+      ]
+    },
+    {
+      "id": "CVE-2016-6811",
+      "url": "https://hadoop.apache.org/cve_list.html#cve-2016-6811-apache-hadoop-privilege-escalation-vulnerability",
+      "title": "Apache Hadoop Privilege escalation vulnerability",
+      "published": "2017-04-11",
+      "updated": "2024-09-16",
+      "severity": "HIGH",
+      "cvssScore": 8.8,
+      "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.0)",
+      "weakness": [],
+      "affectedText": "2.2.0 to 2.7.3",
+      "fixedText": "2.7.4 or newer",
+      "ranges": [
+        {
+          "introduced": "2.2.0",
+          "last-affected": "2.7.3"
+        }
+      ],
+      "fixes": [
+        "2.7.4"
+      ],
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "2.2.0 – 2.7.3"
+          ],
+          "fixes": [
+            "2.7.4"
+          ]
+        }
+      },
+      "description": "A user who can escalate to yarn user can possibly run arbitrary commands as root user.\n\nNote: The fix for this vulnerability is incomplete in Apache Hadoop 2.7.4 to 2.7.6 (CVE-2018-11766).",
+      "impact": "privilege escalation",
+      "advice": "",
+      "reporter": "Freddie Rice",
+      "reported": "2016-07-06",
+      "announced": "2018-05-01",
+      "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-6811",
+        "https://lists.apache.org/thread.html/ff3859a2188c3662240311acddba9cf97992b839792ec0a14d61b4e5@%3Cuser.hadoop.apache.org%3E"
+      ]
+    }
+  ]
+}
