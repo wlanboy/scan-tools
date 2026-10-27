@@ -183,7 +183,9 @@ def iter_feed(path: Path) -> Iterator[Any]:
         if pos == 0:
             raise NvdError(f"{path.name}: unerwartetes Format")
         while True:
-            pos = sep.match(buf, pos).end()
+            m = sep.match(buf, pos)
+            assert m is not None  # [\s,]* matcht immer, notfalls leer
+            pos = m.end()
             if buf.startswith("]", pos):
                 return
             try:
