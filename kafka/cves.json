@@ -28,27 +28,21 @@
           "last-affected": "4.3.0"
         }
       ],
-      "fixes": [
-        "4.0.0",
-        "4.3.0"
-      ],
+      "fixes": [],
+      "affectedUnknown": false,
       "lines": {
         "4.x": {
           "affected": [
             "4.0.0 – 4.3.0"
           ],
-          "fixes": [
-            "4.0.0",
-            "4.3.0"
-          ]
+          "fixes": []
         }
       },
-      "description": "The implementation of the CONSUMER_GROUP_DESCRIBE (69) API validates the DESCRIBE operation on the GROUP resource instead of the READ operation as documented in the official Kafka documentation and KIP-848.\nThis discrepancy can result in misconfigured Access Control Lists (ACLs) and unintended security postures,\nlike granting READ permission to users who should not be able to join/sync groups, or allowing users without READ permission (but with DESCRIBE permission) to access sensitive group metadata.\n\nThe correct permission for CONSUMER_GROUP_DESCRIBE API is DESCRIBE GROUP so the current implementation is correct.\nHowever, the Kafka documentation as well as KIP-848 have been updated to reflect the correct permission.\nWe advise the Kafka users to review existing group ACLs to ensure the principle of least privilege.",
+      "description": "The implementation of the CONSUMER_GROUP_DESCRIBE (69) API validates the DESCRIBE operation on the GROUP resource instead of the READ operation as documented in the official Kafka documentation and KIP-848. This discrepancy can result in misconfigured Access Control Lists (ACLs) and unintended security postures, like granting READ permission to users who should not be able to join/sync groups, or allowing users without READ permission (but with DESCRIBE permission) to access sensitive group metadata.\n\nThe correct permission for CONSUMER_GROUP_DESCRIBE API is DESCRIBE GROUP so the current implementation is correct. However, the Kafka documentation as well as KIP-848 have been updated to reflect the correct permission. We advise the Kafka users to review existing group ACLs to ensure the principle of least privilege.",
       "impact": "This improper authorization can result in misconfigured ACLs and unintended security postures, like granting READ permission to users who should not be able to join/sync groups, or allowing users without READ permission (but with DESCRIBE permission) to access sensitive group metadata.",
       "advice": "Kafka users using 4.0.0 - 4.3.0 are advised to review existing group ACLs to ensure the principle of least privilege.",
       "references": [
-        "https://nvd.nist.gov/vuln/detail/CVE-2026-33558",
-        "https://kafka.apache.org/cve-list"
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-41115"
       ]
     },
     {
@@ -81,6 +75,7 @@
         "4.0.1",
         "4.1.0"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
@@ -106,13 +101,12 @@
           ]
         }
       },
-      "description": "The NetworkClient component will output entire requests and responses information in the DEBUG log level in the logs. By default, the log level is set to INFO level.\nIf the DEBUG level is enabled, the sensitive information will be exposed via the requests and responses output log. The entire lists of impacted requests and responses are:\n\nAlterConfigsRequest\n\nAlterUserScramCredentialsRequest\n\nExpireDelegationTokenRequest\n\nIncrementalAlterConfigsRequest\n\nRenewDelegationTokenRequest\n\nSaslAuthenticateRequest\n\ncreateDelegationTokenResponse\n\ndescribeDelegationTokenResponse\n\nSaslAuthenticateResponse",
+      "description": "The NetworkClient component will output entire requests and responses information in the DEBUG log level in the logs. By default, the log level is set to INFO level. If the DEBUG level is enabled, the sensitive information will be exposed via the requests and responses output log. The entire lists of impacted requests and responses are:\n\nAlterConfigsRequest\n\nAlterUserScramCredentialsRequest\n\nExpireDelegationTokenRequest\n\nIncrementalAlterConfigsRequest\n\nRenewDelegationTokenRequest\n\nSaslAuthenticateRequest\n\ncreateDelegationTokenResponse\n\ndescribeDelegationTokenResponse\n\nSaslAuthenticateResponse",
       "impact": "Sensitive information exposure through network client log output",
       "advice": "Kafka users are advised to use INFO log level or higher for NetworkClient class or upgrade to 3.9.2, 4.0.1, 4.1.0, or later to address this vulnerability.",
       "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-33558",
         "https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients",
-        "https://nvd.nist.gov/vuln/detail/CVE-2026-33557",
-        "https://kafka.apache.org/cve-list",
         "https://lists.apache.org/thread/pz5g4ky3h0k91tfd14p0dzqjp80960kl"
       ]
     },
@@ -141,6 +135,7 @@
         "4.1.2",
         "4.2.0"
       ],
+      "affectedUnknown": false,
       "lines": {
         "4.x": {
           "affected": [
@@ -152,12 +147,11 @@
           ]
         }
       },
-      "description": "When sasl.enabled.mechanisms=OAUTHBEARER is configured on the server side, by default the broker property sasl.oauthbearer.jwt.validator.class is set to org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator.\nIt accepts any JWT token without validating its signature, issuer, or audience. An attacker can generate a JWT token from any issuer with the preferred_username set to any user, and the broker will accept it.",
+      "description": "When sasl.enabled.mechanisms=OAUTHBEARER is configured on the server side, by default the broker property sasl.oauthbearer.jwt.validator.class is set to org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator. It accepts any JWT token without validating its signature, issuer, or audience. An attacker can generate a JWT token from any issuer with the preferred_username set to any user, and the broker will accept it.",
       "impact": "An attacker can generate a JWT token from any issuer with the preferred_username set to any user, and the broker will accept it.",
       "advice": "We advise the Kafka users using kafka v4.1.0 or v4.1.1 to set the config sasl.oauthbearer.jwt.validator.class to org.apache.kafka.common.security.oauthbearer.BrokerJwtValidator explicitly to avoid this vulnerability. Or upgrade to v4.1.2, v4.2.0 and later.",
       "references": [
-        "https://nvd.nist.gov/vuln/detail/CVE-2026-35554",
-        "https://kafka.apache.org/cve-list",
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-33557",
         "https://lists.apache.org/thread/v57o00hm6yszdpdnvqx2ss4561yh953h"
       ]
     },
@@ -197,6 +191,7 @@
         "4.1.2",
         "4.2.0"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
@@ -228,9 +223,9 @@
       "impact": "Kafka producer messages may be silently delivered to incorrect topics due to a buffer pool race condition, potentially exposing sensitive data to unintended consumers and causing data integrity issues.",
       "advice": "Kafka users are advised to upgrade to 3.9.2, 4.0.2, 4.1.2, 4.2.0, or later to address this vulnerability.",
       "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-35554",
         "https://issues.apache.org/jira/browse/KAFKA-19012",
         "https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients",
-        "https://nvd.nist.gov/vuln/detail/CVE-2025-27819",
         "https://lists.apache.org/thread/f07x7j8ovyqhjd1to25jsnqbm6wj01d6"
       ]
     },
@@ -259,6 +254,7 @@
         "3.9.1",
         "4.0.0"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
@@ -279,8 +275,7 @@
       "impact": "Possible RCE/Denial of service attack via SASL JAAS JndiLoginModule configuration",
       "advice": "We advise all Kafka users to upgrade kafka to version >=3.9.1.",
       "references": [
-        "https://nvd.nist.gov/vuln/detail/CVE-2025-27818",
-        "https://kafka.apache.org/cve-list"
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-27819"
       ]
     },
     {
@@ -308,6 +303,7 @@
         "3.9.1",
         "4.0.0"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
@@ -328,8 +324,7 @@
       "impact": "Possible RCE attack via SASL JAAS LdapLoginModule configuration",
       "advice": "We advise all Kafka users to upgrade kafka to version >=3.9.1.",
       "references": [
-        "https://nvd.nist.gov/vuln/detail/CVE-2025-27817",
-        "https://kafka.apache.org/cve-list"
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-27818"
       ]
     },
     {
@@ -355,6 +350,7 @@
         "3.9.1",
         "4.0.0"
       ],
+      "affectedUnknown": false,
       "lines": {
         "3.x": {
           "affected": [
@@ -369,8 +365,7 @@
       "impact": "Arbitrary file read and SSRF vulnerability",
       "advice": "We advise all Kafka users to upgrade kafka to version >=3.9.1 and set the JVM system property org.apache.kafka.sasl.oauthbearer.allowed.urls to the desired value.",
       "references": [
-        "https://nvd.nist.gov/vuln/detail/CVE-2024-56128",
-        "https://kafka.apache.org/cve-list"
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-27817"
       ]
     },
     {
@@ -403,6 +398,7 @@
         "3.8.1",
         "3.9.0"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
@@ -426,7 +422,7 @@
       "impact": "SCRAM authentication vulnerable to replay attacks when used without encryption.",
       "advice": "Users are advised to upgrade to 3.7.2 or later to mitigate this issue.Users unable to upgrade to the fixed versions can mitigate the issue by using TLS with SCRAM Authentication.Considering alternative authentication mechanisms such as PLAIN, Kerberos or OAuth with TLS, which provide additional layers of security",
       "references": [
-        "https://nvd.nist.gov/vuln/detail/CVE-2024-31141",
+        "https://nvd.nist.gov/vuln/detail/CVE-2024-56128",
         "https://datatracker.ietf.org/doc/html/rfc5802",
         "https://datatracker.ietf.org/doc/html/rfc5802#section-9",
         "https://kafka.apache.org/documentation/#security_sasl_scram_security",
@@ -459,6 +455,7 @@
         "3.7.1",
         "3.8.0"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
@@ -480,7 +477,7 @@
       "impact": "Contents of disks and environment variables of applications using Kafka Clients may be leaked to untrusted parties.",
       "advice": "Users with affected applications are recommended to upgrade kafka-clients to version >=3.8.0, and set the JVM system property “org.apache.kafka.automatic.config.providers=none”.Users of Kafka Connect with one of the listed ConfigProvider implementations specified in their worker config are also recommended to add appropriate “allowlist.pattern” and “allowed.paths” to restrict their operation to appropriate bounds.For users of Kafka Clients or Kafka Connect in environments that trust users with disk and environment variable access, it is not recommended to set the system property.For users of the Kafka Broker, Kafka MirrorMaker 2.0, Kafka Streams, and Kafka command-line tools, it is not recommended to set the system property.",
       "references": [
-        "https://nvd.nist.gov/vuln/detail/CVE-2024-27309",
+        "https://nvd.nist.gov/vuln/detail/CVE-2024-31141",
         "https://lists.apache.org/thread/9whdzfr0zwdhr364604w5ssnzmg4v2lv"
       ]
     },
@@ -508,6 +505,7 @@
       "fixes": [
         "3.6.2"
       ],
+      "affectedUnknown": false,
       "lines": {
         "3.x": {
           "affected": [
@@ -518,11 +516,11 @@
           ]
         }
       },
-      "description": "While an Apache Kafka cluster is being migrated from ZooKeeper mode to KRaft mode, in some cases ACLs will not be correctly enforced. Two preconditions are needed to trigger the bug:\n\nThe administrator decides to remove an ACL\n\nThe resource associated with the removed ACL continues to have two or more other ACLs associated with it after the removal.\nWhen those two preconditions are met, Kafka will treat the resource as if it had only one ACL associated with it after the removal, rather than the two or more that would be correct. The incorrect condition is cleared by removing all brokers in ZK mode, or by adding a new ACL to the affected resource. Once the migration is completed, there is no metadata loss (the ACLs all remain).",
+      "description": "While an Apache Kafka cluster is being migrated from ZooKeeper mode to KRaft mode, in some cases ACLs will not be correctly enforced. Two preconditions are needed to trigger the bug:\n\nThe administrator decides to remove an ACL\n\nThe resource associated with the removed ACL continues to have two or more other ACLs associated with it after the removal. When those two preconditions are met, Kafka will treat the resource as if it had only one ACL associated with it after the removal, rather than the two or more that would be correct. The incorrect condition is cleared by removing all brokers in ZK mode, or by adding a new ACL to the affected resource. Once the migration is completed, there is no metadata loss (the ACLs all remain).",
       "impact": "The impact depends on the ACLs in use. If only ALLOW ACLs were configured during the migration, the impact would be limited to availability impact. if DENY ACLs were configured, the impact could include confidentiality and integrity impact depending on the ACLs configured, as the DENY ACLs might be ignored due to this vulnerability during the migration period.",
       "advice": "We advise all Kafka users using ACLs to only perform ZooKeeper to KRaft migrations when using Kafka 3.6.2 or above.",
       "references": [
-        "https://nvd.nist.gov/vuln/detail/CVE-2023-34455",
+        "https://nvd.nist.gov/vuln/detail/CVE-2024-27309",
         "https://lists.apache.org/thread/6536rmzyg076lzzdw2xdktvnz163mjpy",
         "http://www.openwall.com/lists/oss-security/2024/04/12/3",
         "https://security.netapp.com/advisory/ntap-20240705-0002/"
@@ -552,6 +550,7 @@
       "fixes": [
         "3.5.1"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
@@ -572,13 +571,9 @@
       "impact": "This vulnerability allows any user who can produce data to the broker to exploit the vulnerability, potentially causing an Out-of-Memory (OOM) condition, leading to Denial-of-Service(DoS) on the Kafka broker. It could be exploited by sending a malicious payload in the record which is compressed using snappy. On receiving the record, the broker will try to de-compress the record to perform record validation and it will delegate decompression to snappy-java library. The vulnerability in the snappy-java library may cause allocation of an unexpected amount of heap memory, causing an OOM on the broker. Any configured quota will not be able to prevent this because a single record can exploit this vulnerability.",
       "advice": "We advise all Kafka users to promptly upgrade to a version of snappy-java (>=1.1.10.1) to mitigate this vulnerability. The latest version (1.1.10.1, as of July 5, 2023) of snappy-java is backward compatible with all affected versions of Kafka. The affected library jar for snappy-java should be replaced with this newer version.",
       "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2023-34455",
         "https://github.com/xerial/snappy-java/security/advisories/GHSA-qcwq-55hx-v3vh",
-        "https://github.com/apache/kafka/blob/c97b88d5db4de28d9f51bb11fb71ddd6217c7dda/clients/src/main/java/org/apache/kafka/common/compress/SnappyFactory.java#L44",
-        "https://nvd.nist.gov/vuln/detail/CVE-2023-25194",
-        "https://github.com/xerial/snappy-java/commit/3bf67857fcf70d9eea56eed4af7c925671e8eaea",
-        "https://github.com/xerial/snappy-java/blob/05c39b2ca9b5b7b39611529cc302d3d796329611/src/main/java/org/xerial/snappy/SnappyInputStream.java#L388",
-        "https://github.com/xerial/snappy-java/blob/master/src/main/java/org/xerial/snappy/SnappyInputStream.java",
-        "https://security.netapp.com/advisory/ntap-20230818-0009/"
+        "https://github.com/apache/kafka/blob/c97b88d5db4de28d9f51bb11fb71ddd6217c7dda/clients/src/main/java/org/apache/kafka/common/compress/SnappyFactory.java#L44"
       ]
     },
     {
@@ -605,6 +600,7 @@
       "fixes": [
         "3.4.0"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
@@ -625,10 +621,9 @@
       "impact": "When configuring the connector via the Kafka Connect REST API, an authenticated operator can set the sasl.jaas.config property for any of the connector’s Kafka clients to “com.sun.security.auth.module.JndiLoginModule”, which can be done via the producer.override.sasl.jaas.config, consumer.override.sasl.jaas.config, or admin.override.sasl.jaas.config properties. This will allow the server to connect to the attacker’s LDAP server and deserialize the LDAP response, which the attacker can use to execute java deserialization gadget chains on the Kafka connect server. Attacker can cause unrestricted deserialization of untrusted data (or) RCE vulnerability when there are gadgets in the classpath.",
       "advice": "Since Apache Kafka 3.0.0, users are allowed to specify these properties in connector configurations for Kafka Connect clusters running with out-of-the-box configurations. Before Apache Kafka 3.0.0, users may not specify these properties unless the Kafka Connect cluster has been reconfigured with a connector client override policy that permits them. Since Apache Kafka 3.4.0, we have added a system property (\"-Dorg.apache.kafka.disallowed.login.modules\") to disable the problematic login modules usage in SASL JAAS configuration. Also by default “com.sun.security.auth.module.JndiLoginModule” is disabled in Apache Kafka 3.4.0. We advise the Kafka Connect users to validate connector configurations and only allow trusted JNDI configurations. Also examine connector dependencies for vulnerable versions and either upgrade their connectors, upgrading that specific dependency, or removing the connectors as options for remediation. Finally, in addition to leveraging the “org.apache.kafka.disallowed.login.modules” system property, Kafka Connect users can also implement their own connector client config override policy, which can be used to control which Kafka client properties can be overridden directly in a connector config and which cannot.",
       "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2023-25194",
         "https://mvnrepository.com/artifact/org.apache.kafka/connect-api",
         "https://mvnrepository.com/artifact/org.apache.kafka/connect-runtime",
-        "https://nvd.nist.gov/vuln/detail/CVE-2022-34917",
-        "https://kafka.apache.org/cve-list",
         "https://lists.apache.org/thread/vy1c7fqcdqvq5grcqp6q5jyyb302khyz",
         "http://packetstormsecurity.com/files/173151/Apache-Druid-JNDI-Injection-Remote-Code-Execution.html"
       ]
@@ -672,6 +667,7 @@
         "3.1.2",
         "3.2.3"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
@@ -698,8 +694,7 @@
       "impact": "Example scenarios in which attacker can cause OutOfMemoryError on brokers - Kafka cluster without authentication: Any clients able to establish a network connection to a broker can trigger the issue. - Kafka cluster with SASL authentication: Any clients able to establish a network connection to a broker, without the need for valid SASL credentials, can trigger the issue. - Kafka cluster with TLS authentication: Only clients able to successfully authenticate via TLS can trigger the issue.",
       "advice": "",
       "references": [
-        "https://nvd.nist.gov/vuln/detail/CVE-2022-23302",
-        "https://kafka.apache.org/cve-list"
+        "https://nvd.nist.gov/vuln/detail/CVE-2022-34917"
       ]
     },
     {
@@ -719,29 +714,24 @@
       "fixedText": "In the absence of a new log4j 1.x release, one can remove Chainsaw from the log4j-1.2.17.jar artifact.",
       "ranges": [
         {
-          "introduced": "1.2.1",
+          "introduced": "",
           "last-affected": ""
         }
       ],
       "fixes": [
         "1.2.17"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
-            "1.2.1 – neueste"
+            "alle Versionen"
           ],
           "fixes": []
         },
         "3.x": {
           "affected": [
-            "1.2.1 – neueste"
-          ],
-          "fixes": []
-        },
-        "4.x": {
-          "affected": [
-            "1.2.1 – neueste"
+            "alle Versionen"
           ],
           "fixes": []
         }
@@ -750,11 +740,7 @@
       "impact": "When an attacker has the ability to start Chainsaw and is able to generate malicious log entries it allows deserialization of untrusted data.",
       "advice": "",
       "references": [
-        "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-45046",
-        "https://logging.apache.org/log4j/1.2/index.html",
-        "https://lists.apache.org/thread/rg4yyc89vs3dw6kpy3r92xop9loywyhh",
-        "https://www.oracle.com/security-alerts/cpuapr2022.html",
-        "https://www.oracle.com/security-alerts/cpujul2022.html"
+        "https://nvd.nist.gov/vuln/detail/CVE-2022-23307"
       ]
     },
     {
@@ -774,29 +760,24 @@
       "fixedText": "In the absence of a new log4j 1.x release, one can remove JDBCAppender class from the log4j-1.2.17.jar artifact.",
       "ranges": [
         {
-          "introduced": "1.2.1",
+          "introduced": "",
           "last-affected": ""
         }
       ],
       "fixes": [
         "1.2.17"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
-            "1.2.1 – neueste"
+            "alle Versionen"
           ],
           "fixes": []
         },
         "3.x": {
           "affected": [
-            "1.2.1 – neueste"
-          ],
-          "fixes": []
-        },
-        "4.x": {
-          "affected": [
-            "1.2.1 – neueste"
+            "alle Versionen"
           ],
           "fixes": []
         }
@@ -805,13 +786,7 @@
       "impact": "This issue could result in a SQL injection attack when the application is configured to use JDBCAppender.",
       "advice": "",
       "references": [
-        "https://nvd.nist.gov/vuln/detail/CVE-2022-23307",
-        "https://logging.apache.org/log4j/1.2/index.html",
-        "https://lists.apache.org/thread/pt6lh3pbsvxqlwlp4c5l798dv2hkc85y",
-        "http://www.openwall.com/lists/oss-security/2022/01/18/4",
-        "https://www.oracle.com/security-alerts/cpuapr2022.html",
-        "https://security.netapp.com/advisory/ntap-20220217-0007/",
-        "https://www.oracle.com/security-alerts/cpujul2022.html"
+        "https://nvd.nist.gov/vuln/detail/CVE-2022-23305"
       ]
     },
     {
@@ -831,29 +806,24 @@
       "fixedText": "In the absence of a new log4j 1.x release, one can remove JMSSink class from the log4j-1.2.17.jar artifact.",
       "ranges": [
         {
-          "introduced": "1.0.1",
+          "introduced": "",
           "last-affected": ""
         }
       ],
       "fixes": [
         "1.2.17"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
-            "1.0.1 – neueste"
+            "alle Versionen"
           ],
           "fixes": []
         },
         "3.x": {
           "affected": [
-            "1.0.1 – neueste"
-          ],
-          "fixes": []
-        },
-        "4.x": {
-          "affected": [
-            "1.0.1 – neueste"
+            "alle Versionen"
           ],
           "fixes": []
         }
@@ -862,13 +832,7 @@
       "impact": "When the attacker has write access to the Log4j configuration or if the configuration references an LDAP service the attacker has access to. The attacker can provide a configuration causing JMSSink to perform JNDI requests that result in remote code execution.",
       "advice": "",
       "references": [
-        "https://nvd.nist.gov/vuln/detail/CVE-2022-23305",
-        "https://lists.apache.org/thread/bsr3l5qz4g0myrjhy9h67bcxodpkwj4w",
-        "https://logging.apache.org/log4j/1.2/index.html",
-        "http://www.openwall.com/lists/oss-security/2022/01/18/3",
-        "https://www.oracle.com/security-alerts/cpuapr2022.html",
-        "https://security.netapp.com/advisory/ntap-20220217-0006/",
-        "https://www.oracle.com/security-alerts/cpujul2022.html"
+        "https://nvd.nist.gov/vuln/detail/CVE-2022-23302"
       ]
     },
     {
@@ -888,33 +852,13 @@
       "fixedText": "NA",
       "ranges": [],
       "fixes": [],
+      "affectedUnknown": false,
       "lines": {},
       "description": "Some components in Apache Kafka use Log4j-v1.2.17 there is no dependence on Log4j v2.*. Check with the vendor of any connector plugin that includes a Log4J 2.x JAR file.\n\nUsers should NOT be impacted by this vulnerability",
       "impact": "NA",
       "advice": "",
       "references": [
-        "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44228",
-        "https://psirt.global.sonicwall.com/vuln-detail/SNWLID-2021-0032",
-        "https://www.oracle.com/security-alerts/alert-cve-2021-44228.html",
-        "https://www.cve.org/CVERecord?id=CVE-2021-44228",
-        "http://www.openwall.com/lists/oss-security/2021/12/14/4",
-        "https://logging.apache.org/log4j/2.x/security.html",
-        "https://www.kb.cert.org/vuls/id/930724",
-        "https://cert-portal.siemens.com/productcert/pdf/ssa-661247.pdf",
-        "https://www.intel.com/content/www/us/en/security-center/advisory/intel-sa-00646.html",
-        "https://tools.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-apache-log4j-qRuKNEbd",
-        "http://www.openwall.com/lists/oss-security/2021/12/15/3",
-        "https://cert-portal.siemens.com/productcert/pdf/ssa-714170.pdf",
-        "https://www.debian.org/security/2021/dsa-5022",
-        "http://www.openwall.com/lists/oss-security/2021/12/18/1",
-        "https://cert-portal.siemens.com/productcert/pdf/ssa-397453.pdf",
-        "https://cert-portal.siemens.com/productcert/pdf/ssa-479842.pdf",
-        "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/EOKPQGV24RRBBI4TBZUDQMM4MEH7MXCY/",
-        "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/SIG7FZULMNK2XF6FZRU4VWYDQXNMUGAJ/",
-        "https://www.oracle.com/security-alerts/cpujan2022.html",
-        "https://www.oracle.com/security-alerts/cpuapr2022.html",
-        "https://www.oracle.com/security-alerts/cpujul2022.html",
-        "https://security.gentoo.org/glsa/202310-16"
+        "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-45046"
       ]
     },
     {
@@ -932,31 +876,36 @@
       ],
       "affectedText": "All versions",
       "fixedText": "In the absence of a new log4j 1.x release, one can remove JMSAppender from the log4j-1.2.17.jar artifact. Commands are listed in the page http://slf4j.org/log4shell.html.We also recommend that configuration files be protected against write access as stated in http://slf4j.org/log4shell.html.",
-      "ranges": [],
+      "ranges": [
+        {
+          "introduced": "",
+          "last-affected": ""
+        }
+      ],
       "fixes": [
         "1.2.17"
       ],
-      "lines": {},
+      "affectedUnknown": false,
+      "lines": {
+        "2.x": {
+          "affected": [
+            "alle Versionen"
+          ],
+          "fixes": []
+        },
+        "3.x": {
+          "affected": [
+            "alle Versionen"
+          ],
+          "fixes": []
+        }
+      },
       "description": "The following components in Apache Kafka use Log4j-v1.2.17: broker, controller, zookeeper, connect, mirrormaker and tools. Clients may also be configured to use Log4j-v1.x.\n\nVersion 1.x of Log4J can be configured to use JMS Appender, which publishes log events to a JMS Topic. Log4j 1.x is vulnerable if the deployed application is configured to use JMSAppender.",
       "impact": "This issue could result in a remote code execution attack when the application is configured to use JMSAppender AND the attacker has access to directly modify the TopicBindingName or TopicConnectionFactoryBindingName configuration variables in property files which is typically an unlikely exploitation scenario.",
       "advice": "",
       "references": [
-        "http://slf4j.org/log4shell.html",
-        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-38153",
-        "https://www.cve.org/CVERecord?id=CVE-2021-44228",
-        "https://github.com/apache/logging-log4j2/pull/608#issuecomment-990494126",
         "https://access.redhat.com/security/cve/CVE-2021-4104",
-        "https://www.kb.cert.org/vuls/id/930724",
-        "http://www.openwall.com/lists/oss-security/2022/01/18/3",
-        "https://www.oracle.com/security-alerts/cpujan2022.html",
-        "https://psirt.global.sonicwall.com/vuln-detail/SNWLID-2021-0033",
-        "https://security.netapp.com/advisory/ntap-20211223-0007/",
-        "https://www.oracle.com/security-alerts/cpuapr2022.html",
-        "https://www.oracle.com/security-alerts/cpujul2022.html",
-        "https://security.gentoo.org/glsa/202209-02",
-        "https://security.gentoo.org/glsa/202310-16",
-        "https://security.gentoo.org/glsa/202312-02",
-        "https://security.gentoo.org/glsa/202312-04"
+        "http://slf4j.org/log4shell.html"
       ]
     },
     {
@@ -978,65 +927,15 @@
       "fixedText": "NA",
       "ranges": [],
       "fixes": [],
+      "affectedUnknown": false,
       "lines": {},
       "description": "Some components in Apache Kafka use Log4j-v1.2.17 there is no dependence on Log4j v2.*. Check with the vendor of any connector plugin that includes a Log4J 2.x JAR file.\n\nLookups feature was introduced in Log4j v2.x in order to allow specifying Log4j configuration parameters in arbitrary locations (even outside of the configuration files). Log4j v1.x does not offer the same functionality and thus is not vulnerable to CVE-2021-44228.\n\nUsers should NOT be impacted by this vulnerability",
       "impact": "NA",
       "advice": "",
       "references": [
+        "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44228",
         "https://logging.apache.org/log4j/2.x/manual/lookups.html",
-        "https://access.redhat.com/security/cve/cve-2021-44228",
-        "https://access.redhat.com/security/cve/CVE-2021-4104",
-        "https://logging.apache.org/log4j/2.x/security.html",
-        "http://www.openwall.com/lists/oss-security/2021/12/10/1",
-        "http://www.openwall.com/lists/oss-security/2021/12/10/2",
-        "https://tools.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-apache-log4j-qRuKNEbd",
-        "http://www.openwall.com/lists/oss-security/2021/12/10/3",
-        "https://security.netapp.com/advisory/ntap-20211210-0007/",
-        "http://packetstormsecurity.com/files/165225/Apache-Log4j2-2.14.1-Remote-Code-Execution.html",
-        "https://psirt.global.sonicwall.com/vuln-detail/SNWLID-2021-0032",
-        "https://www.oracle.com/security-alerts/alert-cve-2021-44228.html",
-        "https://www.debian.org/security/2021/dsa-5020",
-        "https://lists.debian.org/debian-lts-announce/2021/12/msg00007.html",
-        "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/VU57UJDCFIASIO35GC55JMKSRXJMCDFM/",
-        "https://msrc-blog.microsoft.com/2021/12/11/microsofts-response-to-cve-2021-44228-apache-log4j2/",
-        "http://www.openwall.com/lists/oss-security/2021/12/13/2",
-        "http://www.openwall.com/lists/oss-security/2021/12/13/1",
-        "http://www.openwall.com/lists/oss-security/2021/12/14/4",
-        "https://www.kb.cert.org/vuls/id/930724",
-        "https://twitter.com/kurtseifried/status/1469345530182455296",
-        "https://cert-portal.siemens.com/productcert/pdf/ssa-661247.pdf",
-        "http://packetstormsecurity.com/files/165260/VMware-Security-Advisory-2021-0028.html",
-        "http://packetstormsecurity.com/files/165270/Apache-Log4j2-2.14.1-Remote-Code-Execution.html",
-        "http://packetstormsecurity.com/files/165261/Apache-Log4j2-2.14.1-Information-Disclosure.html",
-        "https://www.intel.com/content/www/us/en/security-center/advisory/intel-sa-00646.html",
-        "http://www.openwall.com/lists/oss-security/2021/12/15/3",
-        "http://packetstormsecurity.com/files/165282/Log4j-Payload-Generator.html",
-        "http://packetstormsecurity.com/files/165281/Log4j2-Log4Shell-Regexes.html",
-        "http://packetstormsecurity.com/files/165307/Log4j-Remote-Code-Execution-Word-Bypassing.html",
-        "http://packetstormsecurity.com/files/165311/log4j-scan-Extensive-Scanner.html",
-        "http://packetstormsecurity.com/files/165306/L4sh-Log4j-Remote-Code-Execution.html",
-        "https://cert-portal.siemens.com/productcert/pdf/ssa-714170.pdf",
-        "https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/M5CSVUNV4HWZZXGOKNSK6L7RPM7BOKIB/",
-        "http://packetstormsecurity.com/files/165371/VMware-Security-Advisory-2021-0028.4.html",
-        "https://cert-portal.siemens.com/productcert/pdf/ssa-397453.pdf",
-        "https://cert-portal.siemens.com/productcert/pdf/ssa-479842.pdf",
-        "https://www.oracle.com/security-alerts/cpujan2022.html",
-        "http://packetstormsecurity.com/files/165532/Log4Shell-HTTP-Header-Injection.html",
-        "https://github.com/cisagov/log4j-affected-db/blob/develop/SOFTWARE-LIST.md",
-        "http://packetstormsecurity.com/files/165642/VMware-vCenter-Server-Unauthenticated-Log4Shell-JNDI-Injection-Remote-Code-Execution.html",
-        "http://packetstormsecurity.com/files/165673/UniFi-Network-Application-Unauthenticated-Log4Shell-Remote-Code-Execution.html",
-        "http://seclists.org/fulldisclosure/2022/Mar/23",
-        "https://www.bentley.com/en/common-vulnerability-exposure/be-2022-0001",
-        "https://github.com/cisagov/log4j-affected-db",
-        "https://support.apple.com/kb/HT213189",
-        "https://www.oracle.com/security-alerts/cpuapr2022.html",
-        "https://github.com/nu11secur1ty/CVE-mitre/tree/main/CVE-2021-44228",
-        "https://www.nu11secur1ty.com/2021/12/cve-2021-44228.html",
-        "http://seclists.org/fulldisclosure/2022/Jul/11",
-        "http://packetstormsecurity.com/files/167794/Open-Xchange-App-Suite-7.10.x-Cross-Site-Scripting-Command-Injection.html",
-        "http://packetstormsecurity.com/files/167917/MobileIron-Log4Shell-Remote-Command-Execution.html",
-        "http://seclists.org/fulldisclosure/2022/Dec/2",
-        "http://packetstormsecurity.com/files/171626/AD-Manager-Plus-7122-Remote-Code-Execution.html"
+        "https://access.redhat.com/security/cve/cve-2021-44228"
       ]
     },
     {
@@ -1045,10 +944,10 @@
       "title": "Timing Attack Vulnerability for Apache Kafka Connect and Clients",
       "published": "2021-09-22",
       "updated": "2024-08-04",
-      "severity": "",
-      "cvssScore": null,
-      "cvssVector": "",
-      "scoreSource": "",
+      "severity": "MEDIUM",
+      "cvssScore": 5.9,
+      "cvssVector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      "scoreSource": "NVD (CVSS 3.1)",
       "weakness": [
         "CWE-203"
       ],
@@ -1138,6 +1037,7 @@
         "2.8.1",
         "3.0.0"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
@@ -1172,8 +1072,7 @@
       "impact": "This issue could result in privilege escalation.",
       "advice": "",
       "references": [
-        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-12399",
-        "https://kafka.apache.org/cve-list",
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-38153",
         "https://lists.apache.org/thread.html/r35322aec467ddae34002690edaa4d9f16e7df9b5bf7164869b75b62c%40%3Cdev.kafka.apache.org%3E",
         "https://lists.apache.org/thread.html/r45cc0602d5f2cbb72e48896dfadf5e5b87ed85630449598b40e8f0be%40%3Cdev.kafka.apache.org%3E",
         "https://lists.apache.org/thread.html/r45cc0602d5f2cbb72e48896dfadf5e5b87ed85630449598b40e8f0be%40%3Cusers.kafka.apache.org%3E",
@@ -1192,10 +1091,10 @@
       "title": "Apache Kafka Connect REST API may expose plaintext secrets in tasks endpoint",
       "published": "2020-01-14",
       "updated": "2024-08-04",
-      "severity": "",
-      "cvssScore": null,
-      "cvssVector": "",
-      "scoreSource": "",
+      "severity": "HIGH",
+      "cvssScore": 7.5,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      "scoreSource": "NVD (CVSS 3.1)",
       "weakness": [],
       "affectedText": "2.0.0, 2.0.1, 2.1.0, 2.1.1, 2.2.0, 2.2.1, 2.3.0",
       "fixedText": "2.2.2, 2.3.1 and later",
@@ -1233,6 +1132,7 @@
         "2.2.2",
         "2.3.1"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
@@ -1254,7 +1154,7 @@
       "impact": "This issue could result in exposing externalized connector secrets.",
       "advice": "",
       "references": [
-        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-17196",
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-12399",
         "https://lists.apache.org/thread.html/r6af5ed95726874e9add022955be83c192428c248d1c9a1914aff89d9%40%3Cusers.kafka.apache.org%3E",
         "http://www.openwall.com/lists/oss-security/2020/01/14/1",
         "https://lists.apache.org/thread.html/r6af5ed95726874e9add022955be83c192428c248d1c9a1914aff89d9%40%3Cannounce.apache.org%3E",
@@ -1287,10 +1187,10 @@
       "title": "Authenticated clients with Write permission may bypass transaction/idempotent ACL validation",
       "published": "2019-07-11",
       "updated": "2024-08-05",
-      "severity": "",
-      "cvssScore": null,
-      "cvssVector": "",
-      "scoreSource": "",
+      "severity": "HIGH",
+      "cvssScore": 8.8,
+      "cvssVector": "CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "scoreSource": "NVD (CVSS 3.0)",
       "weakness": [],
       "affectedText": "0.11.0.0 to 2.1.0",
       "fixedText": "2.1.1 and later",
@@ -1303,6 +1203,7 @@
       "fixes": [
         "2.1.1"
       ],
+      "affectedUnknown": false,
       "lines": {
         "2.x": {
           "affected": [
@@ -1317,7 +1218,7 @@
       "impact": "This issue could result in privilege escalation.",
       "advice": "",
       "references": [
-        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-1288",
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-17196",
         "http://www.securityfocus.com/bid/109139",
         "https://lists.apache.org/thread.html/d1581fb6464c9bec8a72575c01f5097d68e2fbb230aff24622622a58%40%3Ccommits.kafka.apache.org%3E",
         "https://lists.apache.org/thread.html/b0656d359c7d40ec9f39c8cc61bca66802ef9a2a12ee199f5b0c1442%40%3Cdev.drill.apache.org%3E",
@@ -1337,10 +1238,10 @@
       "title": "Authenticated Kafka clients may interfere with data replication",
       "published": "2018-07-26",
       "updated": "2024-09-17",
-      "severity": "",
-      "cvssScore": null,
-      "cvssVector": "",
-      "scoreSource": "",
+      "severity": "MEDIUM",
+      "cvssScore": 5.4,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:L/A:L",
+      "scoreSource": "NVD (CVSS 3.1)",
       "weakness": [],
       "affectedText": "0.9.0.0 to 0.9.0.1, 0.10.0.0 to 0.10.2.1, 0.11.0.0 to 0.11.0.2, 1.0.0",
       "fixedText": "0.10.2.2, 0.11.0.3, 1.0.1, 1.1.0",
@@ -1368,12 +1269,13 @@
         "1.0.1",
         "1.1.0"
       ],
+      "affectedUnknown": false,
       "lines": {},
       "description": "Authenticated Kafka users may perform action reserved for the Broker via a manually created fetch request interfering with data replication, resulting in data loss.",
       "impact": "This issue could potentially lead to data loss.",
       "advice": "",
       "references": [
-        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-12610",
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-1288",
         "https://lists.apache.org/thread.html/29f61337323f48c47d4b41d74b9e452bd60e65d0e5103af9a6bb2fef%40%3Cusers.kafka.apache.org%3E",
         "http://www.securityfocus.com/bid/104900",
         "https://access.redhat.com/errata/RHSA-2018:3768",
@@ -1392,10 +1294,10 @@
       "title": "Authenticated Kafka clients may impersonate other users",
       "published": "2018-07-26",
       "updated": "2024-09-17",
-      "severity": "",
-      "cvssScore": null,
-      "cvssVector": "",
-      "scoreSource": "",
+      "severity": "MEDIUM",
+      "cvssScore": 6.8,
+      "cvssVector": "CVSS:3.0/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:N",
+      "scoreSource": "NVD (CVSS 3.0)",
       "weakness": [],
       "affectedText": "0.10.0.0 to 0.10.2.1, 0.11.0.0 to 0.11.0.1",
       "fixedText": "0.10.2.2, 0.11.0.2, 1.0.0",
@@ -1414,11 +1316,13 @@
         "0.11.0.2",
         "1.0.0"
       ],
+      "affectedUnknown": false,
       "lines": {},
       "description": "Authenticated Kafka clients may use impersonation via a manually crafted protocol message with SASL/PLAIN or SASL/SCRAM authentication when using the built-in PLAIN or SCRAM server implementations in Apache Kafka.",
       "impact": "This issue could result in privilege escalation.",
       "advice": "",
       "references": [
+        "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-12610",
         "https://github.com/apache/kafka-site//commit/da65ac238ecc2e5f142731f2099865191a4b01c3",
         "https://lists.apache.org/thread.html/b6157be1a09df332294213bd21e90dcf9fe4c1810193be54620e4210%40%3Cusers.kafka.apache.org%3E",
         "http://www.securityfocus.com/bid/104899",
