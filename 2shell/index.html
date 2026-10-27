@@ -10,7 +10,7 @@
   <header>
     <p class="back"><a href="../">← Übersicht</a></p>
     <h1>Node2Shell / Python2Shell / HTTP2Shell (CVE-2026-111497)</h1>
-    <p class="muted">Stand: 26.10.2026</p>
+    <p class="muted">Stand: 27.10.2026</p>
   </header>
 
   <main>
@@ -29,6 +29,8 @@
   <li>Seit dem 22.10. gibt es öffentlichen Exploit-Code. Seit dem 24.10. liegt laut Mallory auch ein öffentlicher Exploit gegen das offizielle, unveränderte Image Node 24.22.0 auf x86_64 vor. Er greift eine Express-5-/body-parser-2.x-Route an, die große Request-Bodies annimmt, und trifft in einem von sieben bis zehn Versuchen. Jeder Fehlversuch bringt den Worker zum Absturz. Startet ein Process Manager ihn neu, versucht es der Exploit einfach wieder. Unabhängig bestätigt hat das bisher niemand: Aikido und Brandefense kennen nur öffentlichen Code, der Abstürze auslöst oder auf einem absichtlich geschwächten Build läuft.</li>
   <li>Mit eigenen, nicht veröffentlichten Exploits haben Forscher Code Execution auf dem offiziellen Image Node 24.22.0 gezeigt: Imperva auf arm64 nach mehreren Versuchen, OtterSec laut Robert Chen auf x86_64 mit ASLR in 50 von 50 Versuchen (geschrieben von einem KI-Agenten in fünf Stunden).</li>
   <li>Aktive Angriffe sind laut Mallory und NCSC-NL bis 25.10. nicht bekannt. Der EPSS-Wert liegt bei 0,7 %. CISA führt die Lücke am 26.10. noch nicht im KEV-Katalog (Version 2026.10.23).</li>
+  <li>[update] ELLIO meldet den ersten echten Ausnutzungsversuch. Am 26.10. um 15:08 UTC kam in ELLIOs Deception-Netz ein einzelner Brotli-Request mit 23.069.983 Bytes von 94.154.43.7 an, gebaut für Node 24.22.0 auf x86_64. Ob der Angreifer damit irgendwo Erfolg hatte, ist nicht bekannt. Davor hat ein Scanner mit dem User-Agent <code>node2shell-check/1.0</code> aus AS44620 (Türkei) mit 20 <code>br</code>-Bodies geprüft, welche Hosts Brotli überhaupt entpacken. Im Labor bekam ELLIO mit offiziellen Binaries auf allen vier Zielen eine Shell: <code>node:http</code> mit <code>node:zlib</code>, das Image <code>node:24.22.0-slim</code>, Express 5.3.0 mit <code>express.json()</code> und Koa 3 mit <code>@koa/bodyparser</code> 6. Bestätigt hat den Angriff bisher nur ELLIO selbst.</li>
+  <li>[update] Der EPSS-Wert ist am 26.10. von 0,7 % auf 36,0 % gesprungen (Perzentil 98,5). Im KEV-Katalog (Version 2026.10.26) fehlt die Lücke weiterhin.</li>
   <li>Assetnote hat mit dem <a href="https://github.com/assetnote/node2shell-scanner" target="_blank" rel="noopener">node2shell-scanner</a> einen kostenlosen Scanner veröffentlicht. Er findet verwundbare HTTP-Endpunkte im Netz, ohne sie auszunutzen. Laut Shodan senden rund 1,41 Mio. Dienste <code>X-Powered-By: Express</code> und 878.000 <code>X-Powered-By: Next.js</code>, dazu kommen rund 482.000 Envoy-/Istio-Gateways.</li>
   <li>pip-audit, Dependabot und Safety haben die betroffenen Python-Versionen anfangs nicht gemeldet. Inzwischen führt GitHubs Advisory PYSEC-2026-4322 und PYSEC-2026-4323. Bis die Scanner nachweislich anschlagen, trotzdem manuell prüfen (siehe <a href="#python">Python</a>).</li>
 </ul>
@@ -100,6 +102,15 @@ unzip -l target/*.jar | grep -i brotli</code></pre>
 
 <ul>
   <li>Base-Images neu bauen und das Betriebssystem aktualisieren (<code>apt-get upgrade</code>), weil <code>libbrotli</code> und <code>curl</code> aus dem OS kommen. Gefixte Pakete gibt es bisher nur für Debian bookworm (<code>1.0.9-2+deb12u1</code>, DLA-4855-1), trixie (<code>1.1.0-2+deb13u1</code>, DSA-6582-1) und sid (<code>1.2.0-4.1</code>). Debian forky ist am 26.10. noch offen. Für Red Hat, Ubuntu, SUSE und Amazon Linux gab es am 24.10. noch keine Pakete, einen neueren Stand habe ich nicht gefunden. Dort hilft das OS-Update noch nicht.</li>
+  <li>[update] Neuer Stand der Distributionen am 27.10.:
+    <ul>
+      <li>Ubuntu hat am 26.10. USN-8956-1 veröffentlicht. <code>brotli</code> ist gefixt in jammy (<code>1.0.9-2ubuntu0.1</code>), noble (<code>1.1.0-2ubuntu0.1</code>), resolute (<code>1.2.0-3ubuntu0.1</code>) und stonking (<code>1.2.0-4ubuntu0.1</code>). focal und älter sind noch nicht bewertet. Ubuntus <code>nodejs</code>-Pakete nutzen die System-Bibliothek und sind laut Ubuntu nicht betroffen, nur focal braucht noch einen Fix.</li>
+      <li>Amazon Linux 2023 hat <code>brotli</code> (ALAS2023-2026-3334) und <code>nodejs24</code> (ALAS2023-2026-3330) mit Datum 24.10. gefixt. Für <code>nodejs</code> und <code>nodejs20</code> plant Amazon keinen Fix.</li>
+      <li>SUSE hat bisher nur openSUSE Tumbleweed gefixt (<code>brotli</code> 1.2.1-1.1, <code>nodejs24</code> 24.22.1-1.1). Für SLES 15 SP6 und SP7 ist <code>nodejs22</code> 22.23.4 in QA. <code>brotli</code> und <code>python-Brotli</code> sind in SLES und Leap noch offen.</li>
+      <li>Red Hat führt <code>brotli</code> in RHEL 8, 9 und 10 weiter als betroffen, Errata gibt es keine. Gefixt sind nur die Red Hat Hardened Images (RHSA-2026:87420). Die <code>nodejs</code>-Pakete von RHEL 8 und 10 führt Red Hat als nicht betroffen.</li>
+      <li>Debian forky ist weiter offen.</li>
+    </ul>
+  </li>
   <li>Service Mesh prüfen: Envoy und Istio sind betroffen (siehe eigenen Abschnitt <a href="#istio-und-envoy">Istio und Envoy</a>).</li>
   <li>Node- oder Python-Tools im selben Image (Build-Steps, Sidecars) mit aktualisieren.</li>
 </ul>
@@ -228,6 +239,10 @@ spec:
 
 <p>Das schützt nur eingehend. Gegen bösartige Antworten bei ausgehendem <code>fetch()</code> hilft nur das Update.</p>
 
+<p>[update] Debian sid hat seit 26.10. das gefixte <code>nodejs</code> 24.22.1 (<code>24.22.1+dfsg+~cs24.19.2-1</code>). bookworm, trixie und forky sind weiter verwundbar.</p>
+
+<p>[update] Laut ELLIO meldet <code>process.versions.brotli</code> auch in gepatchten Builds <code>1.2.0</code>. Ob ein Build gefixt ist, zeigt nur die Node-Version (<code>node -v</code>).</p>
+
 <h2 id="python">Python</h2>
 
 <p>Betroffen sind die Pakete <code>Brotli</code> (bis 1.2.0) und <code>brotlicffi</code> (1.2.0.x). requests/urllib3, httpx (mit Extra <code>brotli</code>), aiohttp und Scrapy laden sie automatisch, sobald sie installiert sind.</p>
@@ -239,6 +254,8 @@ spec:
   <li>Images und Wheels neu bauen, Prozesse neu starten.</li>
   <li>Falls das nicht sofort geht, beide Pakete deinstallieren und Extras entfernen, die sie wieder installieren (<code>httpx[brotli]</code>, <code>urllib3[brotli]</code>, <code>aiohttp[speedups]</code>). Die HTTP-Clients fallen dann auf gzip zurück.</li>
 </ol>
+
+<p>[update] Debian sid hat seit 26.10. <code>python-brotlicffi</code> 1.2.1.0 (<code>1.2.1.0+ds-1</code>). trixie und forky sind noch verwundbar. Das Debian-Paket <code>python3-brotli</code> baut Debian aus dem Quellpaket <code>brotli</code>, es ist mit dessen Fix erledigt (siehe <a href="#container-und-plattform-rund-um-spring-boot">Container und Plattform</a>).</p>
 
 <h2 id="net">.NET</h2>
 
@@ -296,6 +313,8 @@ grep -rnE "RequestDecompression|DecompressionMethods\.(Brotli|All)|BrotliStream|
 
 <p>Der offene PR <a href="https://github.com/dotnet/runtime/pull/136430" target="_blank" rel="noopener">dotnet/runtime#136430</a> ersetzt den nativen Code durch eine verwaltete C#-Portierung von Brotli 1.2.1. Laut Autor ist das ein Experiment und kein Security-Fix.</p>
 
+<p>[update] Der PR ist seit 26.10. ohne Merge geschlossen.</p>
+
 <h2 id="grafana">Grafana</h2>
 
 <p>Grafana hat bis 26.10. kein Advisory zu CVE-2026-111497 veröffentlicht. Der Grafana-Server ist nach meiner Einschätzung nicht betroffen, das Image des Grafana Image Renderer schon.</p>
@@ -314,6 +333,7 @@ grep -rnE "RequestDecompression|DecompressionMethods\.(Brotli|All)|BrotliStream|
 <ul>
   <li>Der Renderer ist in Go geschrieben und steuert einen Chromium. Das Image basiert auf <code>debian:trixie</code> und installiert Chromium aus den Debian-Paketen.</li>
   <li>Das aktuelle Release v5.12.9 vom 23.10. enthält noch <code>libbrotli1 1.1.0-2+b7</code> und ist damit verwundbar. Gefixt ist <code>1.1.0-2+deb13u1</code> (DSA-6582-1). PR <a href="https://github.com/grafana/grafana-image-renderer/pull/1069" target="_blank" rel="noopener">#1069</a> baut das Image mit dem gefixten Paket neu, ist am 26.10. aber noch nicht gemergt.</li>
+  <li>[update] Am 27.10. ist PR #1069 weiter offen. Ein neueres Release als v5.12.9 gibt es nicht.</li>
   <li>Das Debian-Paket <code>chromium</code> hängt nicht von <code>libbrotli1</code> ab und nutzt damit eine eigene, mitkompilierte Brotli-Kopie. Chromium entpackt Brotli bei HTTP-Antworten mit <code>Content-Encoding: br</code> und in WOFF2-Schriften. Ob diese Kopie betroffen und schon gefixt ist, habe ich nicht gefunden. Der Debian-Tracker führt Chromium bei dieser CVE nicht.</li>
   <li>Der Renderer lädt normalerweise nur Grafana-Seiten. Bindet ein Dashboard aber fremde Inhalte ein (Bilder oder iframes im Text-Panel, externe Webfonts), entpackt Chromium deren Antworten.</li>
   <li>Ältere Versionen des Renderers liefen als Node-Plugin. Wer die noch nutzt, hat zusätzlich Node.js mit gebündeltem Brotli im Prozess (siehe <a href="#nodejs">Node.js</a>).</li>
@@ -372,6 +392,7 @@ SELECT * FROM mysql.component;</code></pre>
   <li>Gefixt mit Release: Ruby-Gem <code>brotli</code> 0.9.1, PHP-Extension <code>brotli</code> 0.21.1, UEFITool A76, MuPDF 1.28.x (1.27.x ist weiter betroffen).</li>
   <li>Fix gemergt, aber noch kein Release: ClickHouse (Backport auf 26.10 gemergt, Backports auf 26.9, 26.8 und 26.3 LTS offen), NanaZip, GraalJS, YDB, libjxl.</li>
   <li>Noch ungefixt: DuckDB (PR offen), Apache Arrow (gebündeltes Brotli 1.0.9, PR approved, aber nicht gemergt), v8-jsi, 7-Zip-zstd, p7zip, EDK II, woff2 (nur der Makefile-Build; der CMake-Build linkt die System-Bibliothek).</li>
+  <li>[update] ClickHouse hat am 26.10. auch die Backports auf 26.9, 26.8 und 26.3 LTS gemergt. Ein Release mit dem Fix gibt es noch nicht, die neuesten Releases (26.10.2.103, 26.9.25.15, 26.8.34.13, 26.3.60.2) sind alle älter als der Fix.</li>
 </ul>
 
 <h2 id="übergangslösung-am-proxy">Übergangslösung am Proxy</h2>
@@ -431,6 +452,14 @@ SELECT * FROM mysql.component;</code></pre>
   <li><a href="https://github.com/grafana/grafana/blob/main/go.mod" target="_blank" rel="noopener">Grafana: go.mod</a></li>
   <li><a href="https://packages.debian.org/trixie/chromium" target="_blank" rel="noopener">Debian: Paket chromium (trixie)</a></li>
   <li><a href="https://github.com/mysql/mysql-server/blob/trunk/extra/curl/curl-8.14.1/CMakeLists.txt" target="_blank" rel="noopener">MySQL: extra/curl CMakeLists.txt</a></li>
+  <li>[update] <a href="https://ellio.tech/en/blog/node2shell-cve-2026-111497-rce-on-stock-nodejs-builds/" target="_blank" rel="noopener">ELLIO: Node2Shell RCE on stock Node.js builds, erster Ausnutzungsversuch</a></li>
+  <li>[update] <a href="https://www.cyberkendra.com/2026/10/node2shell-cve-2026-111497-exploited-in-the-wild.html" target="_blank" rel="noopener">Cyber Kendra: Node2Shell Exploited in the Wild</a></li>
+  <li>[update] <a href="https://api.first.org/data/v1/epss?cve=CVE-2026-111497" target="_blank" rel="noopener">FIRST EPSS API: CVE-2026-111497</a></li>
+  <li>[update] <a href="https://ubuntu.com/security/CVE-2026-111497" target="_blank" rel="noopener">Ubuntu: CVE-2026-111497 (USN-8956-1)</a></li>
+  <li>[update] <a href="https://explore.alas.aws.amazon.com/CVE-2026-111497.html" target="_blank" rel="noopener">Amazon Linux Security Center: CVE-2026-111497</a></li>
+  <li>[update] <a href="https://www.suse.com/security/cve/CVE-2026-111497.html" target="_blank" rel="noopener">SUSE: CVE-2026-111497</a></li>
+  <li>[update] <a href="https://access.redhat.com/security/cve/CVE-2026-111497" target="_blank" rel="noopener">Red Hat: CVE-2026-111497</a></li>
+  <li>[update] <a href="https://github.com/ClickHouse/ClickHouse/pull/127419" target="_blank" rel="noopener">ClickHouse#127419: Bump brotli auf 1.2.1 (inkl. Backports)</a></li>
 </ul>
   </main>
 </body>
