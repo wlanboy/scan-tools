@@ -222,6 +222,7 @@ Electron-Apps wie Slack, Discord oder VS Code sind erst mit einem Release auf Ba
 - **Nur das OS patchen.** Java und Node nutzen eigene Stores.
 - **Nur die emSign-Root entfernen.** Der AAA-Pfad bleibt offen, siehe oben.
 - **Neues Image bauen, aber nicht neu starten.** Laufende JVMs und Node-Prozesse lesen ihren Truststore nur beim Start.
+- **Auf SSL Hot Reload von Spring Boot setzen.** Das JDK liest `blocked.certs` einmal pro JVM ein. `reload-on-update` beobachtet nur die Dateien der SSL-Bundles und lädt die Sperrliste nicht neu. Außerdem gilt der Reload nur für den eingehenden Server, nicht für ausgehende Clients. Nach dem Ergänzen von `blocked.certs` muss die JVM neu starten.
 
 ## Eigene Server
 

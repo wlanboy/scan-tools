@@ -224,6 +224,7 @@ find . -path ./node_modules -prune -o \( -name '*.pem' -o -name '*.crt' -o -name
   <li><strong>Nur das OS patchen.</strong> Java und Node nutzen eigene Stores.</li>
   <li><strong>Nur die emSign-Root entfernen.</strong> Der AAA-Pfad bleibt offen, siehe oben.</li>
   <li><strong>Neues Image bauen, aber nicht neu starten.</strong> Laufende JVMs und Node-Prozesse lesen ihren Truststore nur beim Start.</li>
+  <li><strong>Auf SSL Hot Reload von Spring Boot setzen.</strong> Das JDK liest <code>blocked.certs</code> einmal pro JVM ein. <code>reload-on-update</code> beobachtet nur die Dateien der SSL-Bundles und lädt die Sperrliste nicht neu. Außerdem gilt der Reload nur für den eingehenden Server, nicht für ausgehende Clients. Nach dem Ergänzen von <code>blocked.certs</code> muss die JVM neu starten.</li>
 </ul>
 
 <h2 id="eigene-server">Eigene Server</h2>
