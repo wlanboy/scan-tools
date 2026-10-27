@@ -31,6 +31,8 @@
   <li>Aktive Angriffe sind laut Mallory und NCSC-NL bis 25.10. nicht bekannt. Der EPSS-Wert liegt bei 0,7 %. CISA führt die Lücke am 26.10. noch nicht im KEV-Katalog (Version 2026.10.23).</li>
   <li>[update] ELLIO meldet den ersten echten Ausnutzungsversuch. Am 26.10. um 15:08 UTC kam in ELLIOs Deception-Netz ein einzelner Brotli-Request mit 23.069.983 Bytes von 94.154.43.7 an, gebaut für Node 24.22.0 auf x86_64. Ob der Angreifer damit irgendwo Erfolg hatte, ist nicht bekannt. Davor hat ein Scanner mit dem User-Agent <code>node2shell-check/1.0</code> aus AS44620 (Türkei) mit 20 <code>br</code>-Bodies geprüft, welche Hosts Brotli überhaupt entpacken. Im Labor bekam ELLIO mit offiziellen Binaries auf allen vier Zielen eine Shell: <code>node:http</code> mit <code>node:zlib</code>, das Image <code>node:24.22.0-slim</code>, Express 5.3.0 mit <code>express.json()</code> und Koa 3 mit <code>@koa/bodyparser</code> 6. Bestätigt hat den Angriff bisher nur ELLIO selbst.</li>
   <li>[update] Der EPSS-Wert ist am 26.10. von 0,7 % auf 36,0 % gesprungen (Perzentil 98,5). Im KEV-Katalog (Version 2026.10.26) fehlt die Lücke weiterhin.</li>
+  <li>[update 2] ELLIO hat Details nachgereicht: Die Exploit-Kette des Angreifers traf im Labor in 50 Versuchen gegen ein verwundbares Node 24.22.0 kein einziges Mal, ELLIOs eigene Kette bekam auf demselben Ziel eine Shell. Die Quell-IP 94.154.43.7 kennt ELLIO seit dem 15.12.2025, sie war an 47 der letzten 90 Tage aktiv. Eine erfolgreiche Kompromittierung meldet ELLIO nicht. Tenable hat den Vorfall nicht unabhängig bestätigt.</li>
+  <li>[update 2] Der EPSS-Wert ist am 27.10. weiter auf 55,5 % gestiegen (Perzentil 99,0). Im KEV-Katalog (Version 2026.10.26) fehlt die Lücke weiterhin.</li>
   <li>Assetnote hat mit dem <a href="https://github.com/assetnote/node2shell-scanner" target="_blank" rel="noopener">node2shell-scanner</a> einen kostenlosen Scanner veröffentlicht. Er findet verwundbare HTTP-Endpunkte im Netz, ohne sie auszunutzen. Laut Shodan senden rund 1,41 Mio. Dienste <code>X-Powered-By: Express</code> und 878.000 <code>X-Powered-By: Next.js</code>, dazu kommen rund 482.000 Envoy-/Istio-Gateways.</li>
   <li>pip-audit, Dependabot und Safety haben die betroffenen Python-Versionen anfangs nicht gemeldet. Inzwischen führt GitHubs Advisory PYSEC-2026-4322 und PYSEC-2026-4323. Bis die Scanner nachweislich anschlagen, trotzdem manuell prüfen (siehe <a href="#python">Python</a>).</li>
 </ul>
@@ -130,6 +132,16 @@ unzip -l target/*.jar | grep -i brotli</code></pre>
       <li>SUSE hat bisher nur openSUSE Tumbleweed gefixt (<code>brotli</code> 1.2.1-1.1, <code>nodejs24</code> 24.22.1-1.1). Für SLES 15 SP6 und SP7 ist <code>nodejs22</code> 22.23.4 in QA. <code>brotli</code> und <code>python-Brotli</code> sind in SLES und Leap noch offen.</li>
       <li>Red Hat führt <code>brotli</code> in RHEL 8, 9 und 10 weiter als betroffen, Errata gibt es keine. Gefixt sind nur die Red Hat Hardened Images (RHSA-2026:87420). Die <code>nodejs</code>-Pakete von RHEL 8 und 10 führt Red Hat als nicht betroffen.</li>
       <li>Debian forky ist weiter offen.</li>
+    </ul>
+  </li>
+  <li>[update 2] Neuer Stand der Distributionen am 27.10.:
+    <ul>
+      <li>Red Hat hat am 26.10. <code>brotli</code> gefixt: RHEL 8 (<code>1.0.6-5.el8_10</code>, RHSA-2026:90501), RHEL 9 (<code>1.0.9-10.el9_8.1</code>, RHSA-2026:90495) und RHEL 10 (<code>1.1.0-8.el10_2.1</code>, RHSA-2026:90449).</li>
+      <li>Korrektur zum ersten Update: Bei <code>nodejs</code> führt Red Hat nur <code>nodejs:22</code> und die Pakete in RHEL 10 als nicht betroffen. <code>nodejs:24</code> ist in RHEL 8 und 9 betroffen, in RHEL 9 auch <code>nodejs:26</code>, einen Fix gibt es dafür noch nicht.</li>
+      <li>Ebenfalls betroffen laut Red Hat: <code>istio-proxy</code> in OpenShift Service Mesh 3 und RHCOS 8/9 in OpenShift 4.</li>
+      <li>Red Hat bewertet die Lücke nur als Important (CVSS 3.1 8.1). Begründung: ASLR, NX, FORTIFY_SOURCE und SELinux erschweren zuverlässige Code Execution, und es gibt keinen öffentlichen PoC, der zuverlässig RCE erreicht.</li>
+      <li>Oracle Linux hat am 26. und 27.10. <code>brotli</code> für OL 8, 9 und 10 gefixt (OL 9: <code>1.0.9-10.0.1.el9_8</code>, ELSA-2026-500513), dazu die <code>nodejs</code>-Pakete.</li>
+      <li>Ubuntu, SUSE, Amazon Linux und Debian forky: unverändert.</li>
     </ul>
   </li>
   <li>Service Mesh prüfen: Envoy und Istio sind betroffen (siehe eigenen Abschnitt <a href="#istio-und-envoy">Istio und Envoy</a>).</li>
@@ -264,6 +276,8 @@ spec:
 
 <p>[update] Laut ELLIO meldet <code>process.versions.brotli</code> auch in gepatchten Builds <code>1.2.0</code>. Ob ein Build gefixt ist, zeigt nur die Node-Version (<code>node -v</code>).</p>
 
+<p>[update 2] Oracle Linux hat am 26.10. die <code>nodejs</code>-Pakete für OL 8, 9 und 10 gefixt. In RHEL 8 und 9 ist <code>nodejs:24</code> noch ungefixt, in RHEL 9 auch <code>nodejs:26</code> (siehe <a href="#container-und-plattform-rund-um-spring-boot">Container und Plattform</a>).</p>
+
 <h2 id="python">Python</h2>
 
 <p>Betroffen sind die Pakete <code>Brotli</code> (bis 1.2.0) und <code>brotlicffi</code> (1.2.0.x). requests/urllib3, httpx (mit Extra <code>brotli</code>), aiohttp und Scrapy laden sie automatisch, sobald sie installiert sind.</p>
@@ -336,6 +350,8 @@ grep -rnE "RequestDecompression|DecompressionMethods\.(Brotli|All)|BrotliStream|
 
 <p>[update] Der PR ist seit 26.10. ohne Merge geschlossen.</p>
 
+<p>[update 2] Der <code>main</code>-Branch von dotnet/runtime nutzt seit 26.10. Brotli 1.1.1 (<a href="https://github.com/dotnet/runtime/pull/136471" target="_blank" rel="noopener">dotnet/runtime#136471</a>). Wer aus <code>main</code> baut, hat damit den Fix. #136422 ist weiter offen.</p>
+
 <h2 id="grafana">Grafana</h2>
 
 <p>Grafana hat bis 26.10. kein Advisory zu CVE-2026-111497 veröffentlicht. Der Grafana-Server ist nach meiner Einschätzung nicht betroffen, das Image des Grafana Image Renderer schon.</p>
@@ -405,6 +421,8 @@ SELECT * FROM mysql.component;</code></pre>
 
 <p>Was tun: Kein Notfall-Patch nötig. Die Images neu bauen, sobald Oracle Linux ein gefixtes <code>libbrotli</code> hat.</p>
 
+<p>[update 2] Oracle Linux 9 hat seit 26.10. das gefixte <code>libbrotli-1.0.9-10.0.1.el9_8</code> (ELSA-2026-500513). Die Images können jetzt neu gebaut werden. Ob Oracle die offiziellen <code>mysql</code>-Images schon neu gebaut hat, habe ich nicht geprüft, also nach dem Build mit <code>rpm -q libbrotli</code> kontrollieren.</p>
+
 <h2 id="weitere-projekte-mit-eigener-brotli-kopie">Weitere Projekte mit eigener Brotli-Kopie</h2>
 
 <p>Viele Projekte bringen eine eigene Kopie von <code>decode.c</code> mit. Ein OS-Update erreicht diese Kopien nicht. Stand 26.10. laut <a href="https://broccoli2shell.com/" target="_blank" rel="noopener">broccoli2shell.com</a>:</p>
@@ -414,6 +432,7 @@ SELECT * FROM mysql.component;</code></pre>
   <li>Fix gemergt, aber noch kein Release: ClickHouse (Backport auf 26.10 gemergt, Backports auf 26.9, 26.8 und 26.3 LTS offen), NanaZip, GraalJS, YDB, libjxl.</li>
   <li>Noch ungefixt: DuckDB (PR offen), Apache Arrow (gebündeltes Brotli 1.0.9, PR approved, aber nicht gemergt), v8-jsi, 7-Zip-zstd, p7zip, EDK II, woff2 (nur der Makefile-Build; der CMake-Build linkt die System-Bibliothek).</li>
   <li>[update] ClickHouse hat am 26.10. auch die Backports auf 26.9, 26.8 und 26.3 LTS gemergt. Ein Release mit dem Fix gibt es noch nicht, die neuesten Releases (26.10.2.103, 26.9.25.15, 26.8.34.13, 26.3.60.2) sind alle älter als der Fix.</li>
+  <li>[update 2] Stand 27.10.: NanaZip hat mit 7.0.1882.0 vom 26.10. ein Release mit Fix. Apache Arrow: <a href="https://github.com/apache/arrow/pull/55167" target="_blank" rel="noopener">PR #55167</a> hebt das gebündelte Brotli auf 1.0.10, ist approved und wartet auf die Wheel-Builds. ClickHouse und DuckDB sind unverändert.</li>
 </ul>
 
 <h2 id="übergangslösung-am-proxy">Übergangslösung am Proxy</h2>
@@ -481,6 +500,11 @@ SELECT * FROM mysql.component;</code></pre>
   <li>[update] <a href="https://www.suse.com/security/cve/CVE-2026-111497.html" target="_blank" rel="noopener">SUSE: CVE-2026-111497</a></li>
   <li>[update] <a href="https://access.redhat.com/security/cve/CVE-2026-111497" target="_blank" rel="noopener">Red Hat: CVE-2026-111497</a></li>
   <li>[update] <a href="https://github.com/ClickHouse/ClickHouse/pull/127419" target="_blank" rel="noopener">ClickHouse#127419: Bump brotli auf 1.2.1 (inkl. Backports)</a></li>
+  <li>[update 2] <a href="https://linux.oracle.com/cve/CVE-2026-111497.html" target="_blank" rel="noopener">Oracle Linux: CVE-2026-111497</a></li>
+  <li>[update 2] <a href="https://linux.oracle.com/errata/ELSA-2026-500513.html" target="_blank" rel="noopener">Oracle Linux: ELSA-2026-500513 (brotli, OL 9)</a></li>
+  <li>[update 2] <a href="https://www.tenable.com/blog/brotli2shell-frequently-asked-questions-for-google-brotli-decoder-cve-2026-111497" target="_blank" rel="noopener">Tenable: Brotli2Shell FAQ</a></li>
+  <li>[update 2] <a href="https://github.com/dotnet/runtime/pull/136471" target="_blank" rel="noopener">dotnet/runtime#136471: Update Brotli to 1.1.1</a></li>
+  <li>[update 2] <a href="https://github.com/apache/arrow/pull/55167" target="_blank" rel="noopener">apache/arrow#55167: Force newer versions of Brotli</a></li>
 </ul>
   </main>
 </body>
