@@ -10,7 +10,7 @@
   <header>
     <p class="back"><a href="../">← Übersicht</a></p>
     <h1>Node2Shell / Python2Shell / HTTP2Shell (CVE-2026-111497)</h1>
-    <p class="muted">Stand: 27.10.2026</p>
+    <p class="muted">Stand: 28.10.2026</p>
   </header>
 
   <main>
@@ -146,6 +146,14 @@ unzip -l target/*.jar | grep -i brotli</code></pre>
       <li>Red Hat bewertet die Lücke nur als Important (CVSS 3.1 8.1). Begründung: ASLR, NX, FORTIFY_SOURCE und SELinux erschweren zuverlässige Code Execution, und es gibt keinen öffentlichen PoC, der zuverlässig RCE erreicht.</li>
       <li>Oracle Linux hat am 26. und 27.10. <code>brotli</code> für OL 8, 9 und 10 gefixt (OL 9: <code>1.0.9-10.0.1.el9_8</code>, ELSA-2026-500513), dazu die <code>nodejs</code>-Pakete.</li>
       <li>Ubuntu, SUSE, Amazon Linux und Debian forky: unverändert.</li>
+    </ul>
+  </li>
+  <li>[update 3] Neuer Stand der Distributionen am 28.10.:
+    <ul>
+      <li>Ubuntu hat am 27.10. zusätzlich USN-8956-2 veröffentlicht. <code>brotli</code> in focal, bionic und xenial ist weiter nicht bewertet, <code>nodejs</code> in focal weiter verwundbar.</li>
+      <li>SUSE: Für SLES 15 SP7 sind jetzt auch <code>brotli</code> (<code>1.0.7-150200.3.8.1</code>) und <code>nodejs24</code> (<code>24.22.1-150700.15.21.1</code>) in QA. Für SLES 15 SP6-LTSS sind <code>brotli</code> und <code>nodejs22</code> in Arbeit. <code>python-Brotli</code> ist in SLES weiter offen, openSUSE Leap 16.0 komplett. Tumbleweed hat jetzt auch <code>python-Brotli</code> 1.2.1.</li>
+      <li>Red Hat: Für <code>nodejs:24</code> (RHEL 8/9) und <code>nodejs:26</code> (RHEL 9) gibt es weiter keinen Fix. Red Hat verweist inzwischen auf das Bulletin RHSB-2026-015.</li>
+      <li>Debian: unverändert. forky <code>brotli</code> ist offen, <code>nodejs</code> in bookworm, trixie und forky verwundbar.</li>
     </ul>
   </li>
   <li>Service Mesh prüfen: Envoy und Istio sind betroffen (siehe eigenen Abschnitt <a href="#istio-und-envoy">Istio und Envoy</a>).</li>
@@ -375,6 +383,7 @@ grep -rnE "RequestDecompression|DecompressionMethods\.(Brotli|All)|BrotliStream|
   <li>Der Renderer ist in Go geschrieben und steuert einen Chromium. Das Image basiert auf <code>debian:trixie</code> und installiert Chromium aus den Debian-Paketen.</li>
   <li>Das aktuelle Release v5.12.9 vom 23.10. enthält noch <code>libbrotli1 1.1.0-2+b7</code> und ist damit verwundbar. Gefixt ist <code>1.1.0-2+deb13u1</code> (DSA-6582-1). PR <a href="https://github.com/grafana/grafana-image-renderer/pull/1069" target="_blank" rel="noopener">#1069</a> baut das Image mit dem gefixten Paket neu, ist am 26.10. aber noch nicht gemergt.</li>
   <li>[update] Am 27.10. ist PR #1069 weiter offen. Ein neueres Release als v5.12.9 gibt es nicht.</li>
+  <li>[update 3] Grafana hat am 28.10. <a href="https://github.com/grafana/grafana-image-renderer/releases/tag/v5.12.10" target="_blank" rel="noopener">v5.12.10</a> veröffentlicht. PR <a href="https://github.com/grafana/grafana-image-renderer/pull/1072" target="_blank" rel="noopener">#1072</a> baut das Image auf <code>debian:trixie-20261027</code> mit frischem <code>apt-get upgrade</code> neu. Geprüft im Image <code>grafana/grafana-image-renderer:v5.12.10</code> (amd64): <code>libbrotli1 1.1.0-2+deb13u1</code>, <code>chromium 156.0.8078.47-1~deb13u1</code>. PR #1069 ist damit überholt. broccoli2shell.com führt Chromium als bereits gefixt, nennt aber keine Version.</li>
   <li>Das Debian-Paket <code>chromium</code> hängt nicht von <code>libbrotli1</code> ab und nutzt damit eine eigene, mitkompilierte Brotli-Kopie. Chromium entpackt Brotli bei HTTP-Antworten mit <code>Content-Encoding: br</code> und in WOFF2-Schriften. Ob diese Kopie betroffen und schon gefixt ist, habe ich nicht gefunden. Der Debian-Tracker führt Chromium bei dieser CVE nicht.</li>
   <li>Der Renderer lädt normalerweise nur Grafana-Seiten. Bindet ein Dashboard aber fremde Inhalte ein (Bilder oder iframes im Text-Panel, externe Webfonts), entpackt Chromium deren Antworten.</li>
   <li>Ältere Versionen des Renderers liefen als Node-Plugin. Wer die noch nutzt, hat zusätzlich Node.js mit gebündeltem Brotli im Prozess (siehe <a href="#nodejs">Node.js</a>).</li>
@@ -394,7 +403,7 @@ docker run --rm --entrypoint sh grafana/grafana-image-renderer -c 'dpkg -l | gre
   <li>Bis ein gefixtes Renderer-Release erscheint, das Image selbst nachziehen:</li>
 </ol>
 
-<pre><code class="lang-dockerfile">FROM grafana/grafana-image-renderer:5.12.9
+<pre><code class="lang-dockerfile">FROM grafana/grafana-image-renderer:v5.12.9
 USER root
 RUN apt-get update \
  &amp;&amp; apt-get install -y --only-upgrade --no-install-recommends libbrotli1 chromium chromium-shell chromium-driver chromium-sandbox \
@@ -406,6 +415,8 @@ USER 65532</code></pre>
   <li>Keine fremden Inhalte in Dashboards einbinden, die gerendert werden, solange der Chromium-Status unklar ist.</li>
   <li>Grafana-Server und dessen Image beim nächsten Turnus aktualisieren. Nötig ist das wegen dieser Lücke nicht.</li>
 </ol>
+
+<p>[update 3] Statt des eigenen Dockerfiles reicht jetzt das Update auf <code>grafana/grafana-image-renderer:v5.12.10</code>. Die Tags auf Docker Hub haben ein <code>v</code> vorne, <code>5.12.9</code> ohne <code>v</code> gibt es nicht. Das Dockerfile oben ist entsprechend korrigiert.</p>
 
 <h2 id="mysql">MySQL</h2>
 
@@ -437,6 +448,7 @@ SELECT * FROM mysql.component;</code></pre>
   <li>Noch ungefixt: DuckDB (PR offen), Apache Arrow (gebündeltes Brotli 1.0.9, PR approved, aber nicht gemergt), v8-jsi, 7-Zip-zstd, p7zip, EDK II, woff2 (nur der Makefile-Build; der CMake-Build linkt die System-Bibliothek).</li>
   <li>[update] ClickHouse hat am 26.10. auch die Backports auf 26.9, 26.8 und 26.3 LTS gemergt. Ein Release mit dem Fix gibt es noch nicht, die neuesten Releases (26.10.2.103, 26.9.25.15, 26.8.34.13, 26.3.60.2) sind alle älter als der Fix.</li>
   <li>[update 2] Stand 27.10.: NanaZip hat mit 7.0.1882.0 vom 26.10. ein Release mit Fix. Apache Arrow: <a href="https://github.com/apache/arrow/pull/55167" target="_blank" rel="noopener">PR #55167</a> hebt das gebündelte Brotli auf 1.0.10, ist approved und wartet auf die Wheel-Builds. ClickHouse und DuckDB sind unverändert.</li>
+  <li>[update 3] Stand 28.10.: Apache Arrow PR #55167 ist weiter nicht gemergt. Die Wheel-Builds liefen am 28.10., die verbliebenen Fehler (cp314t) sind laut Maintainer unabhängig vom Fix. ClickHouse hat noch kein Release mit dem Fix. DuckDB ist weiter ungefixt, PR #27791 ist noch ein Draft. 7-Zip-zstd hat den Fix am 27.10. auf master gemergt (PR #581), erwartet in 7-Zip ZS 26.05. Für woff2 gibt es einen Fix-Vorschlag (PR #208), EDK II verfolgt die Lücke in Issue #13378. GraalJS, YDB und libjxl haben weiter kein Release mit dem Fix.</li>
 </ul>
 
 <h2 id="übergangslösung-am-proxy">Übergangslösung am Proxy</h2>
@@ -509,6 +521,9 @@ SELECT * FROM mysql.component;</code></pre>
   <li>[update 2] <a href="https://www.tenable.com/blog/brotli2shell-frequently-asked-questions-for-google-brotli-decoder-cve-2026-111497" target="_blank" rel="noopener">Tenable: Brotli2Shell FAQ</a></li>
   <li>[update 2] <a href="https://github.com/dotnet/runtime/pull/136471" target="_blank" rel="noopener">dotnet/runtime#136471: Update Brotli to 1.1.1</a></li>
   <li>[update 2] <a href="https://github.com/apache/arrow/pull/55167" target="_blank" rel="noopener">apache/arrow#55167: Force newer versions of Brotli</a></li>
+  <li>[update 3] <a href="https://www.securityweek.com/cisa-warns-of-node2shell-exploitation-as-honeypots-log-attack-attempts/" target="_blank" rel="noopener">SecurityWeek: CISA Warns of Node2Shell Exploitation as Honeypots Log Attack Attempts</a></li>
+  <li>[update 3] <a href="https://github.com/grafana/grafana-image-renderer/releases/tag/v5.12.10" target="_blank" rel="noopener">grafana-image-renderer v5.12.10</a></li>
+  <li>[update 3] <a href="https://github.com/grafana/grafana-image-renderer/pull/1072" target="_blank" rel="noopener">grafana/grafana-image-renderer#1072: Update golang and debian base images</a></li>
 </ul>
   </main>
 </body>
