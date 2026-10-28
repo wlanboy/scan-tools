@@ -1,6 +1,6 @@
 # Node2Shell / Python2Shell / HTTP2Shell (CVE-2026-111497)
 
-Stand: 27.10.2026
+Stand: 28.10.2026
 
 Node2Shell, Python2Shell, HTTP2Shell und Broccoli2Shell sind Namen für dieselbe Lücke. Sie ist nicht zu verwechseln mit PHP2Shell (CVE-2026-109618/-109619), einer davon unabhängigen PHP-Lücke, die bereits aktiv ausgenutzt wird.
 
@@ -20,6 +20,10 @@ Warum das gefährlich ist:
 - [update] Der EPSS-Wert ist am 26.10. von 0,7 % auf 36,0 % gesprungen (Perzentil 98,5). Im KEV-Katalog (Version 2026.10.26) fehlt die Lücke weiterhin.
 - [update 2] ELLIO hat Details nachgereicht: Die Exploit-Kette des Angreifers traf im Labor in 50 Versuchen gegen ein verwundbares Node 24.22.0 kein einziges Mal, ELLIOs eigene Kette bekam auf demselben Ziel eine Shell. Die Quell-IP 94.154.43.7 kennt ELLIO seit dem 15.12.2025, sie war an 47 der letzten 90 Tage aktiv. Eine erfolgreiche Kompromittierung meldet ELLIO nicht. Tenable hat den Vorfall nicht unabhängig bestätigt.
 - [update 2] Der EPSS-Wert ist am 27.10. weiter auf 55,5 % gestiegen (Perzentil 99,0). Im KEV-Katalog (Version 2026.10.26) fehlt die Lücke weiterhin.
+- [update 3] CISA hat die Lücke am 27.10. in den KEV-Katalog aufgenommen (Version 2026.10.27, Frist für US-Bundesbehörden 10.11.). Damit gilt sie offiziell als aktiv ausgenutzt. Details zu den Angriffen nennt CISA nicht.
+- [update 3] Der EPSS-Wert liegt am 28.10. bei 88,0 % (Perzentil 99,8).
+- [update 3] Previdian meldet laut SecurityWeek einen Ausnutzungsversuch am 27.10. von einer US-IP. Ob er erfolgreich war, sagt Previdian nicht. Die IP aus ELLIOs Fund hat laut ELLIO vorher schon PHP2Shell ausgenutzt und VPNs von Palo Alto und Fortinet abgetastet. ELLIO sieht darin einen Akteur, der auf Massenausnutzung aus ist. Eine erfolgreiche Kompromittierung hat bis 28.10. niemand gemeldet.
+- [update 3] Auch Appliances sind betroffen: Broadcom meldet am 27.10. den SDDC Manager in VMware Cloud Foundation und vSphere Foundation (9.1.1: CVSS 9.8, 9.0.x/9.1.0/5.2.x: CVSS 7.5), weil er Node.js nutzt. Patches fehlen noch, Workarounds stehen in zwei KB-Artikeln. Palo Alto verteilt Hotfixes für PAN-OS.
 - Assetnote hat mit dem [node2shell-scanner](https://github.com/assetnote/node2shell-scanner) einen kostenlosen Scanner veröffentlicht. Er findet verwundbare HTTP-Endpunkte im Netz, ohne sie auszunutzen. Laut Shodan senden rund 1,41 Mio. Dienste `X-Powered-By: Express` und 878.000 `X-Powered-By: Next.js`, dazu kommen rund 482.000 Envoy-/Istio-Gateways.
 - pip-audit, Dependabot und Safety haben die betroffenen Python-Versionen anfangs nicht gemeldet. Inzwischen führt GitHubs Advisory PYSEC-2026-4322 und PYSEC-2026-4323. Bis die Scanner nachweislich anschlagen, trotzdem manuell prüfen (siehe [Python](#python)).
 
@@ -121,6 +125,11 @@ Auch reine Java-Dienste laufen selten allein:
   - Red Hat bewertet die Lücke nur als Important (CVSS 3.1 8.1). Begründung: ASLR, NX, FORTIFY_SOURCE und SELinux erschweren zuverlässige Code Execution, und es gibt keinen öffentlichen PoC, der zuverlässig RCE erreicht.
   - Oracle Linux hat am 26. und 27.10. `brotli` für OL 8, 9 und 10 gefixt (OL 9: `1.0.9-10.0.1.el9_8`, ELSA-2026-500513), dazu die `nodejs`-Pakete.
   - Ubuntu, SUSE, Amazon Linux und Debian forky: unverändert.
+- [update 3] Neuer Stand der Distributionen am 28.10.:
+  - Ubuntu hat am 27.10. zusätzlich USN-8956-2 veröffentlicht. `brotli` in focal, bionic und xenial ist weiter nicht bewertet, `nodejs` in focal weiter verwundbar.
+  - SUSE: Für SLES 15 SP7 sind jetzt auch `brotli` (`1.0.7-150200.3.8.1`) und `nodejs24` (`24.22.1-150700.15.21.1`) in QA. Für SLES 15 SP6-LTSS sind `brotli` und `nodejs22` in Arbeit. `python-Brotli` ist in SLES weiter offen, openSUSE Leap 16.0 komplett. Tumbleweed hat jetzt auch `python-Brotli` 1.2.1.
+  - Red Hat: Für `nodejs:24` (RHEL 8/9) und `nodejs:26` (RHEL 9) gibt es weiter keinen Fix. Red Hat verweist inzwischen auf das Bulletin RHSB-2026-015.
+  - Debian: unverändert. forky `brotli` ist offen, `nodejs` in bookworm, trixie und forky verwundbar.
 - Service Mesh prüfen: Envoy und Istio sind betroffen (siehe eigenen Abschnitt [Istio und Envoy](#istio-und-envoy)).
 - Node- oder Python-Tools im selben Image (Build-Steps, Sidecars) mit aktualisieren.
 
@@ -331,6 +340,7 @@ Grafana hat bis 26.10. kein Advisory zu CVE-2026-111497 veröffentlicht. Der Gra
 - Der Renderer ist in Go geschrieben und steuert einen Chromium. Das Image basiert auf `debian:trixie` und installiert Chromium aus den Debian-Paketen.
 - Das aktuelle Release v5.12.9 vom 23.10. enthält noch `libbrotli1 1.1.0-2+b7` und ist damit verwundbar. Gefixt ist `1.1.0-2+deb13u1` (DSA-6582-1). PR [#1069](https://github.com/grafana/grafana-image-renderer/pull/1069) baut das Image mit dem gefixten Paket neu, ist am 26.10. aber noch nicht gemergt.
 - [update] Am 27.10. ist PR #1069 weiter offen. Ein neueres Release als v5.12.9 gibt es nicht.
+- [update 3] Grafana hat am 28.10. [v5.12.10](https://github.com/grafana/grafana-image-renderer/releases/tag/v5.12.10) veröffentlicht. PR [#1072](https://github.com/grafana/grafana-image-renderer/pull/1072) baut das Image auf `debian:trixie-20261027` mit frischem `apt-get upgrade` neu. Geprüft im Image `grafana/grafana-image-renderer:v5.12.10` (amd64): `libbrotli1 1.1.0-2+deb13u1`, `chromium 156.0.8078.47-1~deb13u1`. PR #1069 ist damit überholt. broccoli2shell.com führt Chromium als bereits gefixt, nennt aber keine Version.
 - Das Debian-Paket `chromium` hängt nicht von `libbrotli1` ab und nutzt damit eine eigene, mitkompilierte Brotli-Kopie. Chromium entpackt Brotli bei HTTP-Antworten mit `Content-Encoding: br` und in WOFF2-Schriften. Ob diese Kopie betroffen und schon gefixt ist, habe ich nicht gefunden. Der Debian-Tracker führt Chromium bei dieser CVE nicht.
 - Der Renderer lädt normalerweise nur Grafana-Seiten. Bindet ein Dashboard aber fremde Inhalte ein (Bilder oder iframes im Text-Panel, externe Webfonts), entpackt Chromium deren Antworten.
 - Ältere Versionen des Renderers liefen als Node-Plugin. Wer die noch nutzt, hat zusätzlich Node.js mit gebündeltem Brotli im Prozess (siehe [Node.js](#nodejs)).
@@ -350,7 +360,7 @@ docker run --rm --entrypoint sh grafana/grafana-image-renderer -c 'dpkg -l | gre
 1. Bis ein gefixtes Renderer-Release erscheint, das Image selbst nachziehen:
 
 ```dockerfile
-FROM grafana/grafana-image-renderer:5.12.9
+FROM grafana/grafana-image-renderer:v5.12.9
 USER root
 RUN apt-get update \
  && apt-get install -y --only-upgrade --no-install-recommends libbrotli1 chromium chromium-shell chromium-driver chromium-sandbox \
@@ -361,6 +371,8 @@ USER 65532
 2. Den Renderer nur intern erreichbar machen, sodass nur Grafana ihn aufruft, und das Auth-Token (`rendering.renderer_token` in Grafana) setzen.
 3. Keine fremden Inhalte in Dashboards einbinden, die gerendert werden, solange der Chromium-Status unklar ist.
 4. Grafana-Server und dessen Image beim nächsten Turnus aktualisieren. Nötig ist das wegen dieser Lücke nicht.
+
+[update 3] Statt des eigenen Dockerfiles reicht jetzt das Update auf `grafana/grafana-image-renderer:v5.12.10`. Die Tags auf Docker Hub haben ein `v` vorne, `5.12.9` ohne `v` gibt es nicht. Das Dockerfile oben ist entsprechend korrigiert.
 
 ## MySQL
 
@@ -393,6 +405,7 @@ Viele Projekte bringen eine eigene Kopie von `decode.c` mit. Ein OS-Update errei
 - Noch ungefixt: DuckDB (PR offen), Apache Arrow (gebündeltes Brotli 1.0.9, PR approved, aber nicht gemergt), v8-jsi, 7-Zip-zstd, p7zip, EDK II, woff2 (nur der Makefile-Build; der CMake-Build linkt die System-Bibliothek).
 - [update] ClickHouse hat am 26.10. auch die Backports auf 26.9, 26.8 und 26.3 LTS gemergt. Ein Release mit dem Fix gibt es noch nicht, die neuesten Releases (26.10.2.103, 26.9.25.15, 26.8.34.13, 26.3.60.2) sind alle älter als der Fix.
 - [update 2] Stand 27.10.: NanaZip hat mit 7.0.1882.0 vom 26.10. ein Release mit Fix. Apache Arrow: [PR #55167](https://github.com/apache/arrow/pull/55167) hebt das gebündelte Brotli auf 1.0.10, ist approved und wartet auf die Wheel-Builds. ClickHouse und DuckDB sind unverändert.
+- [update 3] Stand 28.10.: Apache Arrow PR #55167 ist weiter nicht gemergt. Die Wheel-Builds liefen am 28.10., die verbliebenen Fehler (cp314t) sind laut Maintainer unabhängig vom Fix. ClickHouse hat noch kein Release mit dem Fix. DuckDB ist weiter ungefixt, PR #27791 ist noch ein Draft. 7-Zip-zstd hat den Fix am 27.10. auf master gemergt (PR #581), erwartet in 7-Zip ZS 26.05. Für woff2 gibt es einen Fix-Vorschlag (PR #208), EDK II verfolgt die Lücke in Issue #13378. GraalJS, YDB und libjxl haben weiter kein Release mit dem Fix.
 
 ## Übergangslösung am Proxy
 
@@ -469,3 +482,6 @@ Apache `mod_brotli` entpackt kein Brotli. Nginx entpackt standardmäßig auch ni
 - [update 2] [Tenable: Brotli2Shell FAQ](https://www.tenable.com/blog/brotli2shell-frequently-asked-questions-for-google-brotli-decoder-cve-2026-111497)
 - [update 2] [dotnet/runtime#136471: Update Brotli to 1.1.1](https://github.com/dotnet/runtime/pull/136471)
 - [update 2] [apache/arrow#55167: Force newer versions of Brotli](https://github.com/apache/arrow/pull/55167)
+- [update 3] [SecurityWeek: CISA Warns of Node2Shell Exploitation as Honeypots Log Attack Attempts](https://www.securityweek.com/cisa-warns-of-node2shell-exploitation-as-honeypots-log-attack-attempts/)
+- [update 3] [grafana-image-renderer v5.12.10](https://github.com/grafana/grafana-image-renderer/releases/tag/v5.12.10)
+- [update 3] [grafana/grafana-image-renderer#1072: Update golang and debian base images](https://github.com/grafana/grafana-image-renderer/pull/1072)
