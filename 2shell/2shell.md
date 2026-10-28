@@ -458,9 +458,9 @@ Das Image von 2.19.5 enthält zusätzlich ein Fallback-Node 14.21.3 (`node/fallb
 
 Wo der Decoder erreicht wird:
 
-- Eingehend nicht. Dashboards läuft auf hapi, und hapi entpackt Request-Bodies nur mit gzip und deflate. Einen Body mit `Content-Encoding: br` lehnt es mit 415 ab (`@hapi/subtext`, geprüft in 2.19.5; 3.9.0 nutzt hapi 21 ohne zusätzlichen Brotli-Decoder).
+- Eingehend nicht. Dashboards läuft auf hapi, und hapi entpackt Request-Bodies nur mit gzip und deflate (`@hapi/subtext`). Bei `Content-Encoding: br` ignoriert hapi den Header und liest den Body unentpackt. Getestet mit 3.9.0: Ein POST mit `Content-Encoding: br` und unkomprimiertem JSON geht mit 200 durch, der Brotli-Decoder läuft dabei nicht.
 - Ausgehend schon. node-fetch 2.7.0 und axios 1.12.2 entpacken Brotli-Antworten automatisch. Welche Plugins damit wohin verbinden, habe ich nicht im Einzelnen geprüft.
-- Im Image von 2.19.5 liegt `libbrotli` 1.0.9-4.amzn2023.0.2, gezogen über `freetype`. Gefixt ist `1.1.0-1.amzn2023.0.2` (ALAS2023-2026-3334). Node nutzt diese Bibliothek nicht, Scanner melden sie trotzdem.
+- Im Image von 2.19.5 liegt `libbrotli` 1.0.9-4.amzn2023.0.2, gezogen über `freetype`. Gefixt ist `1.1.0-1.amzn2023.0.2` (ALAS2023-2026-3334), das aktuelle Image von 3.9.0 (Stand 26.10.) hat es schon. Node nutzt diese Bibliothek nicht, Scanner melden die alte Version trotzdem.
 
 ```bash
 docker run --rm --entrypoint sh opensearchproject/opensearch-dashboards:3.9.0 -c '/usr/share/opensearch-dashboards/node/bin/node -v; rpm -q libbrotli'
@@ -486,6 +486,8 @@ RUN cd /tmp \
 ENV OSD_NODE_HOME=/opt/node-v22.23.4-linux-x64
 USER 1000
 ```
+
+Getestet mit 3.9.0 gegen OpenSearch 3.9.0: Dashboards läuft mit `/opt/node-v22.23.4-linux-x64/bin/node` und meldet Status green.
 
 4. Ausgehenden Traffic von Dashboards per Egress-Regel oder Proxy auf bekannte Ziele beschränken. Ein Proxy, der Antworten mit `Content-Encoding: br` verwirft, hilft ebenfalls (siehe [Übergangslösung am Proxy](#übergangslösung-am-proxy)).
 

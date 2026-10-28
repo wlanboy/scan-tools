@@ -515,9 +515,9 @@ docker run --rm --entrypoint sh opensearchproject/opensearch:3.9.0 -c 'ls -R /us
 <p>Wo der Decoder erreicht wird:</p>
 
 <ul>
-  <li>Eingehend nicht. Dashboards läuft auf hapi, und hapi entpackt Request-Bodies nur mit gzip und deflate. Einen Body mit <code>Content-Encoding: br</code> lehnt es mit 415 ab (<code>@hapi/subtext</code>, geprüft in 2.19.5; 3.9.0 nutzt hapi 21 ohne zusätzlichen Brotli-Decoder).</li>
+  <li>Eingehend nicht. Dashboards läuft auf hapi, und hapi entpackt Request-Bodies nur mit gzip und deflate (<code>@hapi/subtext</code>). Bei <code>Content-Encoding: br</code> ignoriert hapi den Header und liest den Body unentpackt. Getestet mit 3.9.0: Ein POST mit <code>Content-Encoding: br</code> und unkomprimiertem JSON geht mit 200 durch, der Brotli-Decoder läuft dabei nicht.</li>
   <li>Ausgehend schon. node-fetch 2.7.0 und axios 1.12.2 entpacken Brotli-Antworten automatisch. Welche Plugins damit wohin verbinden, habe ich nicht im Einzelnen geprüft.</li>
-  <li>Im Image von 2.19.5 liegt <code>libbrotli</code> 1.0.9-4.amzn2023.0.2, gezogen über <code>freetype</code>. Gefixt ist <code>1.1.0-1.amzn2023.0.2</code> (ALAS2023-2026-3334). Node nutzt diese Bibliothek nicht, Scanner melden sie trotzdem.</li>
+  <li>Im Image von 2.19.5 liegt <code>libbrotli</code> 1.0.9-4.amzn2023.0.2, gezogen über <code>freetype</code>. Gefixt ist <code>1.1.0-1.amzn2023.0.2</code> (ALAS2023-2026-3334), das aktuelle Image von 3.9.0 (Stand 26.10.) hat es schon. Node nutzt diese Bibliothek nicht, Scanner melden die alte Version trotzdem.</li>
 </ul>
 
 <pre><code class="lang-bash">docker run --rm --entrypoint sh opensearchproject/opensearch-dashboards:3.9.0 -c '/usr/share/opensearch-dashboards/node/bin/node -v; rpm -q libbrotli'</code></pre>
@@ -542,6 +542,8 @@ RUN cd /tmp \
  &amp;&amp; rm node-v22.23.4-linux-x64.tar.gz
 ENV OSD_NODE_HOME=/opt/node-v22.23.4-linux-x64
 USER 1000</code></pre>
+
+<p>Getestet mit 3.9.0 gegen OpenSearch 3.9.0: Dashboards läuft mit <code>/opt/node-v22.23.4-linux-x64/bin/node</code> und meldet Status green.</p>
 
 <ol start="4">
   <li>Ausgehenden Traffic von Dashboards per Egress-Regel oder Proxy auf bekannte Ziele beschränken. Ein Proxy, der Antworten mit <code>Content-Encoding: br</code> verwirft, hilft ebenfalls (siehe <a href="#übergangslösung-am-proxy">Übergangslösung am Proxy</a>).</li>
