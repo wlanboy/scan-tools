@@ -324,9 +324,9 @@ Der offene PR [dotnet/runtime#136430](https://github.com/dotnet/runtime/pull/136
 
 [update 2] Der `main`-Branch von dotnet/runtime nutzt seit 26.10. Brotli 1.1.1 ([dotnet/runtime#136471](https://github.com/dotnet/runtime/pull/136471)). Wer aus `main` baut, hat damit den Fix. #136422 ist weiter offen.
 
-## Grafana
+## Grafana-Stack
 
-Grafana hat bis 26.10. kein Advisory zu CVE-2026-111497 veröffentlicht. Der Grafana-Server ist nach meiner Einschätzung nicht betroffen, das Image des Grafana Image Renderer schon.
+Grafana hat bis 26.10. kein Advisory zu CVE-2026-111497 veröffentlicht. Der Grafana-Server ist nach meiner Einschätzung nicht betroffen, das Image des Grafana Image Renderer schon. Alloy, Tempo und Loki sind ebenfalls nicht betroffen (siehe [Alloy, Tempo und Loki](#alloy-tempo-und-loki)).
 
 ### Grafana-Server
 
@@ -342,10 +342,11 @@ Grafana hat bis 26.10. kein Advisory zu CVE-2026-111497 veröffentlicht. Der Gra
 - [update] Am 27.10. ist PR #1069 weiter offen. Ein neueres Release als v5.12.9 gibt es nicht.
 - [update 3] Grafana hat am 28.10. [v5.12.10](https://github.com/grafana/grafana-image-renderer/releases/tag/v5.12.10) veröffentlicht. PR [#1072](https://github.com/grafana/grafana-image-renderer/pull/1072) baut das Image auf `debian:trixie-20261027` mit frischem `apt-get upgrade` neu. Geprüft im Image `grafana/grafana-image-renderer:v5.12.10` (amd64): `libbrotli1 1.1.0-2+deb13u1`, `chromium 156.0.8078.47-1~deb13u1`. PR #1069 ist damit überholt. broccoli2shell.com führt Chromium als bereits gefixt, nennt aber keine Version.
 - Das Debian-Paket `chromium` hängt nicht von `libbrotli1` ab und nutzt damit eine eigene, mitkompilierte Brotli-Kopie. Chromium entpackt Brotli bei HTTP-Antworten mit `Content-Encoding: br` und in WOFF2-Schriften. Ob diese Kopie betroffen und schon gefixt ist, habe ich nicht gefunden. Der Debian-Tracker führt Chromium bei dieser CVE nicht.
+- [update 3] Chromium hat den Fix seit Version 148. Laut `third_party/brotli/README.chromium` steht Brotli dort auf Revision `cfa184a` vom 18.03.2026. Diese Revision enthält den Upstream-Fix [`0ed4268`](https://github.com/google/brotli/commit/0ed4268a4401abcb4472096340477cf4af7d1a2b) vom 27.02.2026, den Brotli 1.2.1 als Cherry-Pick übernommen hat. Chromium 156 in v5.12.10 ist damit gefixt.
 - Der Renderer lädt normalerweise nur Grafana-Seiten. Bindet ein Dashboard aber fremde Inhalte ein (Bilder oder iframes im Text-Panel, externe Webfonts), entpackt Chromium deren Antworten.
 - Ältere Versionen des Renderers liefen als Node-Plugin. Wer die noch nutzt, hat zusätzlich Node.js mit gebündeltem Brotli im Prozess (siehe [Node.js](#nodejs)).
 
-### Prüfen
+### Grafana und Renderer prüfen
 
 ```bash
 # Grafana-Image (Alpine): OS-Bibliothek
@@ -355,7 +356,7 @@ docker run --rm --entrypoint sh grafana/grafana -c 'apk info -v | grep -i brotli
 docker run --rm --entrypoint sh grafana/grafana-image-renderer -c 'dpkg -l | grep -iE "brotli|chromium"'
 ```
 
-### Was tun
+### Was tun bei Grafana und Renderer
 
 1. Bis ein gefixtes Renderer-Release erscheint, das Image selbst nachziehen:
 
@@ -373,6 +374,31 @@ USER 65532
 4. Grafana-Server und dessen Image beim nächsten Turnus aktualisieren. Nötig ist das wegen dieser Lücke nicht.
 
 [update 3] Statt des eigenen Dockerfiles reicht jetzt das Update auf `grafana/grafana-image-renderer:v5.12.10`. Die Tags auf Docker Hub haben ein `v` vorne, `5.12.9` ohne `v` gibt es nicht. Das Dockerfile oben ist entsprechend korrigiert.
+
+### Alloy, Tempo und Loki
+
+Nach meiner Einschätzung nicht betroffen. Eine Aussage von Grafana dazu habe ich nicht gefunden. Geprüft in den Images am 28.10.:
+
+| | Image | Brotli im Binary | cgo | Basis | `libbrotli` im Image |
+|---|---|---|---|---|---|
+| Alloy | `grafana/alloy` 1.21.2 | `andybalholm/brotli` v1.2.4 | an, linkt nur libc | Ubuntu 24.04 | nein |
+| Tempo | `grafana/tempo:latest` (3.0.0) | `andybalholm/brotli` v1.1.1 | aus | distroless | nein |
+| Loki | `grafana/loki` 3.7.9 | `andybalholm/brotli` v1.2.6 | aus | distroless | nein |
+
+- Alle drei sind in Go geschrieben und nutzen wie der Grafana-Server nur die reine Go-Portierung `github.com/andybalholm/brotli`. Die cgo-Bindings von Google (`github.com/google/brotli/go/cbrotli`) stehen weder in den Binaries noch im `go.mod` auf `main`.
+- Alloy ist mit cgo gebaut, linkt aber nur `libc`, `libpthread` und `libdl`. Tempo und Loki sind statisch ohne cgo gebaut.
+- In keinem der drei Images liegt `libbrotli`. Scanner sollten hier also nichts melden.
+- `grafana/tempo:latest` zeigte am 28.10. noch auf 3.0.0, das aktuelle Release ist 3.1.1.
+
+```bash
+# Binary aus dem Image holen (Alloy: /usr/bin/alloy, Tempo: /tempo, Loki: /usr/bin/loki)
+cid=$(docker create grafana/loki:3.7.9)
+docker cp $cid:/usr/bin/loki /tmp/loki && docker rm $cid
+go version -m /tmp/loki | grep -iE "brotli|CGO_ENABLED"
+# erwartet: nur github.com/andybalholm/brotli, kein cbrotli
+```
+
+Was tun: Nichts wegen dieser Lücke.
 
 ## MySQL
 
@@ -395,6 +421,123 @@ SELECT * FROM mysql.component;
 Was tun: Kein Notfall-Patch nötig. Die Images neu bauen, sobald Oracle Linux ein gefixtes `libbrotli` hat.
 
 [update 2] Oracle Linux 9 hat seit 26.10. das gefixte `libbrotli-1.0.9-10.0.1.el9_8` (ELSA-2026-500513). Die Images können jetzt neu gebaut werden. Ob Oracle die offiziellen `mysql`-Images schon neu gebaut hat, habe ich nicht geprüft, also nach dem Build mit `rpm -q libbrotli` kontrollieren.
+
+## OpenSearch
+
+Ein Advisory des OpenSearch-Projekts zu CVE-2026-111497 habe ich bis 28.10. nicht gefunden. Der OpenSearch-Server ist nach meiner Einschätzung nicht betroffen, OpenSearch Dashboards schon. Geprüft habe ich die Images `opensearchproject/opensearch` 2.19.5 und 3.9.0 sowie `opensearchproject/opensearch-dashboards` 2.19.5 und 3.9.0.
+
+### OpenSearch-Server
+
+- OpenSearch ist in Java geschrieben und nutzt Netty. Netty bringt die Klasse `BrotliDecoder` mit, entpackt Brotli aber nur, wenn brotli4j auf dem Classpath liegt (siehe [Netty](#netty-spring-boot-starter-webflux-reactor-netty)). Weder der Kern noch die mitgelieferten Plugins bringen brotli4j mit. Das gilt auch für die geshadete Netty-Kopie in `transport-grpc` (3.9.0).
+- Apache HttpClient 5 und commons-compress in den Plugins enthalten nur Java-Code.
+- OpenSearch 3.9.0 bringt mit `netty-codec-native-quic` native Bibliotheken mit. Darin liegt nur die Lizenzdatei von brotli4j, die Bibliothek `libnetty_quiche42` selbst enthält keinen Brotli-Decoder.
+- Die Images basieren auf Amazon Linux 2023 und enthalten kein `libbrotli`. `curl-minimal` kommt ohne Brotli aus, und das mitgelieferte JDK bringt ein eigenes `libfreetype` ohne Brotli mit. Scanner sollten hier nichts melden.
+
+Plugins von Drittanbietern einzeln prüfen:
+
+```bash
+# kein Treffer: kein brotli4j
+docker run --rm --entrypoint sh opensearchproject/opensearch:3.9.0 -c 'ls -R /usr/share/opensearch | grep -i brotli4j'
+```
+
+Was tun: Nichts wegen dieser Lücke.
+
+### OpenSearch Dashboards
+
+OpenSearch Dashboards ist eine Node-Anwendung und bringt ein eigenes Node-Binary mit (`node/bin/node`). Node bündelt Brotli, ein OS-Update hilft deshalb nicht. Stand 28.10. ist keine veröffentlichte Version gefixt:
+
+| Dashboards | Mitgeliefertes Node | Status |
+|---|---|---|
+| 2.19.x (auch 2.19.6) | 18.19.0 | Node 18 bekommt keinen Patch |
+| 3.0 bis 3.4 | 20.18.3 | Node 20 bekommt keinen Patch |
+| 3.5 und 3.6 | 22.22.0 | verwundbar |
+| 3.7 | 22.22.3 | verwundbar |
+| 3.8 und 3.9 | 22.23.0 | Bump auf 22.23.4 in `main` gemergt ([#13037](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/13037), 22.10.), Backport auf 3.9 ([#13048](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/13048)) offen, noch kein Release |
+
+Das Image von 2.19.5 enthält zusätzlich ein Fallback-Node 14.21.3 (`node/fallback`), das nur startet, wenn das Haupt-Binary auf dem System nicht läuft.
+
+Wo der Decoder erreicht wird:
+
+- Eingehend nicht. Dashboards läuft auf hapi, und hapi entpackt Request-Bodies nur mit gzip und deflate. Einen Body mit `Content-Encoding: br` lehnt es mit 415 ab (`@hapi/subtext`, geprüft in 2.19.5; 3.9.0 nutzt hapi 21 ohne zusätzlichen Brotli-Decoder).
+- Ausgehend schon. node-fetch 2.7.0 und axios 1.12.2 entpacken Brotli-Antworten automatisch. Welche Plugins damit wohin verbinden, habe ich nicht im Einzelnen geprüft.
+- Im Image von 2.19.5 liegt `libbrotli` 1.0.9-4.amzn2023.0.2, gezogen über `freetype`. Gefixt ist `1.1.0-1.amzn2023.0.2` (ALAS2023-2026-3334). Node nutzt diese Bibliothek nicht, Scanner melden sie trotzdem.
+
+```bash
+docker run --rm --entrypoint sh opensearchproject/opensearch-dashboards:3.9.0 -c '/usr/share/opensearch-dashboards/node/bin/node -v; rpm -q libbrotli'
+```
+
+Gefixt ist erst Node 22.23.4 (siehe [Node.js](#nodejs)). `process.versions.brotli` hilft hier nicht.
+
+Was tun:
+
+1. Auf das erste 3.9.x-Release mit Node 22.23.4 aktualisieren, sobald es erscheint.
+2. 2.19 und 3.0 bis 3.4 bekommen über ihre Node-Version keinen Fix. Upgrade auf die gepatchte 3.x-Linie planen.
+3. Für 3.5 bis 3.9 lässt sich bis dahin ein gepatchtes Node einsetzen. `bin/use_node` nimmt `OSD_NODE_HOME` vor dem mitgelieferten Binary. Von 22.23.0 auf 22.23.4 ist das ein Patch-Sprung innerhalb derselben Linie:
+
+```dockerfile
+FROM opensearchproject/opensearch-dashboards:3.9.0
+USER root
+# x64; für arm64 linux-arm64 einsetzen
+RUN cd /tmp \
+ && curl -fsSLO https://nodejs.org/dist/v22.23.4/node-v22.23.4-linux-x64.tar.gz \
+ && curl -fsSL https://nodejs.org/dist/v22.23.4/SHASUMS256.txt | grep " node-v22.23.4-linux-x64.tar.gz$" | sha256sum -c - \
+ && tar -xzf node-v22.23.4-linux-x64.tar.gz -C /opt \
+ && rm node-v22.23.4-linux-x64.tar.gz
+ENV OSD_NODE_HOME=/opt/node-v22.23.4-linux-x64
+USER 1000
+```
+
+4. Ausgehenden Traffic von Dashboards per Egress-Regel oder Proxy auf bekannte Ziele beschränken. Ein Proxy, der Antworten mit `Content-Encoding: br` verwirft, hilft ebenfalls (siehe [Übergangslösung am Proxy](#übergangslösung-am-proxy)).
+
+## Elasticsearch und Kibana
+
+Ein Advisory von Elastic zu CVE-2026-111497 habe ich bis 28.10. nicht gefunden. Elasticsearch ist nach meiner Einschätzung nicht betroffen, Kibana schon. Geprüft habe ich die Images `elasticsearch` und `kibana` 9.4.8 von `docker.elastic.co`.
+
+### Elasticsearch
+
+- Elasticsearch ist wie OpenSearch eine Java-Anwendung auf Netty, ohne brotli4j. Der Build führt die brotli4j-Klassen ausdrücklich als fehlend (`thirdPartyAudit` in `modules/transport-netty4/build.gradle`).
+- Das Modul `esql-datasource-brotli` liest Brotli-Dateien mit dem reinen Java-Decoder `org.brotli:dec` 0.1.2 und ist damit unkritisch.
+- Das Image basiert auf RHEL 9.8 und enthält kein `libbrotli`.
+
+Was tun: Nichts wegen dieser Lücke.
+
+### Kibana
+
+- Kibana 9.4.8 bringt Node 24.21.0 mit (`node/default` und `node/glibc-217`) und ist damit verwundbar. Laut [elastic/kibana#299985](https://github.com/elastic/kibana/issues/299985) gilt das auch für 9.5.5 und 8.19.23. 9.3 bringt Node 22.23.1 mit.
+- Elastic hat Node 24.22.1 am 21.10. in die Branches 9.5, 9.4 und 8.19 gemergt und das Issue am 27.10. geschlossen. Ein Release gibt es noch nicht, die neuesten sind 9.5.5, 9.4.8 und 8.19.23 vom 06.10. Ob 9.3 noch ein Update bekommt, ist offen.
+- Eingehend ist der Decoder nicht erreichbar. Kibana läuft wie Dashboards auf hapi ohne Brotli-Decoder. Mit `server.compression.brotli.enabled` (Default `false`) komprimiert Kibana Antworten über das Plugin `brok`. Kibana registriert es nur mit `compress`, die Option `decompress` bleibt aus.
+- Ausgehend schon: axios 1.20.0, node-fetch 2.7.0 und undici 7.30.1 entpacken Brotli-Antworten automatisch. Das betrifft vor allem Connectors (Webhook, Slack, Jira, ServiceNow usw.). Ihre Ziele sind per Default nicht eingeschränkt (`xpack.actions.allowedHosts: ["*"]`).
+- Das Image (RHEL 9.8) enthält `libbrotli` 1.0.9-9.el9_7, gezogen über `freetype`. Gefixt ist `1.0.9-10.el9_8.1` (RHSA-2026:90495). Kibana nutzt diese Bibliothek nicht, Scanner melden sie trotzdem.
+- Für Reporting bringt Kibana ein Headless-Chromium mit (151.0.7922.77 in 9.4.8). Es hat eine eigene Brotli-Kopie und ist seit Version 148 gefixt (siehe [Grafana Image Renderer](#grafana-image-renderer)).
+
+```bash
+docker run --rm --entrypoint sh docker.elastic.co/kibana/kibana:9.4.8 -c '/usr/share/kibana/node/default/bin/node -v; rpm -q libbrotli'
+```
+
+Gefixt ist erst Node 24.22.1.
+
+Was tun:
+
+1. Das Patch-Release mit Node 24.22.1 einspielen, sobald es erscheint.
+2. Bis dahin `xpack.actions.allowedHosts` auf die tatsächlich genutzten Ziele setzen.
+3. Ausgehenden Traffic von Kibana per Egress-Regel oder Proxy auf bekannte Ziele beschränken (siehe [Übergangslösung am Proxy](#übergangslösung-am-proxy)).
+
+## Fluent Bit
+
+Ein Advisory zu CVE-2026-111497 habe ich bis 28.10. nicht gefunden. Fluent Bit ist nach meiner Einschätzung nicht betroffen. Geprüft habe ich das Image `fluent/fluent-bit:5.0` (5.0.10, distroless auf Debian 13).
+
+- Fluent Bit ist in C geschrieben. Das Binary enthält keinen eigenen Brotli-Code.
+- Es linkt `libcurl`, und `libcurl` hängt an `libbrotlidec`. Im Image liegt `libbrotli1` 1.1.0-2+b7, also die verwundbare Version. Gefixt ist `1.1.0-2+deb13u1` (DSA-6582-1).
+- libcurl ruft im Quellcode von Fluent Bit nur die mitgelieferte librdkafka auf (`rdhttp.c`, etwa für OAuth-Token). `CURLOPT_ACCEPT_ENCODING` setzt Fluent Bit nirgends, libcurl entpackt damit kein Brotli (siehe [libbrotli im Base-Image](#libbrotli-im-base-image)).
+
+```bash
+# Das Image hat keine Shell, deshalb die Paketdatei herauskopieren
+cid=$(docker create fluent/fluent-bit:5.0)
+docker cp $cid:/var/lib/dpkg/status.d/libbrotli1 - | tar -xO | grep ^Version
+docker rm $cid
+```
+
+Was tun: Kein Notfall-Patch nötig. Das Image aktualisieren, sobald es `libbrotli1` 1.1.0-2+deb13u1 enthält. Ob 5.0.11 und 5.1.5 das schon tun, habe ich nicht geprüft.
 
 ## Weitere Projekte mit eigener Brotli-Kopie
 
@@ -469,6 +612,19 @@ Apache `mod_brotli` entpackt kein Brotli. Nginx entpackt standardmäßig auch ni
 - [Grafana: go.mod](https://github.com/grafana/grafana/blob/main/go.mod)
 - [Debian: Paket chromium (trixie)](https://packages.debian.org/trixie/chromium)
 - [MySQL: extra/curl CMakeLists.txt](https://github.com/mysql/mysql-server/blob/trunk/extra/curl/curl-8.14.1/CMakeLists.txt)
+- [Grafana Alloy: go.mod](https://github.com/grafana/alloy/blob/main/go.mod)
+- [Grafana Tempo: go.mod](https://github.com/grafana/tempo/blob/main/go.mod)
+- [Grafana Loki: go.mod](https://github.com/grafana/loki/blob/main/go.mod)
+- [OpenSearch-Dashboards#13037: Bump bundled Node.js to 22.23.4](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/13037)
+- [OpenSearch-Dashboards#13048: Backport auf 3.9](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/13048)
+- [hapijs/subtext: Decoder für Request-Bodies](https://github.com/hapijs/subtext/blob/master/lib/index.js)
+- [Amazon Linux: ALAS2023-2026-3334 (brotli)](https://alas.aws.amazon.com/AL2023/ALAS2023-2026-3334.html)
+- [Elasticsearch: transport-netty4 build.gradle](https://github.com/elastic/elasticsearch/blob/main/modules/transport-netty4/build.gradle)
+- [elastic/kibana#299985: Patch-Releases mit Node.js 24.22.1](https://github.com/elastic/kibana/issues/299985)
+- [Kibana: http_server.ts (Registrierung von brok)](https://github.com/elastic/kibana/blob/9.4/src/core/packages/http/server-internal/src/http_server.ts)
+- [brok: Brotli-Plugin für hapi](https://github.com/kanongil/brok/blob/master/lib/index.js)
+- [Tanium: HTTP2Shell, Fix-Status von Chrome und Kibana](https://www.tanium.com/blog/http2shell-find-and-fix-vulnerable-brotli-copies-with-tanium)
+- [Fluent Bit: librdkafka rdhttp.c](https://github.com/fluent/fluent-bit/blob/master/lib/librdkafka-2.15.0/src/rdhttp.c)
 - [update] [ELLIO: Node2Shell RCE on stock Node.js builds, erster Ausnutzungsversuch](https://ellio.tech/en/blog/node2shell-cve-2026-111497-rce-on-stock-nodejs-builds/)
 - [update] [Cyber Kendra: Node2Shell Exploited in the Wild](https://www.cyberkendra.com/2026/10/node2shell-cve-2026-111497-exploited-in-the-wild.html)
 - [update] [FIRST EPSS API: CVE-2026-111497](https://api.first.org/data/v1/epss?cve=CVE-2026-111497)
@@ -485,3 +641,5 @@ Apache `mod_brotli` entpackt kein Brotli. Nginx entpackt standardmäßig auch ni
 - [update 3] [SecurityWeek: CISA Warns of Node2Shell Exploitation as Honeypots Log Attack Attempts](https://www.securityweek.com/cisa-warns-of-node2shell-exploitation-as-honeypots-log-attack-attempts/)
 - [update 3] [grafana-image-renderer v5.12.10](https://github.com/grafana/grafana-image-renderer/releases/tag/v5.12.10)
 - [update 3] [grafana/grafana-image-renderer#1072: Update golang and debian base images](https://github.com/grafana/grafana-image-renderer/pull/1072)
+- [update 3] [Chromium 151: third_party/brotli/README.chromium](https://chromium.googlesource.com/chromium/src/+/refs/tags/151.0.7922.77/third_party/brotli/README.chromium)
+- [update 3] [google/brotli 0ed4268: Detect and report invalid stream earlier](https://github.com/google/brotli/commit/0ed4268a4401abcb4472096340477cf4af7d1a2b)
