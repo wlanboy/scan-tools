@@ -491,9 +491,9 @@ Getestet mit 3.9.0 gegen OpenSearch 3.9.0: Dashboards läuft mit `/opt/node-v22.
 
 4. Ausgehenden Traffic von Dashboards per Egress-Regel oder Proxy auf bekannte Ziele beschränken. Ein Proxy, der Antworten mit `Content-Encoding: br` verwirft, hilft ebenfalls (siehe [Übergangslösung am Proxy](#übergangslösung-am-proxy)).
 
-## Elasticsearch und Kibana
+## Elastic Stack
 
-Ein Advisory von Elastic zu CVE-2026-111497 habe ich bis 28.10. nicht gefunden. Elasticsearch ist nach meiner Einschätzung nicht betroffen, Kibana schon. Geprüft habe ich die Images `elasticsearch` und `kibana` 9.4.8 von `docker.elastic.co`.
+Ein Advisory von Elastic zu CVE-2026-111497 habe ich bis 28.10. nicht gefunden. Elasticsearch und Logstash sind nach meiner Einschätzung nicht betroffen, Kibana schon. Geprüft habe ich die Images `elasticsearch`, `kibana` und `logstash` 9.4.8 von `docker.elastic.co`.
 
 ### Elasticsearch
 
@@ -523,6 +523,21 @@ Was tun:
 1. Das Patch-Release mit Node 24.22.1 einspielen, sobald es erscheint.
 2. Bis dahin `xpack.actions.allowedHosts` auf die tatsächlich genutzten Ziele setzen.
 3. Ausgehenden Traffic von Kibana per Egress-Regel oder Proxy auf bekannte Ziele beschränken (siehe [Übergangslösung am Proxy](#übergangslösung-am-proxy)).
+
+### Logstash
+
+- Logstash läuft auf JRuby und der JVM (mitgeliefertes JDK 21). Die Inputs `http`, `beats` und `tcp` nutzen Netty 4.1.138 ohne brotli4j. Netty entpackt `br` damit nicht (siehe [Netty](#netty-spring-boot-starter-webflux-reactor-netty)).
+- Weitere Brotli-Klassen stecken nur als Java-Code in Bibliotheken: die geshadete Netty-Kopie in `march_hare` (RabbitMQ), Apache HttpClient 5 in `logstash-filter-elastic_integration` und commons-compress in `logstash-integration-kafka`. Keine davon bringt nativen Code mit, und brotli4j liegt nirgends im Image.
+- Die HTTP-Plugins (`http`-Output, `http`-Filter, `http_poller`) nutzen manticore auf Apache HttpClient 4.5.13. Der kennt nur gzip und deflate.
+- Das Gem `bindata` hat eine Brotli-Transformation, die das Gem `brotli` nachladen würde. Dieses Gem bringt eine eigene C-Kopie von `decode.c` mit, ist im Image aber nicht installiert. Wer es für eigene Ruby-Filter nachinstalliert, braucht mindestens 0.9.1 (siehe [Weitere Projekte](#weitere-projekte-mit-eigener-brotli-kopie)).
+- Das Image basiert auf RHEL 9.8 und enthält kein `libbrotli`. Das mitgelieferte JDK bringt ein eigenes `libfreetype` ohne Brotli mit.
+
+```bash
+# kein Treffer: kein brotli4j und kein brotli-Gem
+docker run --rm --entrypoint sh docker.elastic.co/logstash/logstash:9.4.8 -c 'cd /usr/share/logstash; find vendor -iname "*brotli4j*"; ls vendor/bundle/jruby/*/gems | grep -i "^brotli"'
+```
+
+Was tun: Nichts wegen dieser Lücke.
 
 ## Fluent Bit
 
@@ -626,6 +641,7 @@ Apache `mod_brotli` entpackt kein Brotli. Nginx entpackt standardmäßig auch ni
 - [Kibana: http_server.ts (Registrierung von brok)](https://github.com/elastic/kibana/blob/9.4/src/core/packages/http/server-internal/src/http_server.ts)
 - [brok: Brotli-Plugin für hapi](https://github.com/kanongil/brok/blob/master/lib/index.js)
 - [Tanium: HTTP2Shell, Fix-Status von Chrome und Kibana](https://www.tanium.com/blog/http2shell-find-and-fix-vulnerable-brotli-copies-with-tanium)
+- [manticore: HTTP-Client für JRuby](https://github.com/cheald/manticore)
 - [Fluent Bit: librdkafka rdhttp.c](https://github.com/fluent/fluent-bit/blob/master/lib/librdkafka-2.15.0/src/rdhttp.c)
 - [update] [ELLIO: Node2Shell RCE on stock Node.js builds, erster Ausnutzungsversuch](https://ellio.tech/en/blog/node2shell-cve-2026-111497-rce-on-stock-nodejs-builds/)
 - [update] [Cyber Kendra: Node2Shell Exploited in the Wild](https://www.cyberkendra.com/2026/10/node2shell-cve-2026-111497-exploited-in-the-wild.html)
