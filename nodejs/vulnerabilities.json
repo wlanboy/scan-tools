@@ -12,8 +12,8 @@
         "24.x",
         "22.x"
       ],
-      "vulnerable": "",
-      "patched": "",
+      "vulnerable": "22.x || 24.x || 26.x",
+      "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
       "releases": [
         "26.12.1",
         "24.22.1",
@@ -28,9 +28,10 @@
         "title": "Wednesday, October 21, 2026 Security Releases",
         "date": "2026-10-21"
       },
-      "nswg": "",
+      "nswg": "NSWG-CORE-204",
       "sources": [
-        "blog"
+        "blog",
+        "security-wg"
       ]
     },
     {
@@ -43,8 +44,8 @@
         "24.x",
         "22.x"
       ],
-      "vulnerable": "",
-      "patched": "",
+      "vulnerable": "22.x || 24.x || 26.x",
+      "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
       "releases": [
         "26.12.1",
         "24.22.1",
@@ -59,9 +60,10 @@
         "title": "Wednesday, October 21, 2026 Security Releases",
         "date": "2026-10-21"
       },
-      "nswg": "",
+      "nswg": "NSWG-CORE-203",
       "sources": [
-        "blog"
+        "blog",
+        "security-wg"
       ]
     },
     {
@@ -74,8 +76,8 @@
         "24.x",
         "22.x"
       ],
-      "vulnerable": "",
-      "patched": "",
+      "vulnerable": "22.x || 24.x || 26.x",
+      "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
       "releases": [
         "26.12.1",
         "24.22.1",
@@ -90,9 +92,10 @@
         "title": "Wednesday, October 21, 2026 Security Releases",
         "date": "2026-10-21"
       },
-      "nswg": "",
+      "nswg": "NSWG-CORE-202",
       "sources": [
-        "blog"
+        "blog",
+        "security-wg"
       ]
     },
     {
@@ -105,8 +108,8 @@
         "24.x",
         "22.x"
       ],
-      "vulnerable": "",
-      "patched": "",
+      "vulnerable": "22.x || 24.x || 26.x",
+      "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
       "releases": [
         "26.12.1",
         "24.22.1",
@@ -121,9 +124,10 @@
         "title": "Wednesday, October 21, 2026 Security Releases",
         "date": "2026-10-21"
       },
-      "nswg": "",
+      "nswg": "NSWG-CORE-201",
       "sources": [
-        "blog"
+        "blog",
+        "security-wg"
       ]
     },
     {
@@ -134,8 +138,8 @@
       "affectedLines": [
         "26.x"
       ],
-      "vulnerable": "",
-      "patched": "",
+      "vulnerable": "26.x",
+      "patched": "^26.12.1",
       "releases": [
         "26.12.1",
         "24.22.1",
@@ -150,9 +154,10 @@
         "title": "Wednesday, October 21, 2026 Security Releases",
         "date": "2026-10-21"
       },
-      "nswg": "",
+      "nswg": "NSWG-CORE-200",
       "sources": [
-        "blog"
+        "blog",
+        "security-wg"
       ]
     },
     {
@@ -163,8 +168,8 @@
       "affectedLines": [
         "26.x"
       ],
-      "vulnerable": "",
-      "patched": "",
+      "vulnerable": "26.x",
+      "patched": "^26.12.1",
       "releases": [
         "26.12.1",
         "24.22.1",
@@ -179,9 +184,10 @@
         "title": "Wednesday, October 21, 2026 Security Releases",
         "date": "2026-10-21"
       },
-      "nswg": "",
+      "nswg": "NSWG-CORE-199",
       "sources": [
-        "blog"
+        "blog",
+        "security-wg"
       ]
     },
     {
@@ -194,8 +200,8 @@
         "24.x",
         "22.x"
       ],
-      "vulnerable": "",
-      "patched": "",
+      "vulnerable": "22.x || 24.x || 26.x",
+      "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
       "releases": [
         "26.12.1",
         "24.22.1",
@@ -210,9 +216,10 @@
         "title": "Wednesday, October 21, 2026 Security Releases",
         "date": "2026-10-21"
       },
-      "nswg": "",
+      "nswg": "NSWG-CORE-198",
       "sources": [
-        "blog"
+        "blog",
+        "security-wg"
       ]
     },
     {
@@ -224,8 +231,8 @@
         "26.x",
         "24.x"
       ],
-      "vulnerable": "",
-      "patched": "",
+      "vulnerable": "24.x || 26.x",
+      "patched": "^24.22.1 || ^26.12.1",
       "releases": [
         "26.12.1",
         "24.22.1",
@@ -240,9 +247,10 @@
         "title": "Wednesday, October 21, 2026 Security Releases",
         "date": "2026-10-21"
       },
-      "nswg": "",
+      "nswg": "NSWG-CORE-197",
       "sources": [
-        "blog"
+        "blog",
+        "security-wg"
       ]
     },
     {
@@ -255,8 +263,8 @@
         "24.x",
         "22.x"
       ],
-      "vulnerable": "",
-      "patched": "",
+      "vulnerable": "22.x || 24.x || 26.x",
+      "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
       "releases": [
         "26.12.1",
         "24.22.1",
@@ -271,9 +279,10 @@
         "title": "Wednesday, October 21, 2026 Security Releases",
         "date": "2026-10-21"
       },
-      "nswg": "",
+      "nswg": "NSWG-CORE-196",
       "sources": [
-        "blog"
+        "blog",
+        "security-wg"
       ]
     },
     {
@@ -286,8 +295,8 @@
         "24.x",
         "22.x"
       ],
-      "vulnerable": "",
-      "patched": "",
+      "vulnerable": "22.x || 24.x || 26.x",
+      "patched": "^22.23.4 || ^24.22.1 || ^26.12.1",
       "releases": [
         "26.12.1",
         "24.22.1",
@@ -302,9 +311,10 @@
         "title": "Wednesday, October 21, 2026 Security Releases",
         "date": "2026-10-21"
       },
-      "nswg": "",
+      "nswg": "NSWG-CORE-195",
       "sources": [
-        "blog"
+        "blog",
+        "security-wg"
       ]
     },
     {
