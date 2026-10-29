@@ -618,6 +618,57 @@ docker rm $cid</code></pre>
 
 <p>Was tun: Kein Notfall-Patch nötig. Das Image aktualisieren, sobald es <code>libbrotli1</code> 1.1.0-2+deb13u1 enthält. Ob 5.0.11 und 5.1.5 das schon tun, habe ich nicht geprüft.</p>
 
+<h2 id="apache-kafka">Apache Kafka</h2>
+
+<p>Die CVE-Liste von Apache Kafka nennt CVE-2026-111497 bis 28.10. nicht (siehe <a href="../kafka/">Kafka-CVE-Übersicht</a>). Kafka ist nach meiner Einschätzung in 2.x, 3.x und 4.x nicht betroffen. Geprüft habe ich die Images <code>apache/kafka</code> 4.4.0 und 3.9.2, das Release-Tarball 2.8.2 sowie <code>confluentinc/cp-kafka</code> 7.9.2 (Kafka 3.9) und 5.4.10 (Kafka 2.4).</p>
+
+<p>Für alle Linien gilt:</p>
+
+<ul>
+  <li>Das Kafka-Protokoll komprimiert Batches nur mit gzip, snappy, lz4 und zstd. Brotli gibt es dort nicht. Die nativen Bibliotheken <code>snappy-java</code>, <code>zstd-jni</code> und <code>lz4-java</code> enthalten keinen Brotli-Code.</li>
+  <li>brotli4j liegt in keiner Version und keinem Image auf dem Classpath, auch nicht geshadet.</li>
+  <li>Die REST-API von Kafka Connect und MirrorMaker läuft auf Jetty. Jetty 9.4 und 12.0 kennen nur gzip (siehe <a href="#jetty-spring-boot-starter-jetty">Jetty</a>). Das Modul <code>jetty-compression-brotli</code> aus Jetty 12.1 bringt Kafka nicht mit.</li>
+  <li>Im laufenden Broker (KRaft, <code>apache/kafka</code> 4.4.0 und 3.9.2) zeigt <code>/proc/1/maps</code> keine Brotli-Bibliothek.</li>
+</ul>
+
+<p>Je Linie:</p>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Linie</th><th>Geprüft</th><th>HTTP/Netzwerk-Bibliotheken</th><th>Brotli im Image</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>4.x</td><td><code>apache/kafka</code> 4.4.0 (Alpine 3.24, JDK 25)</td><td>Jetty 12.0.39, kein Netty mehr (ZooKeeper ist entfernt)</td><td><code>brotli-libs</code> 1.2.0-r1, verwundbar</td></tr>
+      <tr><td>3.x</td><td><code>apache/kafka</code> 3.9.2 (Alpine 3.23, JDK 21)</td><td>Jetty 9.4.57, Netty 4.1.125 (ZooKeeper)</td><td><code>brotli-libs</code> 1.2.0-r0, verwundbar</td></tr>
+      <tr><td>3.x</td><td><code>cp-kafka</code> 7.9.2 (RHEL 8.10, JDK 17)</td><td>Jetty 9.4.57, Netty 4.1.119</td><td><code>brotli</code> 1.0.6-3.el8, verwundbar</td></tr>
+      <tr><td>2.x</td><td>Tarball 2.8.2</td><td>Jetty 9.4.48, Netty 4.1.73 (ZooKeeper)</td><td>kein Image</td></tr>
+      <tr><td>2.x</td><td><code>cp-kafka</code> 5.4.10 (Debian 8, JDK 8)</td><td>Jetty 9.4.48, Netty 4.1.79</td><td>kein <code>libbrotli</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<ul>
+  <li>Netty steckt in 2.x und 3.x nur für ZooKeeper im Image. <code>netty-codec</code> enthält die Klasse <code>BrotliDecoder</code>, entpackt ohne brotli4j aber nichts (siehe <a href="#netty-spring-boot-starter-webflux-reactor-netty">Netty</a>).</li>
+  <li>In den Alpine-Images von <code>apache/kafka</code> ziehen <code>freetype</code> und <code>fontconfig</code> (für <code>ttf-dejavu</code>) die Bibliothek mit, in 3.9.2 zusätzlich <code>gnutls</code> über <code>gnupg-dirmngr</code>. <code>curl</code> ist nicht installiert. Gefixt ist laut Alpine-secdb erst <code>brotli-libs</code> 1.2.1-r0, in 3.23 und 3.24. Das Image von 4.4.0 (Stand 22.10.) hat es noch nicht. Kafka nutzt die Bibliothek nicht, Scanner melden sie trotzdem.</li>
+  <li>In <code>cp-kafka</code> 7.9.2 zieht <code>libcurl</code> die Bibliothek mit. Die Startskripte unter <code>/etc/confluent/docker</code> rufen <code>curl</code> nicht auf. Gefixt ist <code>1.0.6-5.el8_10</code> (RHSA-2026:90501).</li>
+  <li>2.x bekommt seit Jahren keine Updates mehr. Das ist ein eigenes Problem, unabhängig von dieser Lücke.</li>
+</ul>
+
+<p>Connect-Plugins von Drittanbietern (HTTP-Sinks, Cloud-Connectoren) bringen eigene Abhängigkeiten mit und müssen einzeln geprüft werden:</p>
+
+<pre><code class="lang-bash"># kein Treffer: kein brotli4j; Plugin-Verzeichnis aus plugin.path einsetzen
+docker run --rm --entrypoint sh apache/kafka:4.4.0 -c 'find /opt/kafka -iname "*brotli4j*"; apk info -v | grep -i brotli'</code></pre>
+
+<p>Was tun: Kein Notfall-Patch nötig. Images neu bauen, sobald sie das gefixte OS-Paket enthalten. Wer nicht auf ein neues offizielles Image warten will, hebt das Paket selbst:</p>
+
+<pre><code class="lang-dockerfile">FROM apache/kafka:4.4.0
+USER root
+RUN apk upgrade --no-cache brotli-libs
+USER appuser</code></pre>
+
+<p>Getestet mit 4.4.0 und 3.9.2: Danach liegt <code>brotli-libs</code> 1.2.1-r0 im Image.</p>
+
 <h2 id="weitere-projekte-mit-eigener-brotli-kopie">Weitere Projekte mit eigener Brotli-Kopie</h2>
 
 <p>Viele Projekte bringen eine eigene Kopie von <code>decode.c</code> mit. Ein OS-Update erreicht diese Kopien nicht. Stand 26.10. laut <a href="https://broccoli2shell.com/" target="_blank" rel="noopener">broccoli2shell.com</a>:</p>
@@ -702,6 +753,8 @@ docker rm $cid</code></pre>
   <li><a href="https://www.tanium.com/blog/http2shell-find-and-fix-vulnerable-brotli-copies-with-tanium" target="_blank" rel="noopener">Tanium: HTTP2Shell, Fix-Status von Chrome und Kibana</a></li>
   <li><a href="https://github.com/cheald/manticore" target="_blank" rel="noopener">manticore: HTTP-Client für JRuby</a></li>
   <li><a href="https://github.com/fluent/fluent-bit/blob/master/lib/librdkafka-2.15.0/src/rdhttp.c" target="_blank" rel="noopener">Fluent Bit: librdkafka rdhttp.c</a></li>
+  <li><a href="https://kafka.apache.org/community/cve-list/" target="_blank" rel="noopener">Apache Kafka: CVE-Liste</a></li>
+  <li><a href="https://secdb.alpinelinux.org/v3.24/main.json" target="_blank" rel="noopener">Alpine secdb: v3.24 main (brotli 1.2.1-r0)</a></li>
   <li>[update] <a href="https://ellio.tech/en/blog/node2shell-cve-2026-111497-rce-on-stock-nodejs-builds/" target="_blank" rel="noopener">ELLIO: Node2Shell RCE on stock Node.js builds, erster Ausnutzungsversuch</a></li>
   <li>[update] <a href="https://www.cyberkendra.com/2026/10/node2shell-cve-2026-111497-exploited-in-the-wild.html" target="_blank" rel="noopener">Cyber Kendra: Node2Shell Exploited in the Wild</a></li>
   <li>[update] <a href="https://api.first.org/data/v1/epss?cve=CVE-2026-111497" target="_blank" rel="noopener">FIRST EPSS API: CVE-2026-111497</a></li>
