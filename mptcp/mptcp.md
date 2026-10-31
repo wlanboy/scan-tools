@@ -8,7 +8,7 @@ The Hacker News berichtet über diese Lücke unter dem Titel "Linux Kernel TCP F
 
 Beim TCP-Handshake übergibt der Kernel die IP-Optionen der Verbindungsanfrage (`ireq->ireq_opt`) an den neuen Socket, ohne sie zu kopieren (`tcp_v4_syn_recv_sock()`). Verarbeitet eine andere CPU gleichzeitig ein wiederholtes SYN für dieselbe Anfrage, baut sie daraus ein SYNACK. Wird der neue Socket in diesem Moment freigegeben, liest `ip_options_build()` freigegebenen Speicher (Use-after-free). Eine ähnliche Race gibt es bei der Migration von Request-Sockets, wenn `net.ipv4.tcp_migrate_req=1` gesetzt ist oder ein BPF-Programm vom Typ `BPF_SK_REUSEPORT_SELECT_OR_MIGRATE` läuft.
 
-- Eingeführt mit Commit `079096f103fa` ("tcp/dccp: install syn_recv requests into ehash table") in Linux 4.4. Seitdem verarbeitet der Kernel Request-Sockets ohne Listener-Lock.
+- Eingeführt mit Commit `079096f103fa` ("tcp/dccp: install syn_recv requests into ehash table", Eric Dumazet, 02.10.2015) in Linux 4.4. Seitdem verarbeitet der Kernel Request-Sockets ohne Listener-Lock.
 - Der Fix gibt die Optionen erst nach einer RCU-Grace-Period frei (`kfree_rcu()` in `inet_sock_destruct()` und `tcp_v4_reqsk_destructor()`). Upstream-Commit `e3f33b0a1d89`, laut The Hacker News vom 05.10.2026.
 - IPv6 ist vom Hauptfehler nicht betroffen, weil `tcp_v6_syn_recv_sock()` die Optionen kopiert. Das Migrationsproblem gibt es dort ebenfalls, aber nur mit CALIPSO-Optionen. Das soll ein eigener Patch beheben.
 - Ausgelöst wird der Fehler laut Kernel-CVE-Team mit einem SYN, das die IPv4-Optionen Record Route oder Timestamp trägt, und einem wiederholten SYN, um die Race zu gewinnen. Ohne IP-Optionen im SYN gibt es keine Optionen, die freigegeben werden könnten.
