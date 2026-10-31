@@ -138,7 +138,7 @@
 <p>Nach Red Hats Aussage nicht betroffen, solange der Standard-Kernel läuft.</p>
 
 <ul>
-  <li>CentOS 7.9.2009 läuft mit <code>kernel-3.10.0-1160.*.el7</code>. Das ist derselbe Kernel wie in RHEL 7, und Red Hat führt RHEL 7 mit <code>vulnerable_code_not_present</code>.</li>
+  <li>CentOS 7.9.2009 läuft mit <code>kernel-3.10.0-1160.*.el7</code> (Basis-Build mit RHEL 7.9 vom 29.09.2020, auf Grundlage von Linux 3.10 aus 2013). Das ist derselbe Kernel wie in RHEL 7, und Red Hat führt RHEL 7 mit <code>vulnerable_code_not_present</code>.</li>
   <li>Der verursachende Commit kam erst mit Linux 4.4. Nach meiner Einschätzung hat Red Hat den Umbau auf Request-Sockets ohne Listener-Lock nie in den 3.10-Kernel zurückportiert, das passt zu "Code nicht vorhanden". Eine Begründung nennt Red Hat nicht.</li>
   <li>MPTCP gibt es im RHEL-7-Kernel nicht. Upstream ist es seit Linux 5.6 enthalten, in RHEL erst ab 8.3.</li>
   <li>Wichtige Ausnahme: Läuft auf CentOS 7 ein fremder Kernel, gilt diese Aussage nicht. Das betrifft vor allem <code>kernel-lt</code> und <code>kernel-ml</code> von ELRepo, selbst gebaute Kernel und Kernel von Hosting-Anbietern. Liegt dessen Version bei 4.4 oder höher und ohne Fix, ist das System betroffen.</li>
