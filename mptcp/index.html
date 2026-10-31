@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Linux-Kernel: Use-after-free im IPv4-TCP-Handshake (CVE-2026-98432)</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+  <header>
+    <p class="back"><a href="../">← Übersicht</a></p>
+    <h1>Linux-Kernel: Use-after-free im IPv4-TCP-Handshake (CVE-2026-98432)</h1>
+    <p class="muted">Stand: 30.10.2026</p>
+  </header>
+
+  <main>
+<p>The Hacker News berichtet über diese Lücke unter dem Titel "Linux Kernel TCP Flaw with 9.8 CVSS". Weil Anthropics Exploit einen Server mit MPTCP-Listener angreift, liegt die Beschreibung hier unter <code>mptcp/</code>. Der Fehler selbst steckt aber im normalen IPv4-TCP-Code, nicht in MPTCP.</p>
+
+<h2 id="worum-es-geht">Worum es geht</h2>
+
+<p>Beim TCP-Handshake übergibt der Kernel die IP-Optionen der Verbindungsanfrage (<code>ireq-&gt;ireq_opt</code>) an den neuen Socket, ohne sie zu kopieren (<code>tcp_v4_syn_recv_sock()</code>). Verarbeitet eine andere CPU gleichzeitig ein wiederholtes SYN für dieselbe Anfrage, baut sie daraus ein SYNACK. Wird der neue Socket in diesem Moment freigegeben, liest <code>ip_options_build()</code> freigegebenen Speicher (Use-after-free). Eine ähnliche Race gibt es bei der Migration von Request-Sockets, wenn <code>net.ipv4.tcp_migrate_req=1</code> gesetzt ist oder ein BPF-Programm vom Typ <code>BPF_SK_REUSEPORT_SELECT_OR_MIGRATE</code> läuft.</p>
+
+<ul>
+  <li>Eingeführt mit Commit <code>079096f103fa</code> ("tcp/dccp: install syn_recv requests into ehash table", Eric Dumazet, 02.10.2015) in Linux 4.4. Seitdem verarbeitet der Kernel Request-Sockets ohne Listener-Lock.</li>
+  <li>Der Fix gibt die Optionen erst nach einer RCU-Grace-Period frei (<code>kfree_rcu()</code> in <code>inet_sock_destruct()</code> und <code>tcp_v4_reqsk_destructor()</code>). Upstream-Commit <code>e3f33b0a1d89</code>, laut The Hacker News vom 05.10.2026.</li>
+  <li>IPv6 ist vom Hauptfehler nicht betroffen, weil <code>tcp_v6_syn_recv_sock()</code> die Optionen kopiert. Das Migrationsproblem gibt es dort ebenfalls, aber nur mit CALIPSO-Optionen. Das soll ein eigener Patch beheben.</li>
+  <li>Ausgelöst wird der Fehler laut Kernel-CVE-Team mit einem SYN, das die IPv4-Optionen Record Route oder Timestamp trägt, und einem wiederholten SYN, um die Race zu gewinnen. Ohne IP-Optionen im SYN gibt es keine Optionen, die freigegeben werden könnten.</li>
+  <li>Mögliche Folgen: Kernel-Speicher geht an den Angreifer zurück, Kernel-Speicher wird überschrieben, das System stürzt ab.</li>
+  <li>Gefunden hat die Lücke laut The Hacker News Xinyang Ge von Anthropic.</li>
+</ul>
+
+<h3 id="bewertung">Bewertung</h3>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Quelle</th><th>CVSS 3.1</th><th>Vektor bzw. Einstufung</th></tr></thead>
+  <tbody>
+    <tr><td>Kernel-CVE-Team (CNA), NVD, Ubuntu</td><td>9.8</td><td><code>AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H</code></td></tr>
+    <tr><td>Red Hat (VEX, Version 3 vom 30.10.)</td><td>8.1</td><td><code>AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H</code>, Important</td></tr>
+    <tr><td>Oracle, SUSE (laut The Hacker News)</td><td>8.1</td><td>wie Red Hat</td></tr>
+    <tr><td>Amazon (laut The Hacker News)</td><td>7.0</td><td></td></tr>
+  </tbody>
+</table></div>
+
+<p>Der einzige Unterschied zwischen 9.8 und 8.1 ist die Angriffskomplexität. Das Kernel-CVE-Team setzt sie auf niedrig, weil der Angreifer beide Seiten der Race selbst auslöst. Red Hat setzt sie auf hoch und erwartet vor allem Abstürze, Speicherkorruption hält Red Hat nur für theoretisch möglich.</p>
+
+<h3 id="ausnutzung">Ausnutzung</h3>
+
+<ul>
+  <li>Anthropic hat einen Exploit gebaut, der ohne Login und ohne Zutun eines Nutzers Root-Rechte auf einem Linux-Server mit MPTCP-Listener erreicht. Stufe 1 nutzt die Race, damit der Kernel zusätzliche Bytes an den Angreifer schickt. Enthält eine Antwort einen Kernel-Pointer, ist KASLR ausgehebelt. Stufe 2 nutzt denselben Fehler für einen Buffer-Overflow, überschreibt einen Callback-Pointer und springt in eine vorher im Kernel abgelegte Payload, die einen Shell-Befehl als root ausführt.</li>
+  <li>Dauer im Test: 48 Minuten bis zum Kernel-Pointer, weitere 5 Minuten bis zur Codeausführung. Eine verlorene Race lässt nur den Handshake scheitern, der Angreifer kann also beliebig oft wiederholen.</li>
+  <li>Exploit-Code, Kernel-Version und Testkonfiguration hat Anthropic nicht veröffentlicht. Warum der MPTCP-Listener nötig ist und ob Server ohne MPTCP genauso angreifbar sind, sagt der Beitrag nicht.</li>
+  <li>Aktive Angriffe sind nicht bekannt. CISA führt die Lücke nicht im KEV-Katalog (Version 2026.10.29). Der EPSS-Wert liegt am 29.10. bei 0,39 % (Perzentil 32,8).</li>
+</ul>
+
+<h2 id="welche-kernel-betroffen-sind">Welche Kernel betroffen sind</h2>
+
+<p>Betroffen ist jeder Kernel ab 4.4 ohne den Fix. Gefixt sind diese stabilen Versionen:</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Serie</th><th>Gefixt in</th></tr></thead>
+  <tbody>
+    <tr><td>5.10</td><td>5.10.272</td></tr>
+    <tr><td>5.15</td><td>5.15.223</td></tr>
+    <tr><td>6.1</td><td>6.1.190</td></tr>
+    <tr><td>6.6</td><td>6.6.159</td></tr>
+    <tr><td>6.12</td><td>6.12.113</td></tr>
+    <tr><td>6.18</td><td>6.18.56</td></tr>
+    <tr><td>7.2</td><td>7.2.10</td></tr>
+    <tr><td>7.3</td><td>7.3</td></tr>
+  </tbody>
+</table></div>
+
+<p>Kernel vor 4.4 (z. B. 3.10, 3.13, 4.1) enthalten den verursachenden Commit nicht. Distributionskernel mit vielen Backports können davon abweichen, deshalb zählt bei Debian, Ubuntu und Red Hat die Aussage des Herstellers, nicht die Versionsnummer.</p>
+
+<h2 id="debian">Debian</h2>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Release</th><th>Kernel</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>14 forky / sid</td><td>7.2</td><td>gefixt ab <code>linux</code> 7.2.10-1</td></tr>
+    <tr><td>13 trixie</td><td>6.12</td><td>gefixt in <code>linux</code> 6.12.113-1 (DSA-6568-1)</td></tr>
+    <tr><td>12 bookworm</td><td>6.1</td><td>gefixt in <code>linux</code> 6.1.190-1 (DLA-4841-1)</td></tr>
+    <tr><td>12 bookworm, <code>linux-6.12</code></td><td>6.12</td><td>gefixt in <code>linux-6.12</code> 6.12.113-1~deb12u1 (DLA-4850-1)</td></tr>
+    <tr><td>11 bullseye</td><td>5.10</td><td>kein Eintrag im Security-Tracker</td></tr>
+    <tr><td>10 buster und älter</td><td>4.19</td><td>kein Eintrag, Support beendet</td></tr>
+  </tbody>
+</table></div>
+
+<p>Debian 11 bullseye fehlt im Tracker, weil Debian LTS dafür am 31.08.2026 geendet hat. Der Kernel 5.10 liegt im betroffenen Bereich, einen Fix von Debian gibt es nicht mehr. Wer Freexians ELTS nutzt, muss dort nachsehen. Dasselbe gilt für buster mit 4.19.</p>
+
+<p>Die gefixten Pakete in bookworm und trixie liegen bisher nur in <code>*-security</code>. Der Point-Release-Stand (<code>6.1.176-1</code>, <code>6.12.107-1</code>) ist noch verwundbar.</p>
+
+<h2 id="ubuntu">Ubuntu</h2>
+
+<p>Ubuntu stuft die Lücke als High ein (CVSS 9.8). Gefixte Kernel gibt es am 29.10. noch für kein Release.</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Release</th><th>Kernel</th><th>Status <code>linux</code></th></tr></thead>
+  <tbody>
+    <tr><td>26.10 stonking</td><td>7.3</td><td>in Arbeit (7.3.0-10.10)</td></tr>
+    <tr><td>26.04 LTS resolute</td><td>7.0</td><td>in Arbeit (7.0.0-43.43)</td></tr>
+    <tr><td>24.04 LTS noble</td><td>6.8</td><td>in Arbeit (6.8.0-149.149)</td></tr>
+    <tr><td>22.04 LTS jammy</td><td>5.15</td><td>in Arbeit (5.15.0-203.213)</td></tr>
+    <tr><td>20.04 LTS focal (ESM)</td><td>5.4</td><td>verwundbar, kein Fix</td></tr>
+    <tr><td>18.04 LTS bionic (ESM)</td><td>4.15</td><td>verwundbar, kein Fix</td></tr>
+    <tr><td>16.04 LTS xenial (ESM)</td><td>4.4</td><td>verwundbar, kein Fix</td></tr>
+    <tr><td>14.04 LTS trusty</td><td>3.13</td><td>nicht betroffen</td></tr>
+  </tbody>
+</table></div>
+
+<p>Die Cloud-Kernel (<code>linux-aws</code>, <code>linux-azure</code>, <code>linux-gcp</code>, <code>linux-oracle</code>), FIPS-, Realtime-, Lowlatency- und HWE-Kernel haben eigene Zeilen. In 22.04 bis 26.10 sind die meisten in Arbeit, einzelne wie <code>linux-gcp</code> in 24.04, <code>linux-hwe-6.17</code> und <code>linux-hwe-7.0</code> in 24.04 oder <code>linux-nvidia</code> noch als verwundbar ohne Fix geführt. Den genauen Stand pro Paket zeigt die <a href="https://ubuntu.com/security/CVE-2026-98432" target="_blank" rel="noopener">Ubuntu-CVE-Seite</a>.</p>
+
+<h2 id="red-hat">Red Hat</h2>
+
+<p>Red Hat stuft die Lücke als Important ein (CVSS 8.1). Stand VEX-Datei Version 3 vom 30.10.2026:</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Produkt</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>RHEL 10</td><td>betroffen, kein Fix</td></tr>
+    <tr><td>RHEL 9</td><td>betroffen, kein Fix</td></tr>
+    <tr><td>RHEL 8</td><td>betroffen, kein Fix</td></tr>
+    <tr><td>RHEL 7</td><td>nicht betroffen (<code>vulnerable_code_not_present</code>)</td></tr>
+    <tr><td>RHEL 6</td><td>nicht betroffen (<code>vulnerable_code_not_present</code>)</td></tr>
+    <tr><td>OpenShift 4 (RHCOS 8 und 9)</td><td>betroffen</td></tr>
+    <tr><td>OpenShift 5 (RHCOS 9)</td><td>betroffen</td></tr>
+  </tbody>
+</table></div>
+
+<p>Betroffen sind jeweils alle Kernel-Varianten, auch <code>kernel-rt</code> und <code>kernel-64k</code>. Eine Mitigation nennt Red Hat nicht: Keine verfügbare Option erfülle die Kriterien einfache Umsetzung, breite Anwendbarkeit und Stabilität.</p>
+
+<h2 id="centos">CentOS</h2>
+
+<p>CentOS hat keine eigenen Advisories. Die Kernel kommen aus den RHEL-Quellen, deshalb gilt die Red-Hat-Bewertung des passenden RHEL-Release.</p>
+
+<h3 id="centos-linux-792009">CentOS Linux 7.9.2009</h3>
+
+<p>Nach Red Hats Aussage nicht betroffen, solange der Standard-Kernel läuft.</p>
+
+<ul>
+  <li>CentOS 7.9.2009 läuft mit <code>kernel-3.10.0-1160.*.el7</code>. Das ist derselbe Kernel wie in RHEL 7, und Red Hat führt RHEL 7 mit <code>vulnerable_code_not_present</code>.</li>
+  <li>Der verursachende Commit kam erst mit Linux 4.4. Nach meiner Einschätzung hat Red Hat den Umbau auf Request-Sockets ohne Listener-Lock nie in den 3.10-Kernel zurückportiert, das passt zu "Code nicht vorhanden". Eine Begründung nennt Red Hat nicht.</li>
+  <li>MPTCP gibt es im RHEL-7-Kernel nicht. Upstream ist es seit Linux 5.6 enthalten, in RHEL erst ab 8.3.</li>
+  <li>Wichtige Ausnahme: Läuft auf CentOS 7 ein fremder Kernel, gilt diese Aussage nicht. Das betrifft vor allem <code>kernel-lt</code> und <code>kernel-ml</code> von ELRepo, selbst gebaute Kernel und Kernel von Hosting-Anbietern. Liegt dessen Version bei 4.4 oder höher und ohne Fix, ist das System betroffen.</li>
+  <li>CentOS Linux 7 ist seit 30.06.2024 End of Life. Für die Lücke spielt das keine Rolle, für alle anderen Kernel-Lücken seitdem schon.</li>
+</ul>
+
+<h3 id="centos-linux-8">CentOS Linux 8</h3>
+
+<p>Betroffen. Der Kernel 4.18 entspricht RHEL 8, und RHEL 8 ist betroffen. CentOS Linux 8 ist seit 31.12.2021 End of Life, einen Fix wird es nicht geben.</p>
+
+<h3 id="centos-stream-9-und-10">CentOS Stream 9 und 10</h3>
+
+<p>Betroffen, bis ein Kernel mit dem Fix erscheint. Stream ist der Entwicklungszweig von RHEL 9 und 10, eine eigene Bewertung gibt es nicht. Ob der installierte Kernel den Fix enthält, zeigt das Changelog (siehe unten).</p>
+
+<h2 id="andere-distributionen-kurz">Andere Distributionen (kurz)</h2>
+
+<p>Laut The Hacker News und den jeweiligen CVE-Seiten am 29.10.:</p>
+
+<ul>
+  <li>Oracle Linux 7 bis 10 mit UEK: gefixt am 16.10. (ELSA-2026-500397, -500398, -500399).</li>
+  <li>Amazon Linux 2023: gefixt für <code>kernel6.18</code> (ALAS2023-2026-3251) und <code>kernel6.12</code> (ALAS2023-2026-3335). <code>kernel</code> in AL2023 und Amazon Linux 2 noch offen.</li>
+  <li>SUSE: gefixt in SUSE Linux Micro 6.2 und openSUSE Leap 16.0. SLES 15 SP4 bis SP7, SLES 16.0 und SLE Micro 5.3 bis 5.5 noch offen.</li>
+</ul>
+
+<h2 id="selbst-prüfen">Selbst prüfen</h2>
+
+<pre><code class="lang-bash"># Laufender Kernel
+uname -r
+
+# Ist MPTCP aktiv, gibt es MPTCP-Listener?
+sysctl net.mptcp.enabled
+ss -Mltn
+
+# Request-Socket-Migration (Standard: 0)
+sysctl net.ipv4.tcp_migrate_req
+
+# Debian/Ubuntu: installierte Kernel-Pakete
+dpkg -l 'linux-image-*' | grep '^ii'
+
+# RHEL, CentOS Stream, Oracle Linux: steht der Fix im Changelog?
+rpm -q --changelog kernel-core | grep -i 'free inet_opt and ireq_opt'</code></pre>
+
+<p>Nach dem Kernel-Update muss das System neu starten. Erst wenn <code>uname -r</code> die neue Version zeigt, ist der Fix aktiv.</p>
+
+<h2 id="was-tun">Was tun</h2>
+
+<ol>
+  <li>Gefixten Kernel einspielen und neu starten, wo es ihn gibt: Debian bookworm, trixie, forky und sid, Oracle Linux, Teile von Amazon Linux und SUSE.</li>
+  <li>Wer selbst Kernel baut: auf eine der gefixten Stable-Versionen aus der Tabelle oben gehen. Das Kernel-CVE-Team rät davon ab, nur den einzelnen Commit zu übernehmen.</li>
+  <li>Für Ubuntu, RHEL 8 bis 10, CentOS Stream und OpenShift gibt es noch keinen Fix. Bis dahin helfen die folgenden Maßnahmen. Sie stammen von mir, kein Hersteller und kein Advisory empfiehlt sie.</li>
+</ol>
+
+<h3 id="eingehende-ipv4-pakete-mit-ip-optionen-verwerfen">Eingehende IPv4-Pakete mit IP-Optionen verwerfen</h3>
+
+<p>Der Fehler braucht ein SYN mit IPv4-Optionen (Record Route, Timestamp). Normaler Verkehr nutzt keine IP-Optionen, viele Router verwerfen solche Pakete ohnehin. Ein IPv4-Header ohne Optionen hat die Länge 5 (in 32-Bit-Worten), alles darüber enthält Optionen.</p>
+
+<pre><code class="lang-bash"># nftables
+nft add rule inet filter input ip hdrlength != 5 drop
+
+# iptables: IHL (untere 4 Bit des ersten Bytes) zwischen 6 und 15
+iptables -I INPUT -m u32 --u32 "0&gt;&gt;24&amp;0xF=6:15" -j DROP</code></pre>
+
+<p>Die Regel muss vor der ersten Regel stehen, die bestehende oder erlaubte Verbindungen annimmt. Auf Hosts, die Pakete weiterleiten (Kubernetes-Nodes, Router), gehört sie zusätzlich in die <code>forward</code>-Chain bzw. <code>FORWARD</code>. Gegen das Migrationsproblem hilft die Regel nur bedingt, das ist aber nur bei <code>tcp_migrate_req=1</code> oder einem passenden BPF-Programm relevant.</p>
+
+<h3 id="mptcp-abschalten-wo-es-nicht-gebraucht-wird">MPTCP abschalten, wo es nicht gebraucht wird</h3>
+
+<pre><code class="lang-bash">sysctl -w net.mptcp.enabled=0
+echo 'net.mptcp.enabled = 0' &gt; /etc/sysctl.d/90-disable-mptcp.conf</code></pre>
+
+<p>Danach legt der Kernel keine neuen MPTCP-Sockets mehr an, Anwendungen fallen auf normales TCP zurück. Das nimmt Anthropics gezeigten Angriffsweg weg, behebt aber nicht den Fehler im IPv4-TCP-Code. Ob Server ohne MPTCP genauso angreifbar sind, ist offen.</p>
+
+<h3 id="tcp_migrate_req-auf-0-lassen"><code>tcp_migrate_req</code> auf 0 lassen</h3>
+
+<p>Der Standard ist 0. Wer es auf 1 gesetzt hat, sollte es bis zum Kernel-Update zurücksetzen.</p>
+
+<h2 id="quellen">Quellen</h2>
+
+<ul>
+  <li><a href="https://thehackernews.com/2026/10/linux-kernel-tcp-flaw-with-98-cvss.html" target="_blank" rel="noopener">The Hacker News: Linux Kernel TCP Flaw with 9.8 CVSS</a></li>
+  <li><a href="https://git.kernel.org/pub/scm/linux/security/vulns.git/plain/cve/published/2026/CVE-2026-98432.mbox" target="_blank" rel="noopener">Kernel-CVE-Team: CVE-2026-98432 (mbox)</a></li>
+  <li><a href="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=e3f33b0a1d89d738e2b913dab519226eaf76e15b" target="_blank" rel="noopener">Kernel-Fix e3f33b0a1d89</a></li>
+  <li><a href="https://www.cve.org/CVERecord?id=CVE-2026-98432" target="_blank" rel="noopener">CVE.org: CVE-2026-98432</a></li>
+  <li><a href="https://nvd.nist.gov/vuln/detail/CVE-2026-98432" target="_blank" rel="noopener">NVD: CVE-2026-98432</a></li>
+  <li><a href="https://www.anthropic.com/research/discovering-vulnerabilities-with-claude" target="_blank" rel="noopener">Anthropic: Discovering vulnerabilities with Claude</a></li>
+  <li><a href="https://security-tracker.debian.org/tracker/CVE-2026-98432" target="_blank" rel="noopener">Debian Security Tracker: CVE-2026-98432</a></li>
+  <li><a href="https://lists.debian.org/debian-security-announce/2026/msg00482.html" target="_blank" rel="noopener">DSA-6568-1 (linux, trixie)</a></li>
+  <li><a href="https://lists.debian.org/debian-lts-announce/2026/10/msg00035.html" target="_blank" rel="noopener">DLA-4841-1 (linux, bookworm)</a></li>
+  <li><a href="https://lists.debian.org/debian-lts-announce/2026/10/msg00044.html" target="_blank" rel="noopener">DLA-4850-1 (linux-6.12, bookworm)</a></li>
+  <li><a href="https://ubuntu.com/security/CVE-2026-98432" target="_blank" rel="noopener">Ubuntu: CVE-2026-98432</a></li>
+  <li><a href="https://access.redhat.com/security/cve/cve-2026-98432" target="_blank" rel="noopener">Red Hat: CVE-2026-98432</a></li>
+  <li><a href="https://security.access.redhat.com/data/csaf/v2/vex/2026/cve-2026-98432.json" target="_blank" rel="noopener">Red Hat VEX: cve-2026-98432.json</a></li>
+  <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2553390" target="_blank" rel="noopener">Red Hat Bugzilla 2553390</a></li>
+  <li><a href="https://linux.oracle.com/cve/CVE-2026-98432.html" target="_blank" rel="noopener">Oracle Linux: CVE-2026-98432</a></li>
+  <li><a href="https://explore.alas.aws.amazon.com/CVE-2026-98432.html" target="_blank" rel="noopener">Amazon Linux Security Center: CVE-2026-98432</a></li>
+  <li><a href="https://www.suse.com/security/cve/CVE-2026-98432.html" target="_blank" rel="noopener">SUSE: CVE-2026-98432</a></li>
+  <li><a href="https://api.first.org/data/v1/epss?cve=CVE-2026-98432" target="_blank" rel="noopener">FIRST EPSS API: CVE-2026-98432</a></li>
+  <li><a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" target="_blank" rel="noopener">CISA KEV-Katalog</a></li>
+  <li><a href="https://docs.kernel.org/networking/mptcp.html" target="_blank" rel="noopener">Kernel-Dokumentation: MPTCP</a></li>
+</ul>
+  </main>
+</body>
+</html>
