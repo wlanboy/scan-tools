@@ -10,7 +10,7 @@
   <header>
     <p class="back"><a href="../">← Übersicht</a></p>
     <h1>Node2Shell / Python2Shell / HTTP2Shell (CVE-2026-111497)</h1>
-    <p class="muted">Stand: 28.10.2026</p>
+    <p class="muted">Stand: 02.11.2026</p>
   </header>
 
   <main>
@@ -37,6 +37,9 @@
   <li>[update 3] Der EPSS-Wert liegt am 28.10. bei 88,0 % (Perzentil 99,8).</li>
   <li>[update 3] Previdian meldet laut SecurityWeek einen Ausnutzungsversuch am 27.10. von einer US-IP. Ob er erfolgreich war, sagt Previdian nicht. Die IP aus ELLIOs Fund hat laut ELLIO vorher schon PHP2Shell ausgenutzt und VPNs von Palo Alto und Fortinet abgetastet. ELLIO sieht darin einen Akteur, der auf Massenausnutzung aus ist. Eine erfolgreiche Kompromittierung hat bis 28.10. niemand gemeldet.</li>
   <li>[update 3] Auch Appliances sind betroffen: Broadcom meldet am 27.10. den SDDC Manager in VMware Cloud Foundation und vSphere Foundation (9.1.1: CVSS 9.8, 9.0.x/9.1.0/5.2.x: CVSS 7.5), weil er Node.js nutzt. Patches fehlen noch, Workarounds stehen in zwei KB-Artikeln. Palo Alto verteilt Hotfixes für PAN-OS.</li>
+  <li>[update 4] Der EPSS-Wert liegt seit dem 29.10. bei 82,6 % (Perzentil 99,7), knapp unter dem Höchstwert vom 28.10. Der KEV-Eintrag ist unverändert (Version 2026.10.30, Frist 10.11.).</li>
+  <li>[update 4] Neue Berichte über Angriffe oder eine erfolgreiche Kompromittierung habe ich seit dem 28.10. nicht gefunden. ELLIOs Blog hat seit dem 26.10. keinen neuen Eintrag.</li>
+  <li>[update 4] Broadcom hat das Advisory am 30.10. als VMSA-2026-0008.1 überarbeitet. Patches für den SDDC Manager stehen weiter aus. Bis dahin gelten die Workarounds aus KB 460732 (9.1.1.x: nginx-Regel gegen Brotli-Bodies) und KB 460734 (5.2.x, 9.0.x, 9.1.0: <code>NODE_OPTIONS</code> schaltet den Brotli-Decoder im UI-Dienst ab). Laut KB 460791 sind die übrigen Komponenten von VCF und VVF sowie Cloud Director, HCX, Remote Console, PowerCLI, Workstation und Fusion nicht kritisch betroffen.</li>
   <li>Assetnote hat mit dem <a href="https://github.com/assetnote/node2shell-scanner" target="_blank" rel="noopener">node2shell-scanner</a> einen kostenlosen Scanner veröffentlicht. Er findet verwundbare HTTP-Endpunkte im Netz, ohne sie auszunutzen. Laut Shodan senden rund 1,41 Mio. Dienste <code>X-Powered-By: Express</code> und 878.000 <code>X-Powered-By: Next.js</code>, dazu kommen rund 482.000 Envoy-/Istio-Gateways.</li>
   <li>pip-audit, Dependabot und Safety haben die betroffenen Python-Versionen anfangs nicht gemeldet. Inzwischen führt GitHubs Advisory PYSEC-2026-4322 und PYSEC-2026-4323. Bis die Scanner nachweislich anschlagen, trotzdem manuell prüfen (siehe <a href="#python">Python</a>).</li>
 </ul>
@@ -55,6 +58,8 @@ mvn dependency:tree -Dincludes=org.brotli
 unzip -l target/*.jar | grep -i brotli</code></pre>
 
 <p>Gefixt ist das in <a href="https://github.com/hyperxpro/Brotli4j/releases/tag/v1.24.0" target="_blank" rel="noopener">brotli4j v1.24.0</a> vom 24.10.2026. Dieses Release hebt das mitgelieferte Brotli auf 1.2.1 und nennt CVE-2026-111497 im Security Advisory. Die Version per <code>dependencyManagement</code> erzwingen, weil Netty und Jetty ältere Versionen mitziehen. Die nativen Artefakte (<code>native-linux-x86_64</code>, <code>native-linux-aarch64</code> usw.) müssen dieselbe Version haben, sonst lädt die alte native Bibliothek weiter.</p>
+
+<p>[update 4] Red Hat führt das Artefakt <code>native-linux-x86_64</code> (nach meiner Einschätzung die native Bibliothek von brotli4j) in Quarkus, Camel for Quarkus, Debezium 3 und Apicurio Registry 3 als betroffen, in Keycloak als nicht betroffen. Wer native Builds dieser Produkte nutzt, prüft sie wie eigene Spring-Projekte.</p>
 
 <pre><code class="lang-xml">&lt;dependencyManagement&gt;
   &lt;dependencies&gt;
@@ -154,6 +159,16 @@ unzip -l target/*.jar | grep -i brotli</code></pre>
       <li>SUSE: Für SLES 15 SP7 sind jetzt auch <code>brotli</code> (<code>1.0.7-150200.3.8.1</code>) und <code>nodejs24</code> (<code>24.22.1-150700.15.21.1</code>) in QA. Für SLES 15 SP6-LTSS sind <code>brotli</code> und <code>nodejs22</code> in Arbeit. <code>python-Brotli</code> ist in SLES weiter offen, openSUSE Leap 16.0 komplett. Tumbleweed hat jetzt auch <code>python-Brotli</code> 1.2.1.</li>
       <li>Red Hat: Für <code>nodejs:24</code> (RHEL 8/9) und <code>nodejs:26</code> (RHEL 9) gibt es weiter keinen Fix. Red Hat verweist inzwischen auf das Bulletin RHSB-2026-015.</li>
       <li>Debian: unverändert. forky <code>brotli</code> ist offen, <code>nodejs</code> in bookworm, trixie und forky verwundbar.</li>
+    </ul>
+  </li>
+  <li>[update 4] Neuer Stand der Distributionen am 02.11.:
+    <ul>
+      <li>Red Hat hat am 29.10. <code>nodejs:24</code> für RHEL 8 (RHSA-2026:92376) und RHEL 9 (RHSA-2026:92378) gefixt, dazu <code>dotnet8.0</code> in RHEL 8, 9 und 10. Offen ist noch <code>nodejs:26</code> in RHEL 9.</li>
+      <li>Korrektur zum zweiten Update: <code>istio-proxy</code> in OpenShift Service Mesh 3 führt Red Hat jetzt als nicht betroffen. RHCOS 8/9 in OpenShift 4 bleibt betroffen.</li>
+      <li>Ubuntu hat <code>brotli</code> jetzt auch für focal (<code>1.0.7-6ubuntu0.1+esm1</code>), bionic und xenial gefixt, allerdings nur über ESM mit Ubuntu Pro. <code>nodejs</code> in focal nutzt die mitgebündelte Kopie und ist weiter verwundbar. Die .NET-Pakete sind mit USN-8958-1 vom 29.10. gefixt.</li>
+      <li>SUSE: <code>brotli</code> (<code>1.0.7-150200.3.8.1</code>) ist für SLES 15 SP6 und SP7 veröffentlicht, für SP6 auch <code>nodejs22</code> 22.23.4. Für SP7 sind <code>nodejs22</code>, <code>nodejs24</code> und <code>python-Brotli</code> weiter in QA. openSUSE Leap 16.0 hat <code>python313-Brotli</code> 1.2.1, <code>brotli</code> und die <code>nodejs</code>-Pakete sind dort offen.</li>
+      <li>Debian: forky <code>brotli</code> ist weiter offen, <code>nodejs</code> in bookworm, trixie und forky weiter als verwundbar geführt. Der Tracker merkt inzwischen an, dass <code>nodejs</code> und <code>python-brotlicffi</code> in Debian die System-Bibliothek nutzen. sid hat <code>nodejs</code> 24.22.2.</li>
+      <li>Amazon Linux und Oracle Linux habe ich nicht neu geprüft.</li>
     </ul>
   </li>
   <li>Service Mesh prüfen: Envoy und Istio sind betroffen (siehe eigenen Abschnitt <a href="#istio-und-envoy">Istio und Envoy</a>).</li>
@@ -290,6 +305,8 @@ spec:
 
 <p>[update 2] Oracle Linux hat am 26.10. die <code>nodejs</code>-Pakete für OL 8, 9 und 10 gefixt. In RHEL 8 und 9 ist <code>nodejs:24</code> noch ungefixt, in RHEL 9 auch <code>nodejs:26</code> (siehe <a href="#container-und-plattform-rund-um-spring-boot">Container und Plattform</a>).</p>
 
+<p>[update 4] Red Hat hat <code>nodejs:24</code> in RHEL 8 und 9 am 29.10. gefixt, offen ist nur noch <code>nodejs:26</code> in RHEL 9. Node 26.13.0 vom 28.10. ist das erste reguläre Release nach dem Fix und enthält ihn ebenfalls. Debian sid hat inzwischen <code>nodejs</code> 24.22.2.</p>
+
 <h2 id="python">Python</h2>
 
 <p>Betroffen sind die Pakete <code>Brotli</code> (bis 1.2.0) und <code>brotlicffi</code> (1.2.0.x). requests/urllib3, httpx (mit Extra <code>brotli</code>), aiohttp und Scrapy laden sie automatisch, sobald sie installiert sind.</p>
@@ -363,6 +380,8 @@ grep -rnE "RequestDecompression|DecompressionMethods\.(Brotli|All)|BrotliStream|
 <p>[update] Der PR ist seit 26.10. ohne Merge geschlossen.</p>
 
 <p>[update 2] Der <code>main</code>-Branch von dotnet/runtime nutzt seit 26.10. Brotli 1.1.1 (<a href="https://github.com/dotnet/runtime/pull/136471" target="_blank" rel="noopener">dotnet/runtime#136471</a>). Wer aus <code>main</code> baut, hat damit den Fix. #136422 ist weiter offen.</p>
+
+<p>[update 4] Ubuntu (USN-8958-1) und Red Hat haben am 29.10. ihre <code>dotnet8.0</code>-Pakete gefixt. .NET 9, 10 und 11 nutzen in RHEL die System-Bibliothek, dort reicht das <code>brotli</code>-Update. #136422 ist am 02.11. weiter offen.</p>
 
 <h2 id="grafana-stack">Grafana-Stack</h2>
 
@@ -549,6 +568,8 @@ USER 1000</code></pre>
   <li>Ausgehenden Traffic von Dashboards per Egress-Regel oder Proxy auf bekannte Ziele beschränken. Ein Proxy, der Antworten mit <code>Content-Encoding: br</code> verwirft, hilft ebenfalls (siehe <a href="#übergangslösung-am-proxy">Übergangslösung am Proxy</a>).</li>
 </ol>
 
+<p>[update 4] Stand 02.11.: Der Backport #13048 ist weiter offen. Das neueste Release ist weiter 3.9.0 vom 12.10.</p>
+
 <h2 id="elastic-stack">Elastic Stack</h2>
 
 <p>Ein Advisory von Elastic zu CVE-2026-111497 habe ich bis 28.10. nicht gefunden. Elasticsearch und Logstash sind nach meiner Einschätzung nicht betroffen, Kibana schon. Geprüft habe ich die Images <code>elasticsearch</code>, <code>kibana</code> und <code>logstash</code> 9.4.8 von <code>docker.elastic.co</code>.</p>
@@ -586,6 +607,8 @@ USER 1000</code></pre>
   <li>Ausgehenden Traffic von Kibana per Egress-Regel oder Proxy auf bekannte Ziele beschränken (siehe <a href="#übergangslösung-am-proxy">Übergangslösung am Proxy</a>).</li>
 </ol>
 
+<p>[update 4] Stand 02.11.: Ein Patch-Release mit Node 24.22.1 gibt es weiter nicht. Die neuesten Releases sind weiter 9.5.5, 9.4.8 und 8.19.23 vom 06.10.</p>
+
 <h3 id="logstash">Logstash</h3>
 
 <ul>
@@ -617,6 +640,8 @@ docker cp $cid:/var/lib/dpkg/status.d/libbrotli1 - | tar -xO | grep ^Version
 docker rm $cid</code></pre>
 
 <p>Was tun: Kein Notfall-Patch nötig. Das Image aktualisieren, sobald es <code>libbrotli1</code> 1.1.0-2+deb13u1 enthält. Ob 5.0.11 und 5.1.5 das schon tun, habe ich nicht geprüft.</p>
+
+<p>[update 4] Geprüft am 02.11.: Auch <code>fluent/fluent-bit:5.0</code> (5.0.11) und <code>fluent/fluent-bit:5.1</code> (5.1.5) enthalten noch <code>libbrotli1</code> 1.1.0-2+b7. Ein neueres Release gibt es nicht.</p>
 
 <h2 id="apache-kafka">Apache Kafka</h2>
 
@@ -669,6 +694,52 @@ USER appuser</code></pre>
 
 <p>Getestet mit 4.4.0 und 3.9.2: Danach liegt <code>brotli-libs</code> 1.2.1-r0 im Image.</p>
 
+<p>[update 4] Stand 02.11.: Das offizielle Image <code>apache/kafka:4.4.0</code> ist nicht neu gebaut und enthält weiter <code>brotli-libs</code> 1.2.0-r1.</p>
+
+<h2 id="apache-hadoop">Apache Hadoop</h2>
+
+<p>Die CVE-Liste von Apache Hadoop nennt CVE-2026-111497 bis 02.11. nicht (siehe <a href="../hadoop/">Hadoop-CVE-Übersicht</a>). Hadoop ist nach meiner Einschätzung in 2.x und 3.x nicht betroffen. Geprüft habe ich die Images <code>apache/hadoop</code> 3.4.2, 3.3.6 und 2.10 (Hadoop 2.10.2).</p>
+
+<p>Für alle Linien gilt:</p>
+
+<ul>
+  <li>Hadoop hat keinen Brotli-Codec. Eingebaut sind gzip/deflate, bzip2, lz4, snappy und zstd. Die nativen Bibliotheken (<code>libhadoop</code>, <code>libhdfs</code>, <code>libhdfspp</code>, <code>libnativetask</code>) und <code>zstd-jni</code> enthalten keinen Brotli-Decoder.</li>
+  <li>brotli4j liegt in keiner Version und keinem Image auf dem Classpath, auch nicht geshadet. Das gilt auch für das AWS-SDK-Bundle von <code>hadoop-aws</code> und die geshadeten Client-JARs (<code>hadoop-client-runtime</code>, <code>hadoop-client-minicluster</code>).</li>
+  <li>Netty steckt mehrfach im Image: direkt (HDFS, gRPC), geshadet im AWS-SDK-Bundle und in <code>hadoop-client-minicluster</code> sowie als <code>hbase-shaded-netty</code> im YARN Timeline Service. Alle Kopien enthalten die Klasse <code>BrotliDecoder</code>, entpacken ohne brotli4j aber nichts (siehe <a href="#netty-spring-boot-starter-webflux-reactor-netty">Netty</a>).</li>
+  <li><code>commons-compress</code> enthält Brotli-Klassen, die den reinen Java-Decoder <code>org.brotli:dec</code> brauchen. Der liegt nicht im Image und wäre als Java-Code ohnehin unkritisch.</li>
+  <li>Die Images basieren auf CentOS 7 und enthalten kein <code>libbrotli</code>. <code>curl</code> 7.29 ist älter als die Brotli-Unterstützung in curl (ab 7.57).</li>
+</ul>
+
+<p>Je Linie:</p>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Linie</th><th>Geprüft</th><th>Netty/HTTP-Bibliotheken</th><th>Brotli im Image</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>3.4</td><td><code>apache/hadoop</code> 3.4.2 (CentOS 7, JDK 8u212)</td><td>Netty 4.1.118, Jetty 9.4.57, AWS SDK v2 2.29.52</td><td>kein <code>libbrotli</code></td></tr>
+      <tr><td>3.3</td><td><code>apache/hadoop</code> 3.3.6 (CentOS 7.6, JDK 8u212)</td><td>Netty 4.1.89, Jetty 9.4.51, AWS SDK v1 1.12.367</td><td>kein <code>libbrotli</code></td></tr>
+      <tr><td>2.x</td><td><code>apache/hadoop</code> 2.10 (2.10.2, CentOS 7.6)</td><td>Netty 4.1.50 (<code>netty-all</code>), AWS SDK v1 1.11.271</td><td>kein <code>libbrotli</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<ul>
+  <li>Die Images laufen auf CentOS 7, das seit dem 30.06.2024 keine Updates mehr bekommt, und auf einem JDK 8 von 2019. Hadoop 2.x bekommt ebenfalls keine Updates mehr. Das ist ein eigenes Problem, unabhängig von dieser Lücke.</li>
+  <li>Wer den nativen HDFS-Client (<code>libhdfs</code>, <code>libhdfspp</code>) nutzt, braucht unabhängig davon Hadoop 3.4.2 wegen CVE-2025-27821 (siehe <a href="../hadoop/">Hadoop-CVE-Übersicht</a>).</li>
+</ul>
+
+<p>Frameworks auf YARN (Spark, Tez, Flink) und zusätzliche JARs im Classpath bringen eigene Abhängigkeiten mit und müssen einzeln geprüft werden. Das Image hat kein <code>unzip</code>, deshalb die JARs herauskopieren:</p>
+
+<pre><code class="lang-bash">cid=$(docker create apache/hadoop:3.4.2)
+docker cp $cid:/opt/hadoop /tmp/hadoop &amp;&amp; docker rm $cid
+# kein Treffer: kein brotli4j, auch nicht geshadet
+for j in $(find /tmp/hadoop -name "*.jar"); do unzip -l "$j" | grep -q aayushatharva &amp;&amp; echo "$j"; done
+docker run --rm --entrypoint sh apache/hadoop:3.4.2 -c 'rpm -qa | grep -i brotli'</code></pre>
+
+<p>Was tun: Nichts wegen dieser Lücke.</p>
+
 <h2 id="weitere-projekte-mit-eigener-brotli-kopie">Weitere Projekte mit eigener Brotli-Kopie</h2>
 
 <p>Viele Projekte bringen eine eigene Kopie von <code>decode.c</code> mit. Ein OS-Update erreicht diese Kopien nicht. Stand 26.10. laut <a href="https://broccoli2shell.com/" target="_blank" rel="noopener">broccoli2shell.com</a>:</p>
@@ -680,6 +751,7 @@ USER appuser</code></pre>
   <li>[update] ClickHouse hat am 26.10. auch die Backports auf 26.9, 26.8 und 26.3 LTS gemergt. Ein Release mit dem Fix gibt es noch nicht, die neuesten Releases (26.10.2.103, 26.9.25.15, 26.8.34.13, 26.3.60.2) sind alle älter als der Fix.</li>
   <li>[update 2] Stand 27.10.: NanaZip hat mit 7.0.1882.0 vom 26.10. ein Release mit Fix. Apache Arrow: <a href="https://github.com/apache/arrow/pull/55167" target="_blank" rel="noopener">PR #55167</a> hebt das gebündelte Brotli auf 1.0.10, ist approved und wartet auf die Wheel-Builds. ClickHouse und DuckDB sind unverändert.</li>
   <li>[update 3] Stand 28.10.: Apache Arrow PR #55167 ist weiter nicht gemergt. Die Wheel-Builds liefen am 28.10., die verbliebenen Fehler (cp314t) sind laut Maintainer unabhängig vom Fix. ClickHouse hat noch kein Release mit dem Fix. DuckDB ist weiter ungefixt, PR #27791 ist noch ein Draft. 7-Zip-zstd hat den Fix am 27.10. auf master gemergt (PR #581), erwartet in 7-Zip ZS 26.05. Für woff2 gibt es einen Fix-Vorschlag (PR #208), EDK II verfolgt die Lücke in Issue #13378. GraalJS, YDB und libjxl haben weiter kein Release mit dem Fix.</li>
+  <li>[update 4] Stand 02.11.: Apache Arrow hat PR #55167 am 29.10. gemergt. Der Release Candidate 26.0.1-rc1 vom 30.10. bündelt laut <code>versions.txt</code> Brotli 1.2.1, das finale Release 26.0.1 steht noch aus. DuckDB: <a href="https://github.com/duckdb/duckdb/pull/27791" target="_blank" rel="noopener">PR #27791</a> ist kein Draft mehr, aber noch nicht gemergt. ClickHouse hat weiter kein Release mit dem Fix (neuestes: 26.10.2.103 vom 24.10.). woff2 PR #208 und EDK II Issue #13378 sind weiter offen. broccoli2shell.com (Stand 28.10.) führt zusätzlich Varnish Enterprise 6.0.18r7 als gefixt.</li>
 </ul>
 
 <h2 id="übergangslösung-am-proxy">Übergangslösung am Proxy</h2>
@@ -773,6 +845,14 @@ USER appuser</code></pre>
   <li>[update 3] <a href="https://github.com/grafana/grafana-image-renderer/pull/1072" target="_blank" rel="noopener">grafana/grafana-image-renderer#1072: Update golang and debian base images</a></li>
   <li>[update 3] <a href="https://chromium.googlesource.com/chromium/src/+/refs/tags/151.0.7922.77/third_party/brotli/README.chromium" target="_blank" rel="noopener">Chromium 151: third_party/brotli/README.chromium</a></li>
   <li>[update 3] <a href="https://github.com/google/brotli/commit/0ed4268a4401abcb4472096340477cf4af7d1a2b" target="_blank" rel="noopener">google/brotli 0ed4268: Detect and report invalid stream earlier</a></li>
+  <li>[update 4] <a href="https://knowledge.broadcom.com/external/article/460791" target="_blank" rel="noopener">Broadcom KB 460791: CVE-2026-111497 im VMware-Portfolio</a></li>
+  <li>[update 4] <a href="https://knowledge.broadcom.com/external/article/460732" target="_blank" rel="noopener">Broadcom KB 460732: Workaround SDDC Manager 9.1.1.x</a></li>
+  <li>[update 4] <a href="https://knowledge.broadcom.com/external/article/460734" target="_blank" rel="noopener">Broadcom KB 460734: Workaround SDDC Manager 5.2.x, 9.0.x, 9.1.0</a></li>
+  <li>[update 4] <a href="https://access.redhat.com/hydra/rest/securitydata/cve/CVE-2026-111497.json" target="_blank" rel="noopener">Red Hat Security Data API: CVE-2026-111497</a></li>
+  <li>[update 4] <a href="https://github.com/apache/arrow/blob/apache-arrow-26.0.1-rc1/cpp/thirdparty/versions.txt" target="_blank" rel="noopener">apache/arrow 26.0.1-rc1: cpp/thirdparty/versions.txt</a></li>
+  <li>[update 4] <a href="https://github.com/duckdb/duckdb/pull/27791" target="_blank" rel="noopener">duckdb/duckdb#27791: Pull in upstream Brotli decoder fix</a></li>
+  <li>[update 4] <a href="https://hadoop.apache.org/cve_list.html" target="_blank" rel="noopener">Apache Hadoop: CVE-Liste</a></li>
+  <li>[update 4] <a href="https://hub.docker.com/r/apache/hadoop" target="_blank" rel="noopener">Docker Hub: apache/hadoop</a></li>
 </ul>
   </main>
 </body>
