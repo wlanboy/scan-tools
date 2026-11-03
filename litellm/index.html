@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LiteLLM-Schwachstellen</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header>
+    <p class="back"><a href="../">← Übersicht</a></p>
+    <h1>LiteLLM-Schwachstellen</h1>
+    <p id="meta" class="muted">Lade Schwachstellen …</p>
+  </header>
+
+  <main>
+    <section id="malware" hidden>
+      <h2>Kompromittierte PyPI-Releases</h2>
+      <p>Diese Releases von <code>litellm</code> enthielten Schadcode (Credential-Stealer, Backdoor), der beim Start jedes Python-Interpreters läuft, auch ohne <code>import litellm</code>: <span id="malware-versions"></span></p>
+      <p class="muted">Wer eine davon installiert hatte, sollte das System als kompromittiert behandeln und alle erreichbaren Zugangsdaten (Cloud, SSH, CI, API-Keys) rotieren. Prüfen: <code>pip show litellm</code> und nach <code>*.pth</code>-Dateien in <code>site-packages</code> suchen.</p>
+    </section>
+
+    <form id="filters" autocomplete="off">
+      <input type="search" name="q" placeholder="Suche (alle Begriffe, &quot;Phrase&quot; möglich)" aria-label="Suche" class="grow">
+      <label title="Nur Einträge, die diese installierte Version betreffen (pip show litellm)">Version <input type="text" name="version" placeholder="z. B. 1.82.7" inputmode="decimal" spellcheck="false"></label>
+      <select name="kind" aria-label="Art">
+        <option value="">Alle Arten</option>
+        <option value="vulnerability">nur Schwachstellen</option>
+        <option value="malicious">nur Schadcode</option>
+      </select>
+      <select name="severity" aria-label="Mindest-Severity">
+        <option value="">Jede Severity</option>
+        <option value="MEDIUM">ab MEDIUM</option>
+        <option value="HIGH">ab HIGH</option>
+        <option value="CRITICAL">nur CRITICAL</option>
+      </select>
+      <label>ab <input type="date" name="since"></label>
+      <label>bis <input type="date" name="until"></label>
+      <label title="Keine Fix-Version angegeben, nur eine letzte betroffene Version"><input type="checkbox" name="unfixed"> ohne Fix-Angabe</label>
+      <button type="reset">Zurücksetzen</button>
+    </form>
+
+    <div id="fallback" hidden>
+      <p>Die Daten konnten nicht automatisch geladen werden (z. B. weil die Seite per <code>file://</code> geöffnet wurde).</p>
+      <label>JSON-Datei wählen: <input type="file" accept=".json,application/json"></label>
+    </div>
+
+    <p id="check" aria-live="polite" hidden></p>
+    <p id="status" class="muted" aria-live="polite"></p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-key="published" aria-sort="descending"><button type="button">Veröffentlicht</button></th>
+            <th data-key="id"><button type="button">CVE / Advisory</button></th>
+            <th data-key="severity"><button type="button">Severity</button></th>
+            <th data-key="title"><button type="button">Titel</button></th>
+            <th data-key="fix" title="Erste Version mit Fix, je Backport-Linie"><button type="button">Fix</button></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+
+    <p class="muted legend">
+      Fix: erste gepatchte Version je Backport-Linie · <span class="nofix">keiner</span> = Quelle nennt nur die letzte betroffene Version · Release meiden = Schadcode im PyPI-Paket · Quelle: OSV (GitHub Security Advisories, PyPA, OpenSSF Malicious Packages)
+    </p>
+
+    <button id="more" type="button" hidden></button>
+  </main>
+</body>
+</html>
