@@ -1,41 +1,47 @@
 # Linux-Kernel: Use-after-free im IPv4-TCP-Handshake (CVE-2026-98432)
 
-Stand: 30.10.2026
+Stand: 03.11.2026
 
-The Hacker News berichtet über diese Lücke unter dem Titel "Linux Kernel TCP Flaw with 9.8 CVSS". Weil Anthropics Exploit einen Server mit MPTCP-Listener angreift, liegt die Beschreibung hier unter `mptcp/`. Der Fehler selbst steckt aber im normalen IPv4-TCP-Code, nicht in MPTCP.
+The Hacker News berichtet über diese Lücke unter dem Titel "Linux Kernel TCP Flaw with 9.8 CVSS", Aikido am 02.11.2026 unter "Critical Linux kernel TCP vulnerability can allow remote code execution". Anthropics Exploit greift einen Server mit MPTCP-Listener an, der Fehler selbst steckt aber im normalen IPv4-TCP-Code, nicht in MPTCP. Deshalb liegt die Beschreibung unter `tcp-handshake/`. Dazu gehört auch das verwandte IPv6-Problem mit CALIPSO-Optionen, das einen eigenen Patch bekommt.
+
+Im Aikido-Artikel steht in einer Zwischenüberschrift "CVE-2025-98432". Das ist ein Tippfehler, gemeint ist CVE-2026-98432. Eine eigene CVE für den IPv6-Teil gibt es bisher nicht.
 
 ## Worum es geht
 
 Beim TCP-Handshake übergibt der Kernel die IP-Optionen der Verbindungsanfrage (`ireq->ireq_opt`) an den neuen Socket, ohne sie zu kopieren (`tcp_v4_syn_recv_sock()`). Verarbeitet eine andere CPU gleichzeitig ein wiederholtes SYN für dieselbe Anfrage, baut sie daraus ein SYNACK. Wird der neue Socket in diesem Moment freigegeben, liest `ip_options_build()` freigegebenen Speicher (Use-after-free). Eine ähnliche Race gibt es bei der Migration von Request-Sockets, wenn `net.ipv4.tcp_migrate_req=1` gesetzt ist oder ein BPF-Programm vom Typ `BPF_SK_REUSEPORT_SELECT_OR_MIGRATE` läuft.
 
 - Eingeführt mit Commit `079096f103fa` ("tcp/dccp: install syn_recv requests into ehash table", Eric Dumazet, 02.10.2015) in Linux 4.4. Seitdem verarbeitet der Kernel Request-Sockets ohne Listener-Lock.
-- Der Fix gibt die Optionen erst nach einer RCU-Grace-Period frei (`kfree_rcu()` in `inet_sock_destruct()` und `tcp_v4_reqsk_destructor()`). Upstream-Commit `e3f33b0a1d89`, laut The Hacker News vom 05.10.2026.
+- Der Fix gibt die Optionen erst nach einer RCU-Grace-Period frei (`kfree_rcu()` in `inet_sock_destruct()` und `tcp_v4_reqsk_destructor()`). Upstream-Commit `e3f33b0a1d89` ("ipv4: free inet_opt and ireq_opt after an RCU grace period") vom 05.10.2026. Die CVE ist seit 15.10.2026 veröffentlicht.
 - IPv6 ist vom Hauptfehler nicht betroffen, weil `tcp_v6_syn_recv_sock()` die Optionen kopiert. Das Migrationsproblem gibt es dort ebenfalls, aber nur mit CALIPSO-Optionen. Das soll ein eigener Patch beheben.
 - Ausgelöst wird der Fehler laut Kernel-CVE-Team mit einem SYN, das die IPv4-Optionen Record Route oder Timestamp trägt, und einem wiederholten SYN, um die Race zu gewinnen. Ohne IP-Optionen im SYN gibt es keine Optionen, die freigegeben werden könnten.
 - Mögliche Folgen: Kernel-Speicher geht an den Angreifer zurück, Kernel-Speicher wird überschrieben, das System stürzt ab.
-- Gefunden hat die Lücke laut The Hacker News Xinyang Ge von Anthropic.
+- Gefunden hat die Lücke laut The Hacker News Xinyang Ge von Anthropic. Der Kernel-Fix nennt einen Anthropic-Forscher als Melder.
 
 ### Bewertung
 
 | Quelle | CVSS 3.1 | Vektor bzw. Einstufung |
 | --- | --- | --- |
 | Kernel-CVE-Team (CNA), NVD, Ubuntu | 9.8 | `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H` |
+| Ubuntu (CVSS 4.0, laut Aikido) | 8.3 | Verfügbarkeit hoch, Vertraulichkeit und Integrität niedrig |
 | Red Hat (VEX, Version 3 vom 30.10.) | 8.1 | `AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H`, Important |
 | Oracle, SUSE (laut The Hacker News) | 8.1 | wie Red Hat |
-| Amazon (laut The Hacker News) | 7.0 | |
+| Amazon (laut The Hacker News) | 7.0 | Important |
+| Red Hat (CVE-Seite, laut Aikido am 02.11.) | 5.9 | Race schwer zu gewinnen, Absturz am wahrscheinlichsten |
 
-Der einzige Unterschied zwischen 9.8 und 8.1 ist die Angriffskomplexität. Das Kernel-CVE-Team setzt sie auf niedrig, weil der Angreifer beide Seiten der Race selbst auslöst. Red Hat setzt sie auf hoch und erwartet vor allem Abstürze, Speicherkorruption hält Red Hat nur für theoretisch möglich.
+Der einzige Unterschied zwischen 9.8 und 8.1 ist die Angriffskomplexität. Das Kernel-CVE-Team setzt sie auf niedrig, weil der Angreifer beide Seiten der Race selbst auslöst. Red Hat setzt sie auf hoch und erwartet vor allem Abstürze, Speicherkorruption hält Red Hat nur für theoretisch möglich. Auf der CVE-Seite führt Red Hat inzwischen 5.9, die VEX-Datei vom 30.10. noch 8.1.
 
 ### Ausnutzung
 
 - Anthropic hat einen Exploit gebaut, der ohne Login und ohne Zutun eines Nutzers Root-Rechte auf einem Linux-Server mit MPTCP-Listener erreicht. Stufe 1 nutzt die Race, damit der Kernel zusätzliche Bytes an den Angreifer schickt. Enthält eine Antwort einen Kernel-Pointer, ist KASLR ausgehebelt. Stufe 2 nutzt denselben Fehler für einen Buffer-Overflow, überschreibt einen Callback-Pointer und springt in eine vorher im Kernel abgelegte Payload, die einen Shell-Befehl als root ausführt.
 - Dauer im Test: 48 Minuten bis zum Kernel-Pointer, weitere 5 Minuten bis zur Codeausführung. Eine verlorene Race lässt nur den Handshake scheitern, der Angreifer kann also beliebig oft wiederholen.
-- Exploit-Code, Kernel-Version und Testkonfiguration hat Anthropic nicht veröffentlicht. Warum der MPTCP-Listener nötig ist und ob Server ohne MPTCP genauso angreifbar sind, sagt der Beitrag nicht.
+- Exploit-Code, Kernel-Version und Testkonfiguration hat Anthropic nicht veröffentlicht. Warum der MPTCP-Listener nötig ist, sagt der Beitrag nicht. Das Kernel-Team von CloudLinux konnte den Exploit laut Aikido nicht nachstellen.
+- Weder der CVE-Eintrag noch der Kernel-Fix erwähnen MPTCP. Das Go Security Team hält deshalb auch Systeme ohne MPTCP-Listener für möglicherweise angreifbar.
+- MPTCP-Listener sind häufiger als gedacht: Seit Go 1.24 fordern Go-Programme für ihre Listen-Sockets standardmäßig MPTCP an, wenn der Kernel es erlaubt. Ein Go-Server wird so zum MPTCP-Listener, ohne dass jemand das bewusst eingestellt hat. AlmaLinux und CloudLinux liefern MPTCP standardmäßig abgeschaltet aus.
 - Aktive Angriffe sind nicht bekannt. CISA führt die Lücke nicht im KEV-Katalog (Version 2026.10.29). Der EPSS-Wert liegt am 29.10. bei 0,39 % (Perzentil 32,8).
 
 ## Welche Kernel betroffen sind
 
-Betroffen ist jeder Kernel ab 4.4 ohne den Fix. Gefixt sind diese stabilen Versionen:
+Betroffen ist jeder Kernel ab 4.4 ohne den Fix, auf dem ein Angreifer einen IPv4-TCP-Port erreicht. Gefixt sind diese stabilen Versionen:
 
 | Serie | Gefixt in |
 | --- | --- |
@@ -49,6 +55,12 @@ Betroffen ist jeder Kernel ab 4.4 ohne den Fix. Gefixt sind diese stabilen Versi
 | 7.3 | 7.3 |
 
 Kernel vor 4.4 (z. B. 3.10, 3.13, 4.1) enthalten den verursachenden Commit nicht. Distributionskernel mit vielen Backports können davon abweichen, deshalb zählt bei Debian, Ubuntu und Red Hat die Aussage des Herstellers, nicht die Versionsnummer.
+
+Was vor dem Host steht, ändert die Lage nur, wenn es TCP selbst terminiert:
+
+- Ein Reverse Proxy (nginx, HAProxy) auf demselben Linux-Host schützt nicht. Den Handshake macht der Kernel der Maschine, die die Verbindung annimmt.
+- Bei Containern zählt der Kernel des Nodes, auf dem sie laufen.
+- Ein separater Load Balancer oder Managed Service, der TCP terminiert, hält Pakete aus dem Internet vom Kernel fern. Die Hosts dahinter brauchen den Fix trotzdem.
 
 ## Debian
 
@@ -125,8 +137,25 @@ Betroffen, bis ein Kernel mit dem Fix erscheint. Stream ist der Entwicklungszwei
 Laut The Hacker News und den jeweiligen CVE-Seiten am 29.10.:
 
 - Oracle Linux 7 bis 10 mit UEK: gefixt am 16.10. (ELSA-2026-500397, -500398, -500399).
-- Amazon Linux 2023: gefixt für `kernel6.18` (ALAS2023-2026-3251) und `kernel6.12` (ALAS2023-2026-3335). `kernel` in AL2023 und Amazon Linux 2 noch offen.
+- Amazon Linux 2 und 2023: laut Aikido (02.11.) gefixte Kernel für die Linien 4.14, 5.4, 5.10, 5.15, 6.1, 6.12 und 6.18. Am 29.10. waren erst `kernel6.18` (ALAS2023-2026-3251) und `kernel6.12` (ALAS2023-2026-3335) gefixt. Details im Abschnitt AWS.
 - SUSE: gefixt in SUSE Linux Micro 6.2 und openSUSE Leap 16.0. SLES 15 SP4 bis SP7, SLES 16.0 und SLE Micro 5.3 bis 5.5 noch offen.
+
+## AWS
+
+Laut AWS (zitiert von Aikido, 02.11.) ist ein gefixter Kernel mit Neustart die einzige vollständige Abhilfe. Ein Livepatch behebt die Lücke ebenfalls.
+
+| Dienst | Status / Maßnahme |
+| --- | --- |
+| EC2, Lightsail (selbst verwaltet) | betroffen, Kernel aktualisieren und neu starten |
+| Amazon Linux 2 | `sudo yum update kernel && sudo reboot` |
+| Amazon Linux 2023 | `sudo dnf update kernel --releasever=latest && sudo reboot` |
+| EKS | Managed Node Groups, Self-managed und Karpenter-Nodes auf AMI-Release v20261031 oder neuer. EKS Auto Mode ersetzt Nodes selbst. |
+| ECS auf EC2 | Kernel aktualisieren und neu starten oder Instanzen aus ECS-optimiertem AMI-Release 20261031 neu aufsetzen |
+| Fargate | Tasks, die nach dem 01.11.2026 6:00 Uhr PDT starten, laufen auf der gefixten Plattform. Ältere Tasks ersetzen. |
+| Bottlerocket | gefixte AMIs ab 02.11. erwartet |
+| Lambda | nicht betroffen, keine öffentlichen IPv4-TCP-Ports |
+| WAF, ALB, CLB, NLB mit TLS-Listener, CloudFront, API Gateway | reichen bei Best-Practice-Setup keine TCP-Verbindungen direkt an die Instanzen durch, AWS patcht die Infrastruktur. Instanzen dahinter trotzdem innerhalb von 30 Tagen patchen. |
+| NLB mit TCP-Listener, Global Accelerator | Plattformversion aktualisieren, sobald gefixte Versionen da sind |
 
 ## Selbst prüfen
 
@@ -138,6 +167,9 @@ uname -r
 sysctl net.mptcp.enabled
 ss -Mltn
 
+# Go-Programme ab 1.24 öffnen MPTCP-Listener von selbst. Ist GODEBUG gesetzt?
+tr '\0' '\n' < /proc/<PID>/environ | grep GODEBUG
+
 # Request-Socket-Migration (Standard: 0)
 sysctl net.ipv4.tcp_migrate_req
 
@@ -148,13 +180,13 @@ dpkg -l 'linux-image-*' | grep '^ii'
 rpm -q --changelog kernel-core | grep -i 'free inet_opt and ireq_opt'
 ```
 
-Nach dem Kernel-Update muss das System neu starten. Erst wenn `uname -r` die neue Version zeigt, ist der Fix aktiv.
+Nach dem Kernel-Update muss das System neu starten. Erst wenn `uname -r` die neue Version zeigt, ist der Fix aktiv. Scanner, die nur installierte Pakete auswerten (z. B. Aikidos VM-Scan), zeigen einen Host schon vor dem Neustart als gefixt an.
 
 ## Was tun
 
-1. Gefixten Kernel einspielen und neu starten, wo es ihn gibt: Debian bookworm, trixie, forky und sid, Oracle Linux, Teile von Amazon Linux und SUSE.
+1. Gefixten Kernel einspielen und neu starten, wo es ihn gibt: Debian bookworm, trixie, forky und sid, Oracle Linux, Amazon Linux 2 und 2023 sowie Teile von SUSE. Zuerst Hosts mit Port ins Internet, auch vergessene VMs und Container-Nodes.
 2. Wer selbst Kernel baut: auf eine der gefixten Stable-Versionen aus der Tabelle oben gehen. Das Kernel-CVE-Team rät davon ab, nur den einzelnen Commit zu übernehmen.
-3. Für Ubuntu, RHEL 8 bis 10, CentOS Stream und OpenShift gibt es noch keinen Fix. Bis dahin helfen die folgenden Maßnahmen. Sie stammen von mir, kein Hersteller und kein Advisory empfiehlt sie.
+3. Für Ubuntu, RHEL 8 bis 10, CentOS Stream und OpenShift gibt es noch keinen Fix. Bis dahin senken die folgenden Maßnahmen das Risiko, beheben den Fehler aber nicht. AWS nennt die Firewall-Regel und das Abschalten von MPTCP als Übergangslösung. Red Hat hält keine der geprüften Maßnahmen für einfach, breit anwendbar und stabil.
 
 ### Eingehende IPv4-Pakete mit IP-Optionen verwerfen
 
@@ -165,10 +197,10 @@ Der Fehler braucht ein SYN mit IPv4-Optionen (Record Route, Timestamp). Normaler
 nft add rule inet filter input ip hdrlength != 5 drop
 
 # iptables: IHL (untere 4 Bit des ersten Bytes) zwischen 6 und 15
-iptables -I INPUT -m u32 --u32 "0>>24&0xF=6:15" -j DROP
+iptables -I INPUT 1 -m u32 --u32 '0>>24&0x0f=6:15' -j DROP
 ```
 
-Die Regel muss vor der ersten Regel stehen, die bestehende oder erlaubte Verbindungen annimmt. Auf Hosts, die Pakete weiterleiten (Kubernetes-Nodes, Router), gehört sie zusätzlich in die `forward`-Chain bzw. `FORWARD`. Gegen das Migrationsproblem hilft die Regel nur bedingt, das ist aber nur bei `tcp_migrate_req=1` oder einem passenden BPF-Programm relevant.
+Die iptables-Regel ist die von AWS veröffentlichte. Für AWS Network Firewall gibt es eine gleichwertige Stateful-Regel, die strikte Regelreihenfolge braucht. Die Regel muss vor der ersten Regel stehen, die bestehende oder erlaubte Verbindungen annimmt. Auf Hosts, die Pakete weiterleiten (Kubernetes-Nodes, Router), gehört sie zusätzlich in die `forward`-Chain bzw. `FORWARD`. Gegen das Migrationsproblem hilft die Regel nur bedingt, das ist aber nur bei `tcp_migrate_req=1` oder einem passenden BPF-Programm relevant.
 
 ### MPTCP abschalten, wo es nicht gebraucht wird
 
@@ -179,6 +211,18 @@ echo 'net.mptcp.enabled = 0' > /etc/sysctl.d/90-disable-mptcp.conf
 
 Danach legt der Kernel keine neuen MPTCP-Sockets mehr an, Anwendungen fallen auf normales TCP zurück. Das nimmt Anthropics gezeigten Angriffsweg weg, behebt aber nicht den Fehler im IPv4-TCP-Code. Ob Server ohne MPTCP genauso angreifbar sind, ist offen.
 
+Wer MPTCP systemweit braucht, kann es für Go-Programme ab 1.24 einzeln abschalten:
+
+```bash
+GODEBUG=multipathtcp=0
+```
+
+Das Go Security Team nennt das eine schwache Maßnahme: Ein einziger übersehener MPTCP-Listener lässt das System verwundbar. Für Go-Server ohne vorgeschalteten Load Balancer empfiehlt Aikido die Variable trotzdem bis zum Patch.
+
+### Host hinter einen separaten Load Balancer stellen
+
+Ein Load Balancer oder Managed Service, der TCP terminiert, bevor Pakete den Kernel erreichen, nimmt den Angriffsweg aus dem Internet weg. Ein Proxy auf demselben Host zählt nicht.
+
 ### `tcp_migrate_req` auf 0 lassen
 
 Der Standard ist 0. Wer es auf 1 gesetzt hat, sollte es bis zum Kernel-Update zurücksetzen.
@@ -186,6 +230,7 @@ Der Standard ist 0. Wer es auf 1 gesetzt hat, sollte es bis zum Kernel-Update zu
 ## Quellen
 
 - [The Hacker News: Linux Kernel TCP Flaw with 9.8 CVSS](https://thehackernews.com/2026/10/linux-kernel-tcp-flaw-with-98-cvss.html)
+- [Aikido: Critical Linux kernel TCP vulnerability can allow remote code execution (CVE-2026-98432)](https://www.aikido.dev/blog/linux-kernel-tcp-rce-vulnerability-cve-2026-98432)
 - [Kernel-CVE-Team: CVE-2026-98432 (mbox)](https://git.kernel.org/pub/scm/linux/security/vulns.git/plain/cve/published/2026/CVE-2026-98432.mbox)
 - [Kernel-Fix e3f33b0a1d89](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=e3f33b0a1d89d738e2b913dab519226eaf76e15b)
 - [CVE.org: CVE-2026-98432](https://www.cve.org/CVERecord?id=CVE-2026-98432)
