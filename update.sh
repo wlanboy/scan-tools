@@ -11,13 +11,14 @@
 #   istio/istio-cves.json
 #   kafka/cves.json
 #   hadoop/cves.json
+#   litellm/vulnerabilities.json
 #   cve/cve-counts.json
 
 set -euo pipefail
 
 cd "$(dirname "$0")"
 
-files=(spring/advisories.json kev/known_exploited_vulnerabilities.json nodejs/vulnerabilities.json istio/istio-cves.json kafka/cves.json hadoop/cves.json cve/cve-counts.json)
+files=(spring/advisories.json kev/known_exploited_vulnerabilities.json nodejs/vulnerabilities.json istio/istio-cves.json kafka/cves.json hadoop/cves.json litellm/vulnerabilities.json cve/cve-counts.json)
 
 # --force: Die Altersprüfung nutzt die mtime der Datei, die nach checkout/pull frisch ist
 echo "==> Spring Advisories"
@@ -37,6 +38,9 @@ kafka/update.sh
 
 echo "==> Hadoop CVEs"
 hadoop/update.sh
+
+echo "==> LiteLLM-Schwachstellen"
+litellm/update.sh
 
 echo "==> CVEs pro Tag (NVD)"
 cve/update.sh
