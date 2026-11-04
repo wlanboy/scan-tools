@@ -1,7 +1,7 @@
 {
   "source": "https://osv.dev/list?ecosystem=PyPI&q=litellm",
   "package": "litellm",
-  "latestVersion": "1.106.6",
+  "latestVersion": "1.108.0",
   "count": 45,
   "vulnerabilities": [
     {
