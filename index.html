@@ -100,6 +100,13 @@
         <p>Use-after-free bei IPv4-Optionen im TCP-Handshake (CVSS 9.8, Hersteller 5.9 bis 8.1), Root-Exploit über MPTCP-Listener, verwandtes IPv6-Problem mit CALIPSO. Stand pro Kernel-Serie, Debian, Ubuntu, Red Hat, CentOS und AWS, Prüfbefehle und Übergangslösungen (Firewall-Regel, MPTCP und Go-<code>GODEBUG</code>).</p>
         <span class="path">tcp-handshake/ · Quelle <code>tcp-handshake/tcp-handshake.md</code></span>
       </a>
+
+      <a class="tile" href="sshhole/">
+        <span class="tag">CVE-2026-123158</span>
+        <h2>OpenSSH sshhole</h2>
+        <p>Passwort-Bypass auf musl ohne PAM (CVSS 8.1): Accounts mit <code>*</code> in <code>/etc/shadow</code> nehmen jedes Passwort mit 257 bis 1024 Bytes an. Betrifft vor allem Alpine und Alpine-basierte Container- und Cloud-Images. Vorbedingungen, gefixte Versionen für Alpine und OpenWrt, Prüfbefehle und Sofortmaßnahmen.</p>
+        <span class="path">sshhole/ · Quelle <code>sshhole/sshhole.md</code></span>
+      </a>
     </div>
 
     <h2 class="section">Werkzeuge</h2>

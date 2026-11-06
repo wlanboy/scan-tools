@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenSSH: Passwort-Bypass auf musl ohne PAM ("sshhole", CVE-2026-123158)</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+  <header>
+    <p class="back"><a href="../">← Übersicht</a></p>
+    <h1>OpenSSH: Passwort-Bypass auf musl ohne PAM ("sshhole", CVE-2026-123158)</h1>
+    <p class="muted">Stand: 06.11.2026</p>
+  </header>
+
+  <main>
+<p>Der Entdecker nennt die Lücke "*sshole" (Website sshhole.com, Repo <code>github.com/oz9un/sshole</code>), in der Presse heißt sie meist "SSHHole" oder "sshhole". sshd nimmt auf Linux-Systemen mit musl-libc und ohne PAM für Accounts mit <code>*</code> im Passwortfeld jedes Passwort mit 257 bis 1024 Bytes an. Betroffen sind vor allem Alpine Linux und Container- bzw. Cloud-Images auf Alpine-Basis. Systeme mit glibc (Debian, Ubuntu, RHEL, Fedora, SUSE) sind nicht betroffen.</p>
+
+<h2 id="worum-es-geht">Worum es geht</h2>
+
+<p>Ohne PAM prüft sshd Passwörter selbst in <code>sys_auth_passwd()</code> (<code>auth-passwd.c</code>): Es hasht das eingegebene Passwort mit <code>crypt()</code> und vergleicht das Ergebnis per <code>strcmp()</code> mit dem Eintrag aus <code>/etc/shadow</code>. Drei Verhaltensweisen greifen dabei ineinander:</p>
+
+<ol>
+  <li><strong>OpenSSH seit 2016 (Fix für CVE-2016-6210):</strong> Damit Angreifer gültige Benutzernamen nicht an der Antwortzeit erkennen, hasht sshd auch dann, wenn der gespeicherte Eintrag kein gültiger Hash ist (z. B. <code>*</code>). Das Salt dafür holt <code>pick_salt()</code> (<code>openbsd-compat/xcrypt.c</code>) von einem anderen Account mit echtem Hash, etwa <code>$6$...</code> (SHA-512).</li>
+  <li><strong>musl <code>crypt()</code> seit 2012:</strong> Im Fehlerfall gibt musl den String <code>"*"</code> zurück, nicht <code>NULL</code>, wie POSIX es vorschreibt (musl-Commit <code>b3c4cc12</code>).</li>
+  <li><strong>musl SHA-256/SHA-512-crypt seit 2012:</strong> Schlüssel über 256 Bytes werden abgelehnt (<code>KEY_MAX 256</code>, musl-Commit <code>88bf5a8a</code>). <code>crypt()</code> schlägt fehl und liefert <code>"*"</code>.</li>
+</ol>
+
+<p>Ergebnis: Für einen Account mit <code>*</code> in <code>/etc/shadow</code> hasht sshd ein 257 Byte langes Passwort mit dem <code>$6$</code>-Salt eines anderen Accounts. musl liefert <code>"*"</code>, sshd vergleicht <code>"*"</code> mit <code>"*"</code>, und der Login ist erfolgreich. Über 1024 Bytes verwirft sshd das Passwort vorher (<code>MAX_PASSWORD_LEN 1024</code>), daher die Obergrenze.</p>
+
+<p>Glibc bzw. libxcrypt geben im Fehlerfall <code>NULL</code> oder <code>"*0"</code> zurück, das passt nie auf <code>*</code>. Mit PAM prüft <code>pam_unix</code> und nicht <code>sys_auth_passwd()</code>.</p>
+
+<h3 id="der-fix">Der Fix</h3>
+
+<p>OpenSSH 10.6p2 vom 05.11.2026 enthält den Upstream-Commit <code>90f9c2f7</code> ("avoid password authn bypass", Damien Miller). sshd akzeptiert ein Passwort nur noch, wenn der gespeicherte Hash mindestens 4 Zeichen lang ist (<code>MIN_PASSWORD_HASH_LEN</code>). Einträge wie <code>*</code>, <code>!</code> oder <code>x</code> passen damit nie mehr. OpenSSH sieht die Ursache in musl, umgeht sie aber in sshd. Die Release Notes nennen es "critical security workaround".</p>
+
+<h3 id="bewertung">Bewertung</h3>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Quelle</th><th>CVSS 3.1</th><th>Vektor</th></tr></thead>
+  <tbody>
+    <tr><td>IONIX, OX Security</td><td>8.1 (High)</td><td><code>AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H</code></td></tr>
+  </tbody>
+</table></div>
+
+<p>Die hohe Angriffskomplexität kommt von den vielen Vorbedingungen (siehe unten). Ein Eintrag bei NVD und im Alpine-Security-Tracker war am 06.11. noch nicht abrufbar.</p>
+
+<h3 id="ausnutzung">Ausnutzung</h3>
+
+<ul>
+  <li>Gefunden hat die Lücke Özgün Kültekin (Wakefield). Er hat nach eigenen Angaben mit KI-Agenten rund 17.600 Login-Varianten gegen verschiedene sshd-Builds getestet. Nur musl ohne PAM fiel aus der Reihe.</li>
+  <li>Öffentliche Labs zum Nachstellen gibt es laut OX Security bereits. Der Angriff braucht nur eine einzige Verbindung mit einem langen Passwort, kein Brute-Force.</li>
+  <li>CISA führt die Lücke nicht im KEV-Katalog (Stand 05.11.2026). Aktive Angriffe sind nicht bekannt.</li>
+</ul>
+
+<h2 id="vorbedingungen">Vorbedingungen</h2>
+
+<p>Alle Punkte müssen zutreffen:</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>#</th><th>Bedingung</th><th>Bemerkung</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>sshd ist gegen musl gelinkt</td><td>Alpine, OpenWrt mit <code>openssh-server</code>, Buildroot/Yocto mit musl, Void-musl usw.</td></tr>
+    <tr><td>2</td><td>sshd läuft ohne PAM</td><td>Standard bei Alpines <code>openssh-server</code> und OpenWrts <code>openssh-server</code>. Die <code>-pam</code>-Pakete setzen <code>UsePAM yes</code>.</td></tr>
+    <tr><td>3</td><td><code>PasswordAuthentication yes</code></td><td>OpenSSH-Standard, wenn nichts anderes konfiguriert ist</td></tr>
+    <tr><td>4</td><td>Ein Account hat <code>*</code> in <code>/etc/shadow</code></td><td>siehe unten</td></tr>
+    <tr><td>5</td><td>Ein anderer Account hat einen <code>$5$</code>- oder <code>$6$</code>-Hash</td><td>liefert das Salt. Ohne ihn nimmt sshd das DES-Salt <code>xx</code>, DES kürzt auf 8 Zeichen und schlägt nicht fehl.</td></tr>
+    <tr><td>6</td><td>sshd lässt den <code>*</code>-Account zu</td><td><code>PermitRootLogin prohibit-password</code> (Standard) sperrt root für Passwörter, <code>AllowUsers</code>/<code>DenyUsers</code> können ebenfalls schützen</td></tr>
+  </tbody>
+</table></div>
+
+<h3 id="warum-stern-auf-alpine">Warum <code>*</code> auf Alpine so häufig ist</h3>
+
+<p>sshd ohne PAM behandelt <code>!</code> am Anfang des Hashes als gesperrten Account und lehnt dann auch Key-Logins ab. Wer auf Alpine einen reinen Key-Account braucht, setzt deshalb <code>*</code> (z. B. <code>echo "user:*" | chpasswd -e</code> oder <code>usermod -p '*'</code>). Das ist eine verbreitete Empfehlung für Alpine und steht so in vielen Dockerfiles.</p>
+
+<ul>
+  <li><strong>root in Alpine-Images:</strong> Seit Alpine 3.16 (2022) steht root in den Images auf <code>*</code> (Reaktion auf CVE-2019-5021). Mit dem Standard <code>PermitRootLogin prohibit-password</code> ist root per Passwort trotzdem nicht erreichbar.</li>
+  <li><strong><code>alpine</code>-User in den offiziellen AWS- und Azure-Images:</strong> hat <code>*</code> und passwortloses <code>doas</code>. Kommt man als <code>alpine</code> rein, ist man root.</li>
+  <li><strong>Key-only-Deploy-User, Git-User, LDAP-User:</strong> typischerweise <code>*</code>.</li>
+</ul>
+
+<h2 id="was-betroffen-ist">Was betroffen ist</h2>
+
+<h3 id="betroffen">Betroffen</h3>
+
+<ul>
+  <li><strong>Alpine Linux</strong> mit Paket <code>openssh-server</code> (ohne PAM) bis zum gefixten Paket, alle Releases ab 3.16. Ältere Releases sind nicht gepatcht, der Code ist dort ebenfalls verwundbar.</li>
+  <li><strong>Container-Images auf Alpine-Basis, die einen sshd mitbringen</strong>, z. B. SFTP-, Bastion-, Jump-Host- und Git-Server-Images. Das reine <code>alpine:*</code>-Basisimage enthält keinen sshd und ist nicht betroffen.</li>
+  <li><strong>Alpine-Cloud-Images (AWS, Azure)</strong> wegen des <code>alpine</code>-Users, sobald Passwort-Login an ist und ein weiterer Account einen <code>$6$</code>-Hash hat.</li>
+  <li><strong>OpenWrt</strong> nur mit nachinstalliertem Paket <code>openssh-server</code> (ohne PAM). Der Standard-SSH-Server von OpenWrt ist Dropbear.</li>
+  <li><strong>Embedded-Systeme mit Buildroot oder Yocto</strong>, wenn musl und OpenSSH ohne PAM gebaut wurden.</li>
+</ul>
+
+<h3 id="nicht-betroffen">Nicht betroffen</h3>
+
+<ul>
+  <li>glibc-Distributionen: Debian, Ubuntu, RHEL, CentOS, Rocky, Alma, Fedora, SUSE, Arch</li>
+  <li>sshd mit <code>UsePAM yes</code> (z. B. Alpine <code>openssh-server-pam</code>, OpenWrt <code>openssh-server-pam</code>)</li>
+  <li><code>PasswordAuthentication no</code></li>
+  <li>Dropbear (auch auf musl), OpenBSD</li>
+  <li>Accounts mit echtem Passwort-Hash: Für sie greift die Lücke nicht, ein falsches Passwort bleibt falsch.</li>
+  <li>Accounts mit <code>!</code> statt <code>*</code></li>
+</ul>
+
+<h3 id="beispiel-gitea-und-forgejo">Beispiel Gitea und Forgejo</h3>
+
+<p>Die offiziellen Docker-Images von Gitea und Forgejo basieren auf <code>alpine:3.24</code>, installieren <code>openssh</code> und setzen <code>echo "git:*" | chpasswd -e</code>. Das sshd-Template von Gitea setzt aber <code>PasswordAuthentication no</code>. Im Standard sind sie damit nicht angreifbar. Wer die Template-Variable auf <code>yes</code> gestellt hat, sollte die Images trotzdem neu ziehen.</p>
+
+<h2 id="gefixte-versionen">Gefixte Versionen</h2>
+
+<h3 id="openssh-upstream">OpenSSH upstream</h3>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Version</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>10.6p2 (05.11.2026)</td><td>gefixt</td></tr>
+    <tr><td>alle Portable-Versionen davor seit 2016</td><td>verwundbar unter den oben genannten Bedingungen</td></tr>
+  </tbody>
+</table></div>
+
+<h3 id="alpine-linux">Alpine Linux</h3>
+
+<p>Alpine hat am 05.11.2026 alle Branches ab 3.16 gepatcht, auch die nicht mehr unterstützten. Ältere Versionen (z. B. 9.3_p2) haben den Upstream-Commit als <code>pw.patch</code> bekommen. Geprüft am 06.11. in den <code>APKBUILD</code>-Dateien der aports-Branches:</p>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Branch</th><th>gefixt in <code>openssh</code></th></tr></thead>
+  <tbody>
+    <tr><td>edge</td><td>10.6_p2-r0</td></tr>
+    <tr><td>3.24</td><td>10.3_p1-r2</td></tr>
+    <tr><td>3.23</td><td>10.2_p1-r1</td></tr>
+    <tr><td>3.22</td><td>10.0_p1-r11</td></tr>
+    <tr><td>3.21</td><td>9.9_p2-r1</td></tr>
+    <tr><td>3.20</td><td>9.7_p1-r6</td></tr>
+    <tr><td>3.19</td><td>9.6_p1-r3</td></tr>
+    <tr><td>3.18</td><td>9.3_p2-r4</td></tr>
+    <tr><td>3.17</td><td>9.1_p1-r7</td></tr>
+    <tr><td>3.16</td><td>9.0_p1-r6</td></tr>
+    <tr><td>3.15 und älter</td><td>kein Fix</td></tr>
+  </tbody>
+</table></div>
+
+<p>Wichtig für Scanner: Die <code>secfixes</code>-Liste im APKBUILD (Grundlage der Alpine-secdb) enthält CVE-2026-123158 am 06.11. noch nicht. Trivy, Grype und andere Scanner, die die secdb auswerten, melden die Lücke deshalb unter Umständen noch nicht. Bis dahin hilft nur ein Versionsvergleich mit der Tabelle.</p>
+
+<h3 id="openwrt">OpenWrt (Feed <code>packages</code>)</h3>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Branch</th><th><code>openssh-server</code></th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>master</td><td>10.6_p2-1</td><td>gefixt</td></tr>
+    <tr><td>openwrt-25.12</td><td>10.6_p2-1</td><td>gefixt</td></tr>
+    <tr><td>openwrt-24.10</td><td>9.9_p2-2</td><td>gefixt (Backport <code>0001-avoid-password-authn-bypass.patch</code>)</td></tr>
+    <tr><td>openwrt-23.05</td><td>9.8p1-2</td><td>gefixt (Backport)</td></tr>
+  </tbody>
+</table></div>
+
+<p>OpenWrts Standard-<code>/etc/shadow</code> hat <code>*</code> bei <code>daemon</code>, <code>network</code> und <code>nobody</code> (Shell <code>/bin/false</code>). Erst wenn root ein Passwort mit <code>$5$</code>/<code>$6$</code>-Hash bekommt, ist Bedingung 5 erfüllt.</p>
+
+<h2 id="pruefen">Prüfen</h2>
+
+<p>Ist der sshd verwundbar? Auf dem Host bzw. im Container:</p>
+
+<pre><code class="lang-bash"># 1. musl?
+ldd --version 2&gt;&amp;1 | head -1            # "musl libc" → musl
+
+# 2. Paketversion (Alpine) mit der Tabelle oben vergleichen
+apk info -v openssh-server openssh-server-pam 2&gt;/dev/null
+
+# 3. Effektive sshd-Konfiguration
+sshd -T | grep -Ei '^(usepam|passwordauthentication|permitrootlogin|allowusers|denyusers) '
+
+# 4. Accounts mit "*" und Accounts mit $5$/$6$-Hash
+awk -F: '$2=="*"{print "STERN:", $1} $2 ~ /^\$[56]\$/ {print "HASH: ", $1}' /etc/shadow</code></pre>
+
+<p>Verwundbar, wenn: musl, Paket älter als die gefixte Version, <code>usepam no</code>, <code>passwordauthentication yes</code>, mindestens ein <code>STERN</code>-Account, der sich anmelden darf, und mindestens ein <code>HASH</code>-Account.</p>
+
+<p>Spuren eines Angriffs:</p>
+
+<pre><code class="lang-bash">grep "Accepted password" /var/log/messages /var/log/auth.log 2&gt;/dev/null</code></pre>
+
+<p>Ein <code>Accepted password</code> für einen Account mit <code>*</code> in <code>/etc/shadow</code> ist ein starker Hinweis, denn solche Accounts haben kein Passwort. Die Passwortlänge steht nicht im Log.</p>
+
+<h2 id="gegenmassnahmen">Gegenmaßnahmen</h2>
+
+<ol>
+  <li><strong>Patchen:</strong> <code>apk upgrade -U -a</code> und danach <code>rc-service sshd restart</code>. Das Paket-Update allein ersetzt den laufenden Daemon nicht.</li>
+  <li><strong>Container- und Cloud-Images neu bauen</strong>, die auf Alpine basieren und einen sshd enthalten. Ein laufender Container bekommt den Fix nicht durch ein neues Basisimage.</li>
+  <li><strong>Sofort, falls Patchen nicht geht:</strong> Key-Login testen, eine Sitzung offen lassen, dann Passwort-Login abschalten:
+<pre><code class="lang-bash">echo "PasswordAuthentication no" &gt; /etc/ssh/sshd_config.d/00-sshhole.conf
+rc-service sshd restart</code></pre>
+    <p>Die Datei muss alphabetisch vor anderen Drop-ins liegen, weil bei sshd der erste Treffer gilt. Mit <code>sshd -T | grep passwordauthentication</code> prüfen.</p>
+  </li>
+  <li><strong>Härten:</strong> nur Public-Key-Auth, SSH nicht ins Internet exponieren, <code>AllowUsers</code> setzen.</li>
+</ol>
+
+<h2 id="quellen">Quellen</h2>
+
+<ul>
+  <li><a href="https://www.openssh.org/releasenotes.html" target="_blank" rel="noopener">OpenSSH Release Notes 10.6p2</a></li>
+  <li><a href="https://sshhole.com" target="_blank" rel="noopener">sshhole.com</a> (Entdecker, Hintergrund und Zeitleiste)</li>
+  <li><a href="https://www.bleepingcomputer.com/news/security/openssh-flaw-lets-attackers-log-into-password-disabled-linux-accounts/" target="_blank" rel="noopener">BleepingComputer: OpenSSH flaw lets attackers log into password-disabled Linux accounts</a></li>
+  <li><a href="https://www.ox.security/blog/openssh-authentication-bypass-cve-2026-123158/" target="_blank" rel="noopener">OX Security: CVE-2026-123158</a></li>
+  <li><a href="https://www.ionix.io/threat-center/cve-2026-123158/" target="_blank" rel="noopener">IONIX Threat Center: CVE-2026-123158</a></li>
+  <li><a href="https://threatlandscape.io/blog/openssh-musl-linux-arbitrary-long-passwords-locked-accounts" target="_blank" rel="noopener">Threat Landscape: sshhole on Alpine and OpenWrt</a></li>
+  <li>Alpine aports, <code>main/openssh/APKBUILD</code> und <code>pw.patch</code> in den Branches <code>master</code> bis <code>3.16-stable</code></li>
+  <li>OpenWrt packages, <code>net/openssh/Makefile</code> in <code>master</code>, <code>openwrt-25.12</code>, <code>openwrt-24.10</code>, <code>openwrt-23.05</code></li>
+  <li>Gitea <code>Dockerfile</code> und <code>docker/root/etc/templates/sshd_config</code>, Forgejo <code>Dockerfile</code></li>
+</ul>
+  </main>
+</body>
+</html>
