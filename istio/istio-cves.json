@@ -1,5 +1,10 @@
 [
   {
+    "version": "1.31.4",
+    "url": "https://istio.io/latest/news/releases/1.31.x/announcing-1.31.4/",
+    "cves": []
+  },
+  {
     "version": "1.31.3",
     "url": "https://istio.io/latest/news/releases/1.31.x/announcing-1.31.3/",
     "cves": [
@@ -35,6 +40,11 @@
   {
     "version": "1.31.0",
     "url": "https://istio.io/latest/news/releases/1.31.x/announcing-1.31/",
+    "cves": []
+  },
+  {
+    "version": "1.30.8",
+    "url": "https://istio.io/latest/news/releases/1.30.x/announcing-1.30.8/",
     "cves": []
   },
   {
