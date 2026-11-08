@@ -125,7 +125,7 @@
           ]
         }
       },
-      "description": "Apache Kafka Connect has the /connector-plugins/{connector-type}/config/validate endpoint on its REST API to validate connector configurations. Apache Kafka Connect also supports Configuration Providers, which allow the values of sensitive configuration to be hidden and resolved only at runtime.\n\nAn attacker with access to the validate endpoint can use it to resolve and return plaintext values via any of the configuration providers installed on a Connect worker.\n\nCredit: Hyunwoo Kim (reporter), Sudhanshu Chauhan (RedHunt Labs) (reporter), Bartłomiej Dmitruk (Striga) (reporter), Andrew MacPherson (reporter), Mickael Maison (remediation developer)\n\nReferences: CVE-2026-116593",
+      "description": "Apache Kafka Connect has the /connector-plugins/{connector-type}/config/validate endpoint on its REST API to validate connector configurations. Apache Kafka Connect also supports Configuration Providers, which allow the values of sensitive configuration to be hidden and resolved only at runtime.\n\nAn attacker with access to the validate endpoint can use it to resolve and return plaintext values via any of the configuration providers installed on a Connect worker.\n\nCredit: Hyunwoo Kim (reporter), Sudhanshu Chauhan (RedHunt Labs) (reporter), Bartłomiej Dmitruk (Striga) (reporter), Andrew MacPherson (reporter), Liran Neduva (nedlir) (reporter), Mickael Maison (remediation developer)\n\nReferences: CVE-2026-116593",
       "impact": "This issue could result in exposing sensitive configuration values (such as externalized secrets) that are normally hidden by Connect configuration providers.",
       "advice": "Users are recommended to upgrade to 4.2.2, 4.3.2, 4.4.0, or above, which fix this issue.",
       "references": [
@@ -2084,7 +2084,7 @@
       "advice": "",
       "references": [
         "http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-12610",
-        "https://github.com/apache/kafka-site//commit/e6cb1ef29f17ccb21d6d56efc9331d7098ed3719",
+        "https://github.com/apache/kafka-site//commit/cd727c4dd8664857751a87cd0442e51a3d3aca8f",
         "https://lists.apache.org/thread.html/b6157be1a09df332294213bd21e90dcf9fe4c1810193be54620e4210%40%3Cusers.kafka.apache.org%3E",
         "http://www.securityfocus.com/bid/104899",
         "https://lists.apache.org/thread.html/b0656d359c7d40ec9f39c8cc61bca66802ef9a2a12ee199f5b0c1442%40%3Cdev.drill.apache.org%3E",
